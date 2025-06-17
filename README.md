@@ -20,7 +20,7 @@ A Wordle-style word guessing game integration for Home Assistant. Play directly 
 2. Go to "Integrations" 
 3. Click the three dots (⋮) in the top right
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/yourusername/ha-wordplay`
+5. Add this repository URL: `https://github.com/CBDesignS/ha-wordplay`
 6. Select "Integration" as the category
 7. Click "Add"
 8. Search for "H.A WordPlay" and install
@@ -190,10 +190,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 📞 Support
 
-- **Issues**: Report bugs on [GitHub Issues](https://github.com/yourusername/ha-wordplay/issues)
-- **Discussions**: Join the conversation in [GitHub Discussions](https://github.com/yourusername/ha-wordplay/discussions)
+- **Issues**: Report bugs on [GitHub Issues](https://github.com/CBDesignS/ha-wordplay/issues)
+- **Discussions**: Join the conversation in [GitHub Discussions](https://github.com/CBDesignS/ha-wordplay/discussions)
 - **Home Assistant Community**: Find help in the [HA Community Forum](https://community.home-assistant.io/)
 
 ---
 
-**Note**: This integration is not affiliated with or endorsed by the original Wordle game or The New York Times.
+**Note**: This integration is not affiliated with or endorsed by the original Wordle game or The New York Times. It is My take with my code of a sinple to play word guessing game...
