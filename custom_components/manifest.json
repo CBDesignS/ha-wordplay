@@ -4,10 +4,10 @@
   "codeowners": [],
   "config_flow": false,
   "dependencies": [],
-  "documentation": "https://github.com/yourusername/ha-wordplay",
+  "documentation": "https://github.com/CBDesignS/ha-wordplay",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/yourusername/ha-wordplay/issues",
+  "issue_tracker": "https://github.com/CBDesignS/ha-wordplay/issues",
   "requirements": ["aiohttp"],
   "version": "0.1.0"
 }
