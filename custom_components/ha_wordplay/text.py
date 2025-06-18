@@ -42,12 +42,13 @@ class WordPlayGuessInput(TextEntity):
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the text input entity."""
+        super().__init__()
         self.hass = hass
         self._attr_name = "ha wordplay guess input"  # This will create text.ha_wordplay_guess_input
         self._attr_unique_id = f"{DOMAIN}_guess_input"
         self._attr_entity_category = None
         self._attr_icon = "mdi:keyboard"
-        self._attr_native_value = ""
+        self._attr_native_value = "HELLO"  # Start with a valid 5-letter value
         self._attr_native_max = MAX_WORD_LENGTH
         self._attr_native_min = MIN_WORD_LENGTH
         self._attr_pattern = r"^[A-Za-z]*$"
@@ -70,6 +71,14 @@ class WordPlayGuessInput(TextEntity):
             _LOGGER.warning("Invalid guess input: %s (only letters allowed)", value)
             return
             
+        # Ensure minimum length for HA validation
+        if len(value) < MIN_WORD_LENGTH and value != "":
+            # Pad with spaces or set to minimum valid value
+            if value == "":
+                value = "HELLO"  # Default valid value
+            else:
+                return  # Don't set invalid short values
+            
         # Limit length based on current game
         game_data = self.hass.data.get(DOMAIN, {})
         game = game_data.get("game")
@@ -86,5 +95,5 @@ class WordPlayGuessInput(TextEntity):
 
     async def async_clear_value(self) -> None:
         """Clear the input value."""
-        self._attr_native_value = ""
+        self._attr_native_value = "HELLO"  # Set to valid default instead of empty
         self.async_write_ha_state()
