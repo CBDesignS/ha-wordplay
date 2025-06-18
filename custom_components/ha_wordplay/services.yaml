@@ -27,3 +27,7 @@ make_guess:
 get_hint:
   name: Get Hint
   description: Get a hint for the current word
+
+submit_guess:
+  name: Submit Current Guess
+  description: Submit the word from the input field

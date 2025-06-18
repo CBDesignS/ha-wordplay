@@ -6,6 +6,8 @@ from typing import Any, Dict
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.helpers import entity_registry as er
+from homeassistant.components.input_text import DOMAIN as INPUT_TEXT_DOMAIN
 
 from .const import (
     DOMAIN,
@@ -25,6 +27,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     game = WordPlayGame(hass)
     hass.data[DOMAIN] = {"game": game}
     
+    # Create input_text helper entity
+    await _create_input_text_helper(hass)
+    
+    # Create automation for auto-submit
+    await _create_auto_submit_automation(hass)
+    
     # Register services
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
@@ -35,11 +43,23 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         """Handle make guess service call."""
         guess = call.data.get("guess", "").upper()
         if guess:
-            await game.make_guess(guess)
+            result = await game.make_guess(guess)
+            # Clear input field after successful guess
+            if "error" not in result:
+                await _clear_input_field(hass)
     
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
         await game.get_hint()
+    
+    async def handle_submit_guess(call: ServiceCall) -> None:
+        """Handle submit current guess service call."""
+        current_guess = hass.states.get("input_text.ha_wordplay_guess")
+        if current_guess and current_guess.state:
+            guess = current_guess.state.upper()
+            result = await game.make_guess(guess)
+            # Clear input field after submission
+            await _clear_input_field(hass)
     
     # Register the services
     hass.services.async_register(
@@ -51,9 +71,50 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, SERVICE_GET_HINT, handle_get_hint
     )
+    hass.services.async_register(
+        DOMAIN, "submit_guess", handle_submit_guess
+    )
     
     _LOGGER.info("H.A WordPlay integration setup complete")
     return True
+
+async def _create_input_text_helper(hass: HomeAssistant) -> None:
+    """Create input_text helper for word guessing."""
+    try:
+        # Create the input_text entity programmatically
+        entity_id = "input_text.ha_wordplay_guess"
+        
+        # Check if it already exists
+        if hass.states.get(entity_id) is None:
+            # Create the entity using the input_text component
+            await hass.services.async_call(
+                "input_text", "set_value",
+                {"entity_id": entity_id, "value": ""},
+                blocking=False
+            )
+            _LOGGER.info("Created input_text helper: %s", entity_id)
+    except Exception as e:
+        _LOGGER.warning("Could not create input_text helper: %s", e)
+
+async def _create_auto_submit_automation(hass: HomeAssistant) -> None:
+    """Create automation for auto-submitting guesses."""
+    try:
+        # This will be handled by our service instead of a separate automation
+        # to keep everything within the integration
+        _LOGGER.info("Auto-submit will be handled by submit_guess service")
+    except Exception as e:
+        _LOGGER.warning("Could not create automation: %s", e)
+
+async def _clear_input_field(hass: HomeAssistant) -> None:
+    """Clear the input field after a guess."""
+    try:
+        await hass.services.async_call(
+            "input_text", "set_value",
+            {"entity_id": "input_text.ha_wordplay_guess", "value": ""},
+            blocking=False
+        )
+    except Exception as e:
+        _LOGGER.debug("Could not clear input field: %s", e)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload H.A WordPlay integration."""
@@ -63,6 +124,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.services.async_remove(DOMAIN, SERVICE_NEW_GAME)
     hass.services.async_remove(DOMAIN, SERVICE_MAKE_GUESS)
     hass.services.async_remove(DOMAIN, SERVICE_GET_HINT)
+    hass.services.async_remove(DOMAIN, "submit_guess")
     
     # Clean up data
     hass.data.pop(DOMAIN, None)
