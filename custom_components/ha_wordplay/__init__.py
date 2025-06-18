@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
     DOMAIN,
@@ -37,9 +37,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     }
     
     # Create custom entities
-    from homeassistant.helpers.entity_platform import async_get_current_platform
-    
-    async def add_entities_callback(entities):
+    def add_entities_callback(entities):
         """Callback to add entities."""
         # Store entity references for game interaction
         for entity in entities:
@@ -52,14 +50,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await async_setup_entities(hass, add_entities_callback)
     
     # Set up state tracking for live input updates
-    async def handle_input_change(entity_id, old_state, new_state):
+    async def handle_input_change(event):
         """Handle changes to the text input."""
+        entity_id = event.data.get("entity_id")
+        new_state = event.data.get("new_state")
         if new_state and entity_id == "text.ha_wordplay_guess_input":
             await game.update_current_input(new_state.state or "")
     
     # Track the text input entity
-    async_track_state_change(
-        hass, "text.ha_wordplay_guess_input", handle_input_change
+    async_track_state_change_event(
+        hass, ["text.ha_wordplay_guess_input"], handle_input_change
     )
     
     # Register services
