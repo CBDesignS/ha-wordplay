@@ -6,7 +6,7 @@ from typing import Any, Dict
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, discovery
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import (
@@ -18,7 +18,6 @@ from .const import (
     DEFAULT_WORD_LENGTH,
 )
 from .game_logic import WordPlayGame
-from .entities import async_setup_entities
 from .lovelace import async_create_wordplay_dashboard
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,18 +35,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         "entities": {}
     }
     
-    # Create custom entities
-    def add_entities_callback(entities):
-        """Callback to add entities."""
-        # Store entity references for game interaction
-        for entity in entities:
-            if hasattr(entity, 'entity_id'):
-                if 'guess_input' in entity.entity_id:
-                    hass.data[DOMAIN]["entities"]["text_input"] = entity
-                elif 'word_length' in entity.entity_id:
-                    hass.data[DOMAIN]["entities"]["word_length"] = entity
-    
-    await async_setup_entities(hass, add_entities_callback)
+    # Set up platforms for custom entities
+    await discovery.async_load_platform(
+        hass, "text", DOMAIN, {}, config
+    )
+    await discovery.async_load_platform(
+        hass, "select", DOMAIN, {}, config
+    )
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
