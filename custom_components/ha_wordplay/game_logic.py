@@ -1,4 +1,40 @@
-"""Game logic for H.A WordPlay."""
+    def _is_valid_guess(self, guess: str) -> tuple[bool, str]:
+        """Validate guess for anti-cheating rules."""
+        guess = guess.upper().strip()
+        
+        # Basic validation
+        if len(guess) != self.word_length:
+            return False, f"Guess must be {self.word_length} letters"
+        
+        if not guess.isalpha():
+            return False, "Guess must contain only letters"
+        
+        # Check if already guessed
+        if guess in self.guesses:
+            return False, "Already guessed that word"
+        
+        # Anti-cheat: Prevent pure vowel dumping
+        vowels = set('AEIOU')
+        consonants = set('BCDFGHJKLMNPQRSTVWXYZ')
+        
+        guess_letters = set(guess)
+        vowel_count = len(guess_letters & vowels)
+        consonant_count = len(guess_letters & consonants)
+        
+        # Rule 1: Can't be all vowels
+        if consonant_count == 0:
+            return False, "Guess must contain at least one consonant (no vowel dumping!)"
+        
+        # Rule 2: Can't have more than 60% vowels (prevents AEIOU + 1 consonant)
+        vowel_percentage = vowel_count / len(guess_letters)
+        if vowel_percentage > 0.6:
+            return False, "Too many vowels! Try a more balanced word"
+        
+        # Rule 3: Must have at least 2 different consonants for words 5+ letters
+        if self.word_length >= 5 and consonant_count < 2:
+            return False, "Need at least 2 different consonants for fair play"
+        
+        return True, """""Game logic for H.A WordPlay."""
 import logging
 import aiohttp
 import asyncio
@@ -95,15 +131,10 @@ class WordPlayGame:
             
             guess = guess.upper().strip()
             
-            if len(guess) != self.word_length:
-                return {"error": f"Guess must be {self.word_length} letters"}
-            
-            if not guess.isalpha():
-                return {"error": "Guess must contain only letters"}
-            
-            # Check if already guessed
-            if guess in self.guesses:
-                return {"error": "Already guessed that word"}
+            # Validate guess with anti-cheat rules
+            is_valid, error_msg = self._is_valid_guess(guess)
+            if not is_valid:
+                return {"error": error_msg}
             
             # Process the guess
             self.guesses.append(guess)
