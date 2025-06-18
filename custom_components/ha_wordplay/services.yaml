@@ -4,12 +4,12 @@ new_game:
   fields:
     word_length:
       name: Word Length
-      description: Number of letters in the word (4-8)
-      required: true
+      description: Number of letters in the word (5-8)
+      required: false
       default: 5
       selector:
         number:
-          min: 4
+          min: 5
           max: 8
           step: 1
 

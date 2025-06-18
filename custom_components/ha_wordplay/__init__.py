@@ -7,15 +7,18 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers import entity_registry as er
-from homeassistant.components.input_text import DOMAIN as INPUT_TEXT_DOMAIN
+from homeassistant.helpers.event import async_track_state_change
 
 from .const import (
     DOMAIN,
     SERVICE_NEW_GAME,
     SERVICE_MAKE_GUESS,
     SERVICE_GET_HINT,
+    SERVICE_SUBMIT_GUESS,
+    DEFAULT_WORD_LENGTH,
 )
 from .game_logic import WordPlayGame
+from .entities import async_setup_entities
 from .lovelace import async_create_wordplay_dashboard
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,41 +29,87 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     
     # Initialize the game instance
     game = WordPlayGame(hass)
-    hass.data[DOMAIN] = {"game": game}
     
-    # Create input_text helper entity
-    await _create_input_text_helper(hass)
+    # Store game and entities data
+    hass.data[DOMAIN] = {
+        "game": game,
+        "entities": {}
+    }
     
-    # Create automation for auto-submit
-    await _create_auto_submit_automation(hass)
+    # Create custom entities
+    from homeassistant.helpers.entity_platform import async_get_current_platform
+    
+    async def add_entities_callback(entities):
+        """Callback to add entities."""
+        # Store entity references for game interaction
+        for entity in entities:
+            if hasattr(entity, 'entity_id'):
+                if 'guess_input' in entity.entity_id:
+                    hass.data[DOMAIN]["entities"]["text_input"] = entity
+                elif 'word_length' in entity.entity_id:
+                    hass.data[DOMAIN]["entities"]["word_length"] = entity
+    
+    await async_setup_entities(hass, add_entities_callback)
+    
+    # Set up state tracking for live input updates
+    async def handle_input_change(entity_id, old_state, new_state):
+        """Handle changes to the text input."""
+        if new_state and entity_id == "text.ha_wordplay_guess_input":
+            await game.update_current_input(new_state.state or "")
+    
+    # Track the text input entity
+    async_track_state_change(
+        hass, "text.ha_wordplay_guess_input", handle_input_change
+    )
     
     # Register services
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
-        word_length = call.data.get("word_length", 5)
-        await game.start_new_game(word_length)
+        # Get word length from select entity or service data
+        word_length = call.data.get("word_length")
+        
+        if not word_length:
+            # Try to get from select entity
+            select_entity = hass.data[DOMAIN]["entities"].get("word_length")
+            if select_entity:
+                word_length = select_entity.get_selected_length()
+            else:
+                word_length = DEFAULT_WORD_LENGTH
+        
+        success = await game.start_new_game(int(word_length))
+        
+        if success:
+            _LOGGER.info(f"New game started with {word_length} letters")
+        else:
+            _LOGGER.error("Failed to start new game")
     
     async def handle_make_guess(call: ServiceCall) -> None:
         """Handle make guess service call."""
         guess = call.data.get("guess", "").upper()
         if guess:
             result = await game.make_guess(guess)
-            # Clear input field after successful guess
-            if "error" not in result:
-                await _clear_input_field(hass)
+            if "error" in result:
+                _LOGGER.warning(f"Guess error: {result['error']}")
+            else:
+                _LOGGER.info(f"Guess processed: {guess}")
     
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
-        await game.get_hint()
+        hint = await game.get_hint()
+        _LOGGER.info(f"Hint requested: {hint}")
     
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
-        current_guess = hass.states.get("input_text.ha_wordplay_guess")
-        if current_guess and current_guess.state:
-            guess = current_guess.state.upper()
+        text_entity = hass.data[DOMAIN]["entities"].get("text_input")
+        if text_entity and text_entity.native_value:
+            guess = text_entity.native_value.upper()
             result = await game.make_guess(guess)
-            # Clear input field after submission
-            await _clear_input_field(hass)
+            if "error" in result:
+                _LOGGER.warning(f"Submit guess error: {result['error']}")
+            else:
+                _LOGGER.info(f"Guess submitted: {guess}")
+        else:
+            _LOGGER.warning("No guess to submit")
     
     # Register the services
     hass.services.async_register(
@@ -73,7 +122,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN, SERVICE_GET_HINT, handle_get_hint
     )
     hass.services.async_register(
-        DOMAIN, "submit_guess", handle_submit_guess
+        DOMAIN, SERVICE_SUBMIT_GUESS, handle_submit_guess
     )
     
     # Create WordPlay dashboard configuration
@@ -81,65 +130,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     
     _LOGGER.info("H.A WordPlay integration setup complete")
     return True
-
-async def _create_input_text_helper(hass: HomeAssistant) -> None:
-    """Create input_text helper for word guessing."""
-    try:
-        # Create the input_text entity using HA's helper creation
-        entity_id = "input_text.ha_wordplay_guess"
-        
-        # Use the input_text component's create method
-        input_text_data = {
-            "name": "WordPlay Guess Input",
-            "min": 4,
-            "max": 8,
-            "pattern": "[A-Za-z]*",
-            "initial": ""
-        }
-        
-        # Create via service call
-        await hass.services.async_call(
-            "input_text", "reload",
-            {},
-            blocking=True
-        )
-        
-        # Set initial state manually
-        hass.states.async_set(
-            entity_id,
-            "",
-            {
-                "friendly_name": "WordPlay Guess Input",
-                "min": 4,
-                "max": 8,
-                "pattern": "[A-Za-z]*",
-                "editable": True
-            }
-        )
-        
-        _LOGGER.info("Created input_text helper: %s", entity_id)
-    except Exception as e:
-        _LOGGER.error("Could not create input_text helper: %s", e)
-
-async def _create_auto_submit_automation(hass: HomeAssistant) -> None:
-    """Create automation for auto-submitting guesses."""
-    try:
-        # This will be handled by our service instead of a separate automation
-        # to keep everything within the integration
-        _LOGGER.info("Auto-submit will be handled by submit_guess service")
-    except Exception as e:
-        _LOGGER.warning("Could not create automation: %s", e)
-
-async def _clear_input_field(hass: HomeAssistant) -> None:
-    """Clear the input field after a guess."""
-    try:
-        await hass.services.async_call(
-            "input_text", "set_value",
-            {"entity_id": "input_text.ha_wordplay_guess", "value": ""},
-            blocking=False
-        )
-    except Exception as e:
-        _LOGGER.debug("Could not clear input field: %s", e)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload H.A WordPlay integration."""
@@ -149,7 +139,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.services.async_remove(DOMAIN, SERVICE_NEW_GAME)
     hass.services.async_remove(DOMAIN, SERVICE_MAKE_GUESS)
     hass.services.async_remove(DOMAIN, SERVICE_GET_HINT)
-    hass.services.async_remove(DOMAIN, "submit_guess")
+    hass.services.async_remove(DOMAIN, SERVICE_SUBMIT_GUESS)
     
     # Clean up data
     hass.data.pop(DOMAIN, None)
