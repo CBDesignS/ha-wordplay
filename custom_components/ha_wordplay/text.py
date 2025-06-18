@@ -48,9 +48,9 @@ class WordPlayGuessInput(TextEntity):
         self._attr_unique_id = f"{DOMAIN}_guess_input"
         self._attr_entity_category = None
         self._attr_icon = "mdi:keyboard"
-        self._attr_native_value = "HELLO"  # Start with a valid 5-letter value
+        self._attr_native_value = "HELLO"  # Start with valid value to avoid validation errors
         self._attr_native_max = MAX_WORD_LENGTH
-        self._attr_native_min = MIN_WORD_LENGTH
+        self._attr_native_min = 0  # Allow empty values
         self._attr_pattern = r"^[A-Za-z]*$"
         self._attr_mode = "text"
 
@@ -60,15 +60,6 @@ class WordPlayGuessInput(TextEntity):
     def native_value(self) -> str:
         """Return the current value."""
         return self._attr_native_value
-
-    @property
-    def state(self) -> str:
-        """Return the state - override to handle empty values."""
-        value = self._attr_native_value
-        # If empty, return minimum valid state for HA
-        if not value:
-            return "     "  # 5 spaces to meet minimum length requirement
-        return value
 
     async def async_set_value(self, value: str) -> None:
         """Set the text value."""

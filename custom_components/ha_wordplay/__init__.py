@@ -95,13 +95,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         text_entity = hass.data[DOMAIN]["entities"].get("text_input")
-        if text_entity and text_entity.native_value:
-            guess = text_entity.native_value.upper()
-            result = await game.make_guess(guess)
-            if "error" in result:
-                _LOGGER.warning(f"Submit guess error: {result['error']}")
+        if text_entity and text_entity.native_value and text_entity.native_value.strip():
+            guess = text_entity.native_value.upper().strip()
+            # Skip if it's just the default value
+            if guess and guess != "HELLO":
+                result = await game.make_guess(guess)
+                if "error" in result:
+                    _LOGGER.warning(f"Submit guess error: {result['error']}")
+                else:
+                    _LOGGER.info(f"Guess submitted: {guess}")
             else:
-                _LOGGER.info(f"Guess submitted: {guess}")
+                _LOGGER.warning("No valid guess to submit")
         else:
             _LOGGER.warning("No guess to submit")
     
