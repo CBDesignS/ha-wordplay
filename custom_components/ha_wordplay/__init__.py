@@ -15,6 +15,7 @@ from .const import (
     SERVICE_MAKE_GUESS,
     SERVICE_GET_HINT,
 )
+from .game_logic import WordPlayGame
 from .lovelace import async_create_wordplay_dashboard
 
 _LOGGER = logging.getLogger(__name__)
