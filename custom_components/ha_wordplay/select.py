@@ -43,17 +43,14 @@ class WordPlayWordLengthSelect(SelectEntity):
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the select entity."""
         self.hass = hass
-        self._attr_name = "WordPlay Word Length"
+        self._attr_name = "ha wordplay word length"  # This will create select.ha_wordplay_word_length
         self._attr_unique_id = f"{DOMAIN}_word_length"
         self._attr_entity_category = None
         self._attr_icon = "mdi:numeric"
         self._attr_options = [str(length) for length in WORD_LENGTH_OPTIONS]
         self._attr_current_option = str(DEFAULT_WORD_LENGTH)
 
-    @property
-    def entity_id(self) -> str:
-        """Return entity ID."""
-        return "select.ha_wordplay_word_length"
+
 
     @property
     def current_option(self) -> str:

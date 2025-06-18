@@ -43,7 +43,7 @@ class WordPlayGuessInput(TextEntity):
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the text input entity."""
         self.hass = hass
-        self._attr_name = "WordPlay Guess Input"
+        self._attr_name = "ha wordplay guess input"  # This will create text.ha_wordplay_guess_input
         self._attr_unique_id = f"{DOMAIN}_guess_input"
         self._attr_entity_category = None
         self._attr_icon = "mdi:keyboard"
@@ -53,10 +53,7 @@ class WordPlayGuessInput(TextEntity):
         self._attr_pattern = r"^[A-Za-z]*$"
         self._attr_mode = "text"
 
-    @property
-    def entity_id(self) -> str:
-        """Return entity ID."""
-        return "text.ha_wordplay_guess_input"
+
 
     @property
     def native_value(self) -> str:
