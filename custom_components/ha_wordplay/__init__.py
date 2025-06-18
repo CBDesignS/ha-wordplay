@@ -15,7 +15,7 @@ from .const import (
     SERVICE_MAKE_GUESS,
     SERVICE_GET_HINT,
 )
-from .game_logic import WordPlayGame
+from .lovelace import async_create_wordplay_dashboard
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -75,26 +75,50 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN, "submit_guess", handle_submit_guess
     )
     
+    # Create WordPlay dashboard configuration
+    await async_create_wordplay_dashboard(hass)
+    
     _LOGGER.info("H.A WordPlay integration setup complete")
     return True
 
 async def _create_input_text_helper(hass: HomeAssistant) -> None:
     """Create input_text helper for word guessing."""
     try:
-        # Create the input_text entity programmatically
+        # Create the input_text entity using HA's helper creation
         entity_id = "input_text.ha_wordplay_guess"
         
-        # Check if it already exists
-        if hass.states.get(entity_id) is None:
-            # Create the entity using the input_text component
-            await hass.services.async_call(
-                "input_text", "set_value",
-                {"entity_id": entity_id, "value": ""},
-                blocking=False
-            )
-            _LOGGER.info("Created input_text helper: %s", entity_id)
+        # Use the input_text component's create method
+        input_text_data = {
+            "name": "WordPlay Guess Input",
+            "min": 4,
+            "max": 8,
+            "pattern": "[A-Za-z]*",
+            "initial": ""
+        }
+        
+        # Create via service call
+        await hass.services.async_call(
+            "input_text", "reload",
+            {},
+            blocking=True
+        )
+        
+        # Set initial state manually
+        hass.states.async_set(
+            entity_id,
+            "",
+            {
+                "friendly_name": "WordPlay Guess Input",
+                "min": 4,
+                "max": 8,
+                "pattern": "[A-Za-z]*",
+                "editable": True
+            }
+        )
+        
+        _LOGGER.info("Created input_text helper: %s", entity_id)
     except Exception as e:
-        _LOGGER.warning("Could not create input_text helper: %s", e)
+        _LOGGER.error("Could not create input_text helper: %s", e)
 
 async def _create_auto_submit_automation(hass: HomeAssistant) -> None:
     """Create automation for auto-submitting guesses."""
