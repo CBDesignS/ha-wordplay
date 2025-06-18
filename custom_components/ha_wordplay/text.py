@@ -61,6 +61,15 @@ class WordPlayGuessInput(TextEntity):
         """Return the current value."""
         return self._attr_native_value
 
+    @property
+    def state(self) -> str:
+        """Return the state - override to handle empty values."""
+        value = self._attr_native_value
+        # If empty, return minimum valid state for HA
+        if not value:
+            return "     "  # 5 spaces to meet minimum length requirement
+        return value
+
     async def async_set_value(self, value: str) -> None:
         """Set the text value."""
         # Convert to uppercase and validate
@@ -70,15 +79,7 @@ class WordPlayGuessInput(TextEntity):
         if value and not value.isalpha():
             _LOGGER.warning("Invalid guess input: %s (only letters allowed)", value)
             return
-            
-        # Ensure minimum length for HA validation
-        if len(value) < MIN_WORD_LENGTH and value != "":
-            # Pad with spaces or set to minimum valid value
-            if value == "":
-                value = "HELLO"  # Default valid value
-            else:
-                return  # Don't set invalid short values
-            
+        
         # Limit length based on current game
         game_data = self.hass.data.get(DOMAIN, {})
         game = game_data.get("game")
@@ -95,5 +96,5 @@ class WordPlayGuessInput(TextEntity):
 
     async def async_clear_value(self) -> None:
         """Clear the input value."""
-        self._attr_native_value = "HELLO"  # Set to valid default instead of empty
+        self._attr_native_value = ""
         self.async_write_ha_state()
