@@ -362,7 +362,7 @@ class WordPlayGame:
             if button_entity:
                 button_entity.update_attributes()
         except Exception as e:
-            _LOGGER.debug(f"Could not update button attributes: {e}")letters[i] = None
+            _LOGGER.debug(f"Could not update button attributes: {e}")
         
         # Check for partial matches
         for i, letter in enumerate(guess):
