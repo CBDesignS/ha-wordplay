@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - Simple Working Version."""
+"""H.A WordPlay integration for Home Assistant - Single Button Approach."""
 import logging
 import asyncio
 from typing import Any, Dict
@@ -23,8 +23,8 @@ from .lovelace import async_create_wordplay_dashboard
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up H.A WordPlay integration."""
-    _LOGGER.info("Setting up H.A WordPlay integration")
+    """Set up H.A WordPlay integration - Single Button Version."""
+    _LOGGER.info("Setting up H.A WordPlay integration - Single Button Approach")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -39,10 +39,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         "tts_config": tts_config,
     }
     
-    # Load platforms using discovery (this actually works!)
+    # Load platforms using discovery - now includes button platform
+    await discovery.async_load_platform(hass, "button", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
-    await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
     
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
@@ -54,6 +54,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         new_state = event.data.get("new_state")
         if new_state and entity_id == "text.ha_wordplay_guess_input":
             await game.update_current_input(new_state.state or "")
+            # Update button attributes to reflect input changes
+            await _update_button_attributes(hass)
     
     # Track the text input entity
     try:
@@ -70,11 +72,21 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Create WordPlay dashboard configuration
     await async_create_wordplay_dashboard(hass)
     
-    _LOGGER.info("H.A WordPlay integration setup complete")
+    _LOGGER.info("H.A WordPlay integration setup complete - Single Button Ready!")
     return True
 
+async def _update_button_attributes(hass: HomeAssistant) -> None:
+    """Update button entity attributes when game state changes."""
+    try:
+        domain_data = hass.data.get(DOMAIN, {})
+        button_entity = domain_data.get("entities", {}).get("game_button")
+        if button_entity:
+            button_entity.update_attributes()
+    except Exception as e:
+        _LOGGER.debug(f"Could not update button attributes: {e}")
+
 async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
-    """Register all game services."""
+    """Register all game services - enhanced for button integration."""
     _LOGGER.info("Registering H.A WordPlay services...")
     
     async def handle_new_game(call: ServiceCall) -> None:
@@ -95,6 +107,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
             
             if success:
                 _LOGGER.info(f"New game started with {word_length} letters")
+                await _update_button_attributes(hass)
             else:
                 _LOGGER.error("Failed to start new game")
         except Exception as e:
@@ -110,6 +123,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
                     _LOGGER.warning(f"Guess error: {result['error']}")
                 else:
                     _LOGGER.info(f"Guess processed: {guess}")
+                await _update_button_attributes(hass)
             else:
                 _LOGGER.warning("No guess provided to make_guess service")
         except Exception as e:
@@ -120,6 +134,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
         try:
             hint = await game.get_hint()
             _LOGGER.info(f"Hint requested: {hint}")
+            await _update_button_attributes(hass)
         except Exception as e:
             _LOGGER.error(f"Error in get_hint service: {e}")
     
@@ -139,6 +154,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
                     _LOGGER.warning(f"Submit guess error: {result['error']}")
                 else:
                     _LOGGER.info(f"Guess submitted: {guess}")
+                await _update_button_attributes(hass)
             else:
                 _LOGGER.warning("No valid guess to submit")
         except Exception as e:
@@ -173,14 +189,14 @@ async def _setup_tts_config(hass: HomeAssistant) -> Dict[str, Any]:
         
         # Auto-configure based on available services/devices
         config = {
-            "enabled": tts_available,
+            "enabled": False,  # Disable TTS for now to avoid test server noise
             "media_player": media_players[0] if media_players else "media_player.dummy",
-            "language": "en",
+            "language": "en-US",  # Fixed language code
             "voice": None,
         }
         
-        if config["enabled"]:
-            _LOGGER.info(f"TTS auto-configured: service available, target: {config['media_player']}")
+        if tts_available:
+            _LOGGER.info(f"TTS auto-configured but disabled for testing: target: {config['media_player']}")
         else:
             _LOGGER.info("TTS disabled: no TTS service found")
         

@@ -1,12 +1,10 @@
-"""Game logic for H.A WordPlay - Fixed Sensor Updates."""
+"""Game logic for H.A WordPlay - Enhanced for Single Button Approach."""
 import logging
 import aiohttp
 import asyncio
 from typing import Optional, Dict, List, Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.event import async_track_state_change
 
 from .const import (
     RANDOM_WORD_API,
@@ -28,7 +26,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 class WordPlayGame:
-    """Main game logic class."""
+    """Main game logic class - Enhanced for button integration."""
     
     def __init__(self, hass: HomeAssistant):
         """Initialize the game."""
@@ -40,7 +38,7 @@ class WordPlayGame:
         self.hint = ""
         self.guess_results = []  # Store results for each guess
         self.current_guess_input = ""  # Track live input
-        self.latest_result = []  # Store latest guess result for top row display
+        self.latest_result = []  # Store latest guess result
         self.last_message = ""  # Store messages for UI display
         self.message_type = ""  # Type of message: success, error, info
         
@@ -62,11 +60,8 @@ class WordPlayGame:
             self.hint = ""
             self.current_guess_input = ""
             self.game_state = STATE_PLAYING
-            self.last_message = ""
-            self.message_type = ""
-            
-            # Announce new game start
-            await self._speak_message(f"New {word_length} letter WordPlay game started! Good luck!")
+            self.last_message = f"New {word_length} letter game started!"
+            self.message_type = "success"
             
             # Clear the input field
             await self._clear_input_field()
@@ -74,8 +69,9 @@ class WordPlayGame:
             # Get a random word
             word = await self._get_random_word(word_length)
             if not word:
-                _LOGGER.error("Failed to get random word")
+                self._set_message("Internet connection issue - try again later", "error")
                 self.game_state = STATE_IDLE
+                await self._update_button_attributes()
                 return False
                 
             self.current_word = word.upper()
@@ -84,14 +80,16 @@ class WordPlayGame:
             # Get definition for hint
             await self._get_word_definition()
             
-            # Update Home Assistant states
-            await self._update_game_states()
+            # Update button attributes
+            await self._update_button_attributes()
             
             return True
             
         except Exception as e:
             _LOGGER.error(f"Error starting new game: {e}")
             self.game_state = STATE_IDLE
+            self._set_message("Error starting game", "error")
+            await self._update_button_attributes()
             return False
 
     def _is_valid_guess(self, guess: str) -> tuple[bool, str]:
@@ -132,79 +130,6 @@ class WordPlayGame:
         
         return True, ""
     
-    async def _speak_message(self, message: str) -> None:
-        """Use Home Assistant's built-in TTS system."""
-        try:
-            # Get TTS configuration from integration data
-            domain_data = self.hass.data.get("ha_wordplay", {})
-            tts_config = domain_data.get("tts_config", {})
-            
-            if not tts_config.get("enabled", False):  # Disable TTS for now
-                _LOGGER.debug("TTS disabled for testing")
-                return
-            
-            # Try to find available TTS service
-            tts_service = None
-            available_services = self.hass.services.async_services().get("tts", {})
-            
-            # Prefer cloud/google TTS, fallback to any available
-            for service_name in ["cloud_say", "google_translate_en_com", "google_translate_say", "say"]:
-                if service_name in available_services:
-                    tts_service = service_name
-                    break
-            
-            if not tts_service:
-                _LOGGER.warning("No TTS service available")
-                return
-            
-            # Find media players for announcement
-            media_players = []
-            target_player = tts_config.get("media_player")
-            
-            if target_player:
-                # Use specified media player
-                if target_player in self.hass.states.async_entity_ids("media_player"):
-                    media_players = [target_player]
-            else:
-                # Auto-detect: find active or default media players
-                for entity_id in self.hass.states.async_entity_ids("media_player"):
-                    state = self.hass.states.get(entity_id)
-                    if state and state.state in ["playing", "paused", "idle", "standby"]:
-                        media_players.append(entity_id)
-                        break  # Use first available
-            
-            if not media_players:
-                _LOGGER.debug("No media players found, using dummy target for testing")
-                media_players = ["media_player.dummy"]  # Force a target for testing
-            
-            # Make TTS announcement
-            service_data = {
-                "entity_id": media_players[0],
-                "message": message,
-            }
-            
-            # Add voice options if configured
-            if tts_config.get("language"):
-                service_data["language"] = tts_config["language"]
-            if tts_config.get("voice"):
-                service_data["voice"] = tts_config["voice"]
-            
-            await self.hass.services.async_call(
-                "tts", 
-                tts_service, 
-                service_data
-            )
-            
-            _LOGGER.info(f"TTS announced: '{message}' on {media_players[0]}")
-            
-        except Exception as e:
-            _LOGGER.error(f"TTS error: {e}")
-            # Fallback: Fire event for any custom handlers
-            self.hass.bus.async_fire("wordplay_tts_failed", {
-                "message": message, 
-                "error": str(e)
-            })
-    
     def _set_message(self, message: str, message_type: str = "info") -> None:
         """Set a message for UI display with type."""
         self.last_message = message
@@ -222,35 +147,36 @@ class WordPlayGame:
             # Validate guess with anti-cheat rules
             is_valid, error_msg = self._is_valid_guess(guess)
             if not is_valid:
-                # Anti-cheat violation - set error message and speak it
+                # Anti-cheat violation - set error message
                 self._set_message(error_msg, "error")
-                await self._speak_message(f"Invalid guess. {error_msg}")
-                await self._update_game_states()  # Update UI to show error
+                await self._update_button_attributes()
                 return {"error": error_msg}
             
             # Process the guess
             self.guesses.append(guess)
             result = self._check_guess(guess)
             self.guess_results.append(result)
-            self.latest_result = result  # Store for top row display
+            self.latest_result = result
             
             # Check win condition
             if guess == self.current_word:
                 self.game_state = STATE_WON
-                win_message = f"Congratulations! You guessed the word {self.current_word} correctly in {len(self.guesses)} tries!"
+                win_message = f"Congratulations! You guessed {self.current_word} in {len(self.guesses)} tries!"
                 self._set_message(win_message, "success")
-                await self._speak_message(win_message)
                 _LOGGER.info(f"Game won in {len(self.guesses)} guesses!")
             elif len(self.guesses) >= self.word_length:
                 self.game_state = STATE_LOST
-                loss_message = f"Game over! The word was {self.current_word}. Better luck next time!"
+                loss_message = f"Game over! The word was {self.current_word}"
                 self._set_message(loss_message, "info")
-                await self._speak_message(loss_message)
-                _LOGGER.info(f"Game lost. Word was {len(self.current_word)} letters")
+                _LOGGER.info(f"Game lost. Word was {self.current_word}")
+            else:
+                # Continue playing
+                remaining = self.word_length - len(self.guesses)
+                self._set_message(f"Good guess! {remaining} tries remaining", "info")
             
-            # Clear input and update states
+            # Clear input and update button
             await self._clear_input_field()
-            await self._update_game_states()
+            await self._update_button_attributes()
             
             return {
                 "guess": guess,
@@ -262,6 +188,8 @@ class WordPlayGame:
             
         except Exception as e:
             _LOGGER.error(f"Error processing guess: {e}")
+            self._set_message("Error processing guess", "error")
+            await self._update_button_attributes()
             return {"error": str(e)}
     
     async def get_hint(self) -> str:
@@ -272,12 +200,13 @@ class WordPlayGame:
         if not self.hint:
             await self._get_word_definition()
         
+        await self._update_button_attributes()
         return self.hint or "No hint available"
     
     async def update_current_input(self, input_text: str) -> None:
         """Update the current input for live display."""
         self.current_guess_input = input_text.upper().strip()
-        await self._update_game_states()
+        await self._update_button_attributes()
     
     def _check_guess(self, guess: str) -> List[str]:
         """Check guess against current word and return color results."""
@@ -287,7 +216,7 @@ class WordPlayGame:
         # First pass: mark exact matches
         for i, letter in enumerate(guess):
             if letter == target_word[i]:
-                result.append(LETTER_CORRECT)  # Blue - correct position
+                result.append(LETTER_CORRECT)  # Correct position
             else:
                 result.append("pending")  # Placeholder
         
@@ -303,16 +232,16 @@ class WordPlayGame:
         for i, letter in enumerate(guess):
             if result[i] == "pending":
                 if letter in target_letters:
-                    result[i] = LETTER_PARTIAL  # Red - wrong position
+                    result[i] = LETTER_PARTIAL  # Wrong position
                     target_letters[target_letters.index(letter)] = None
                 else:
-                    result[i] = LETTER_ABSENT  # Gray - not in word
+                    result[i] = LETTER_ABSENT  # Not in word
         
         return result
     
     async def _get_random_word(self, length: int) -> Optional[str]:
         """Get a random word of specified length."""
-        max_attempts = 10
+        max_attempts = 3  # Reduced attempts for faster failure
         attempt = 0
         
         while attempt < max_attempts:
@@ -346,7 +275,7 @@ class WordPlayGame:
             if attempt < max_attempts:
                 await asyncio.sleep(1)  # Wait before retry
         
-        _LOGGER.error(f"Failed to get random word after {max_attempts} attempts")
+        _LOGGER.error(f"Failed to get random word after {max_attempts} attempts - API may be down")
         return None
     
     async def _get_word_definition(self) -> None:
@@ -368,14 +297,14 @@ class WordPlayGame:
                                     _LOGGER.debug(f"Got definition for current word")
                                     return
         except Exception as e:
-            _LOGGER.error(f"Error getting word definition: {e}")
+            _LOGGER.debug(f"Error getting word definition: {e}")
         
-        self.hint = "No hint available"
+        self.hint = "A word you need to guess!"
     
     def _simplify_definition(self, definition: str) -> str:
         """Simplify definition to create a good hint."""
         if not definition:
-            return "No hint available"
+            return "A word you need to guess!"
         
         # Basic simplification - take first sentence and limit length
         sentences = definition.split('.')
@@ -392,10 +321,10 @@ class WordPlayGame:
         hint = ' '.join(filtered_words)
         
         # Limit length
-        if len(hint) > 100:
-            hint = hint[:97] + "..."
+        if len(hint) > 80:
+            hint = hint[:77] + "..."
         
-        return hint.capitalize() if hint else "No hint available"
+        return hint.capitalize() if hint else "A word you need to guess!"
     
     async def _clear_input_field(self) -> None:
         """Clear the input field."""
@@ -411,117 +340,12 @@ class WordPlayGame:
         except Exception as e:
             _LOGGER.debug(f"Could not clear input field: {e}")
     
-    async def _update_game_states(self) -> None:
-        """Update Home Assistant entity states using proper sensor entities."""
+    async def _update_button_attributes(self) -> None:
+        """Update button entity attributes when game state changes."""
         try:
-            # Format latest result for display
-            latest_display = []
-            if self.latest_result and self.guesses:
-                latest_guess = self.guesses[-1]
-                for i, (letter, result) in enumerate(zip(latest_guess, self.latest_result)):
-                    if result == LETTER_CORRECT:
-                        latest_display.append(f"{letter}🟦")  # Blue for correct
-                    elif result == LETTER_PARTIAL:
-                        latest_display.append(f"{letter}🟥")  # Red for partial
-                    else:
-                        latest_display.append(f"{letter}⬜")  # White for absent
-            
-            # Format current input for live display
-            current_input_display = []
-            if self.current_guess_input:
-                for letter in self.current_guess_input:
-                    current_input_display.append(f"{letter}⬜")
-                # Pad with empty slots
-                while len(current_input_display) < self.word_length:
-                    current_input_display.append("_")
-            else:
-                current_input_display = ["_"] * self.word_length
-            
-            # Prepare attributes for game state sensor
-            game_state_attributes = {
-                "word_length": self.word_length,
-                "guesses_made": len(self.guesses),
-                "guesses_remaining": self.word_length - len(self.guesses),
-                "hint": self.hint,
-                "latest_result": " ".join(latest_display),
-                "current_input": " ".join(current_input_display),
-                "last_message": self.last_message,
-                "message_type": self.message_type,
-                "friendly_name": "WordPlay Game State",
-                "icon": "mdi:gamepad-variant"
-            }
-            
-            # Prepare attributes for guesses sensor
-            guesses_attributes = {
-                "guesses": self.guesses,
-                "results": self.guess_results,
-                "max_guesses": self.word_length,
-                "all_guesses_formatted": self._format_all_guesses(),
-                "friendly_name": "WordPlay Guesses",
-                "icon": "mdi:format-list-numbered"
-            }
-            
-            # Update sensor entities if they exist
             domain_data = self.hass.data.get("ha_wordplay", {})
-            entities = domain_data.get("entities", {})
-            
-            game_state_sensor = entities.get("game_state")
-            if game_state_sensor:
-                game_state_sensor.update_state(self.game_state, game_state_attributes)
-            else:
-                # Fallback: Update via state machine directly
-                self.hass.states.async_set(
-                    "sensor.ha_wordplay_game_state",
-                    self.game_state,
-                    game_state_attributes
-                )
-            
-            guesses_sensor = entities.get("guesses")
-            if guesses_sensor:
-                guesses_sensor.update_state(len(self.guesses), guesses_attributes)
-            else:
-                # Fallback: Update via state machine directly
-                self.hass.states.async_set(
-                    "sensor.ha_wordplay_guesses",
-                    len(self.guesses),
-                    guesses_attributes
-                )
-            
-            # Update debug sensor (development only) - Hide current word for security
-            if _LOGGER.isEnabledFor(logging.DEBUG):
-                debug_attributes = {
-                    "game_state": self.game_state,
-                    "word_length": self.word_length,
-                    "guesses_count": len(self.guesses),
-                    "friendly_name": "WordPlay Debug (Development Only)",
-                    "icon": "mdi:bug"
-                }
-                
-                debug_sensor = entities.get("debug")
-                if debug_sensor:
-                    debug_sensor.update_state("DEBUG_MODE", debug_attributes)
-                else:
-                    # Fallback: Update via state machine directly
-                    self.hass.states.async_set(
-                        "sensor.ha_wordplay_debug",
-                        "DEBUG_MODE",
-                        debug_attributes
-                    )
-                
+            button_entity = domain_data.get("entities", {}).get("game_button")
+            if button_entity:
+                button_entity.update_attributes()
         except Exception as e:
-            _LOGGER.error(f"Error updating game states: {e}")
-    
-    def _format_all_guesses(self) -> List[str]:
-        """Format all guesses with their results for display."""
-        formatted = []
-        for i, (guess, result) in enumerate(zip(self.guesses, self.guess_results)):
-            guess_display = []
-            for letter, status in zip(guess, result):
-                if status == LETTER_CORRECT:
-                    guess_display.append(f"{letter}🟦")
-                elif status == LETTER_PARTIAL:
-                    guess_display.append(f"{letter}🟥")
-                else:
-                    guess_display.append(f"{letter}⬜")
-            formatted.append(" ".join(guess_display))
-        return formatted
+            _LOGGER.debug(f"Could not update button attributes: {e}")
