@@ -6,6 +6,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.entity import generate_entity_id
 
 from .const import (
     DOMAIN,
@@ -23,7 +24,7 @@ async def async_setup_platform(
 ) -> None:
     """Set up the sensor platform for WordPlay."""
     
-    # Create sensor entities
+    # Create sensor entities with proper platform context
     entities = [
         WordPlayGameStateSensor(hass),
         WordPlayGuessesSensor(hass),
@@ -33,9 +34,10 @@ async def async_setup_platform(
     if _LOGGER.isEnabledFor(logging.DEBUG):
         entities.append(WordPlayDebugSensor(hass))
     
-    async_add_entities(entities)
+    # Add entities to Home Assistant
+    async_add_entities(entities, True)
     
-    # Store entity references
+    # Store entity references in hass.data for service access
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"entities": {}}
     
@@ -63,6 +65,19 @@ class WordPlayGameStateSensor(SensorEntity):
         self._attr_icon = "mdi:gamepad-variant"
         self._attr_native_value = STATE_IDLE
         self._attr_extra_state_attributes = {}
+        
+        # Set entity_id explicitly to ensure proper registration
+        self.entity_id = "sensor.ha_wordplay_game_state"
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return self._attr_name
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique id."""
+        return self._attr_unique_id
 
     @property
     def native_value(self) -> str:
@@ -74,11 +89,17 @@ class WordPlayGameStateSensor(SensorEntity):
         """Return additional state attributes."""
         return self._attr_extra_state_attributes
 
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return self._attr_icon
+
     def update_state(self, state: str, attributes: Dict[str, Any]) -> None:
         """Update the sensor state and attributes."""
         self._attr_native_value = state
         self._attr_extra_state_attributes = attributes
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
 
 class WordPlayGuessesSensor(SensorEntity):
@@ -94,6 +115,19 @@ class WordPlayGuessesSensor(SensorEntity):
         self._attr_icon = "mdi:format-list-numbered"
         self._attr_native_value = 0
         self._attr_extra_state_attributes = {}
+        
+        # Set entity_id explicitly to ensure proper registration
+        self.entity_id = "sensor.ha_wordplay_guesses"
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return self._attr_name
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique id."""
+        return self._attr_unique_id
 
     @property
     def native_value(self) -> int:
@@ -105,11 +139,17 @@ class WordPlayGuessesSensor(SensorEntity):
         """Return additional state attributes."""
         return self._attr_extra_state_attributes
 
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return self._attr_icon
+
     def update_state(self, count: int, attributes: Dict[str, Any]) -> None:
         """Update the sensor state and attributes."""
         self._attr_native_value = count
         self._attr_extra_state_attributes = attributes
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
 
 class WordPlayDebugSensor(SensorEntity):
@@ -125,6 +165,19 @@ class WordPlayDebugSensor(SensorEntity):
         self._attr_icon = "mdi:bug"
         self._attr_native_value = "DEBUG_MODE"
         self._attr_extra_state_attributes = {}
+        
+        # Set entity_id explicitly to ensure proper registration
+        self.entity_id = "sensor.ha_wordplay_debug"
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return self._attr_name
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique id."""
+        return self._attr_unique_id
 
     @property
     def native_value(self) -> str:
@@ -136,8 +189,14 @@ class WordPlayDebugSensor(SensorEntity):
         """Return debug attributes."""
         return self._attr_extra_state_attributes
 
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return self._attr_icon
+
     def update_state(self, state: str, attributes: Dict[str, Any]) -> None:
         """Update the debug sensor state and attributes."""
         self._attr_native_value = state
         self._attr_extra_state_attributes = attributes
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
