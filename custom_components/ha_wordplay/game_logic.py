@@ -79,7 +79,7 @@ class WordPlayGame:
                 return False
                 
             self.current_word = word.upper()
-            _LOGGER.info(f"New game started with word: {self.current_word}")
+            _LOGGER.info(f"New game started with {word_length} letter word")
             
             # Get definition for hint
             await self._get_word_definition()
@@ -147,7 +147,7 @@ class WordPlayGame:
             available_services = self.hass.services.async_services().get("tts", {})
             
             # Prefer cloud/google TTS, fallback to any available
-            for service_name in ["cloud_say", "google_translate_say", "say"]:
+            for service_name in ["cloud_say", "google_translate_en_com", "google_translate_say", "say"]:
                 if service_name in available_services:
                     tts_service = service_name
                     break
@@ -245,7 +245,7 @@ class WordPlayGame:
                 loss_message = f"Game over! The word was {self.current_word}. Better luck next time!"
                 self._set_message(loss_message, "info")
                 await self._speak_message(loss_message)
-                _LOGGER.info(f"Game lost. Word was: {self.current_word}")
+                _LOGGER.info(f"Game lost. Word was {len(self.current_word)} letters")
             
             # Clear input and update states
             await self._clear_input_field()

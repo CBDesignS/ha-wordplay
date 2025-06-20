@@ -149,16 +149,16 @@ async def _setup_tts_config(hass: HomeAssistant) -> Dict[str, Any]:
         
         # Auto-configure based on available services/devices
         config = {
-            "enabled": tts_available and len(media_players) > 0,
-            "media_player": media_players[0] if media_players else None,
+            "enabled": tts_available,  # Enable if TTS service exists, regardless of speakers
+            "media_player": media_players[0] if media_players else "media_player.dummy",
             "language": "en",
             "voice": None,  # Use default
         }
         
         if config["enabled"]:
-            _LOGGER.info(f"TTS auto-configured: {config['media_player']}")
+            _LOGGER.info(f"TTS auto-configured: service available, target: {config['media_player']}")
         else:
-            _LOGGER.info("TTS disabled: no suitable TTS service or media player found")
+            _LOGGER.info("TTS disabled: no TTS service found")
         
         return config
         
