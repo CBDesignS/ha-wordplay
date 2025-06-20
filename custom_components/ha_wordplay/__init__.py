@@ -26,13 +26,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up H.A WordPlay integration."""
     _LOGGER.info("Setting up H.A WordPlay integration")
     
+    # Initialize TTS configuration
+    tts_config = await _setup_tts_config(hass)
+    
     # Initialize the game instance
     game = WordPlayGame(hass)
     
-    # Store game and entities data
+    # Store game and configuration data
     hass.data[DOMAIN] = {
         "game": game,
-        "entities": {}
+        "entities": {},
+        "tts_config": tts_config
     }
     
     # Set up platforms for custom entities
@@ -128,6 +132,39 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     
     _LOGGER.info("H.A WordPlay integration setup complete")
     return True
+
+async def _setup_tts_config(hass: HomeAssistant) -> Dict[str, Any]:
+    """Set up TTS configuration with smart defaults."""
+    try:
+        # Check available TTS services
+        tts_services = hass.services.async_services().get("tts", {})
+        tts_available = len(tts_services) > 0
+        
+        # Find suitable media players
+        media_players = []
+        for entity_id in hass.states.async_entity_ids("media_player"):
+            state = hass.states.get(entity_id)
+            if state and state.state != "unavailable":
+                media_players.append(entity_id)
+        
+        # Auto-configure based on available services/devices
+        config = {
+            "enabled": tts_available and len(media_players) > 0,
+            "media_player": media_players[0] if media_players else None,
+            "language": "en",
+            "voice": None,  # Use default
+        }
+        
+        if config["enabled"]:
+            _LOGGER.info(f"TTS auto-configured: {config['media_player']}")
+        else:
+            _LOGGER.info("TTS disabled: no suitable TTS service or media player found")
+        
+        return config
+        
+    except Exception as e:
+        _LOGGER.error(f"TTS configuration error: {e}")
+        return {"enabled": False}
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload H.A WordPlay integration."""

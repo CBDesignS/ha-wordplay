@@ -65,6 +65,9 @@ class WordPlayGame:
             self.last_message = ""
             self.message_type = ""
             
+            # Announce new game start
+            await self._speak_message(f"New {word_length} letter WordPlay game started! Good luck!")
+            
             # Clear the input field
             await self._clear_input_field()
             
@@ -130,13 +133,76 @@ class WordPlayGame:
         return True, ""
     
     async def _speak_message(self, message: str) -> None:
-        """Use TTS to speak a message via Home Assistant frontend."""
+        """Use Home Assistant's built-in TTS system."""
         try:
-            # Send TTS command to Home Assistant frontend
-            self.hass.bus.async_fire("wordplay_tts", {"message": message})
-            _LOGGER.info(f"TTS message sent: {message}")
+            # Get TTS configuration from integration data
+            tts_config = self.hass.data.get("ha_wordplay", {}).get("tts_config", {})
+            
+            if not tts_config.get("enabled", True):
+                _LOGGER.debug("TTS disabled, skipping message")
+                return
+            
+            # Try to find available TTS service
+            tts_service = None
+            available_services = self.hass.services.async_services().get("tts", {})
+            
+            # Prefer cloud/google TTS, fallback to any available
+            for service_name in ["cloud_say", "google_translate_say", "say"]:
+                if service_name in available_services:
+                    tts_service = service_name
+                    break
+            
+            if not tts_service:
+                _LOGGER.warning("No TTS service available")
+                return
+            
+            # Find media players for announcement
+            media_players = []
+            target_player = tts_config.get("media_player")
+            
+            if target_player:
+                # Use specified media player
+                if target_player in self.hass.states.async_entity_ids("media_player"):
+                    media_players = [target_player]
+            else:
+                # Auto-detect: find active or default media players
+                for entity_id in self.hass.states.async_entity_ids("media_player"):
+                    state = self.hass.states.get(entity_id)
+                    if state and state.state in ["playing", "paused", "idle", "standby"]:
+                        media_players.append(entity_id)
+                        break  # Use first available
+            
+            if not media_players:
+                _LOGGER.debug("No suitable media player found for TTS")
+                return
+            
+            # Make TTS announcement
+            service_data = {
+                "entity_id": media_players[0],
+                "message": message,
+            }
+            
+            # Add voice options if configured
+            if tts_config.get("language"):
+                service_data["language"] = tts_config["language"]
+            if tts_config.get("voice"):
+                service_data["voice"] = tts_config["voice"]
+            
+            await self.hass.services.async_call(
+                "tts", 
+                tts_service, 
+                service_data
+            )
+            
+            _LOGGER.info(f"TTS announced: '{message}' on {media_players[0]}")
+            
         except Exception as e:
-            _LOGGER.error(f"Error sending TTS message: {e}")
+            _LOGGER.error(f"TTS error: {e}")
+            # Fallback: Fire event for any custom handlers
+            self.hass.bus.async_fire("wordplay_tts_failed", {
+                "message": message, 
+                "error": str(e)
+            })
     
     def _set_message(self, message: str, message_type: str = "info") -> None:
         """Set a message for UI display with type."""
