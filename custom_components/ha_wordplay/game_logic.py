@@ -138,8 +138,8 @@ class WordPlayGame:
             # Get TTS configuration from integration data
             tts_config = self.hass.data.get("ha_wordplay", {}).get("tts_config", {})
             
-            if not tts_config.get("enabled", True):
-                _LOGGER.debug("TTS disabled, skipping message")
+            if not tts_config.get("enabled", False):  # Disable TTS for now
+                _LOGGER.debug("TTS disabled for testing")
                 return
             
             # Try to find available TTS service
@@ -442,7 +442,7 @@ class WordPlayGame:
                 {
                     "word_length": self.word_length,
                     "guesses_made": len(self.guesses),
-                    "guesses_remaining": MAX_GUESSES - len(self.guesses),
+                    "guesses_remaining": self.word_length - len(self.guesses),
                     "hint": self.hint,
                     "latest_result": " ".join(latest_display),
                     "current_input": " ".join(current_input_display),
