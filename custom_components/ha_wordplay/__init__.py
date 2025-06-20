@@ -106,9 +106,9 @@ async def _setup_platforms(hass: HomeAssistant) -> None:
         _LOGGER.error(f"Select platform setup failed: {e}")
         raise
     
-    # Setup sensor platform - ACTUALLY CALL IT NOW!
+    # Setup sensor platform - NO LAMBDA CALLBACK
     try:
-        await setup_sensor(hass, {}, lambda entities: _store_entities(hass, "sensor", entities), None)
+        await setup_sensor(hass, {}, None, None)
         hass.data[DOMAIN]["platforms_loaded"].append("sensor")
         _LOGGER.info("Sensor platform setup completed")
     except Exception as e:
