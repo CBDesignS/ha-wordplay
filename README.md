@@ -1,6 +1,6 @@
 # H.A WordPlay
 
-A Wordle-style word guessing game integration for Home Assistant. Play directly from your HA dashboard with dynamically generated word puzzles!
+A Wordle-style word guessing game integration for Home Assistant. Play directly from your HA dashboard with dynamically generated word puzzles! !! this requires card-mod to be installed from hacs to enable the compact game card layout !!
 
 ## 🎮 Features
 
@@ -88,122 +88,169 @@ The integration creates several entities:
 ### Complete Dashboard Example
 
 ```yaml
-type: vertical-stack
-title: H.A WordPlay
-cards:
-  # Game Controls
-  - type: horizontal-stack
-    cards:
-      - type: entities
-        title: Game Setup
-        entities:
-          - entity: select.ha_wordplay_word_length
-            name: Word Length
-      - type: button
-        name: New Game
-        icon: mdi:play
-        tap_action:
-          action: call-service
-          service: ha_wordplay.new_game
+type: custom:mod-card
+card_mod:
+  style: |
+    ha-card {
+      background: var(--card-background-color);
+      border-radius: 12px;
+      padding: 16px;
+      overflow: hidden;
+      box-shadow: var(--ha-card-box-shadow);
+    }
+card:
+  type: vertical-stack
+  title: ""
+  cards:
+    # Header Section
+    - type: markdown
+      content: |
+        <center>
+          <h2 style="margin: 8px 0; color: var(--primary-text-color);">
+            🎮 H.A WordPlay
+          </h2>
+        </center>
+      card_mod:
+        style: |
+          ha-card { background: transparent; box-shadow: none; border: none; margin: 0; }
 
-  # Game Display - Two Row Layout
-  - type: vertical-stack
-    title: Game Board
-    cards:
-      # Top Row - Latest Guess Result
-      - type: markdown
-        title: "Latest Guess"
-        content: |
-          {% set latest = state_attr('sensor.ha_wordplay_game_state', 'latest_result') %}
-          {% if latest %}
-          ## {{ latest }}
-          {% else %}
-          ## _ _ _ _ _
-          {% endif %}
-        card_mod:
-          style: |
-            ha-card {
-              text-align: center;
-              font-family: monospace;
-              font-size: 1.5em;
-              background: var(--primary-color);
-              color: var(--text-primary-color);
-            }
+    # Game Status Bar
+    - type: markdown
+      content: |
+        <div style="display: flex; justify-content: space-around; background: var(--secondary-background-color); padding: 8px; border-radius: 6px; margin: 8px 0;">
+          <span>📊 {{ states('sensor.ha_wordplay_game_state') | title }}</span>
+          <span>🎯 {{ state_attr('sensor.ha_wordplay_game_state', 'guesses_remaining') or 6 }} left</span>
+          <span>📝 {{ state_attr('sensor.ha_wordplay_game_state', 'word_length') or 5 }} letters</span>
+        </div>
+      card_mod:
+        style: |
+          ha-card { background: transparent; box-shadow: none; border: none; margin: 0; }
 
-      # Bottom Row - Current Input
-      - type: markdown
-        title: "Current Guess"
-        content: |
-          {% set current = state_attr('sensor.ha_wordplay_game_state', 'current_input') %}
-          {% if current %}
-          ## {{ current }}
-          {% else %}
-          ## _ _ _ _ _
-          {% endif %}
-        card_mod:
-          style: |
-            ha-card {
-              text-align: center;
-              font-family: monospace;
-              font-size: 1.5em;
-              background: var(--secondary-background-color);
-            }
+    # Previous Guesses
+    - type: markdown
+      content: |
+        <h3 style="margin: 12px 0 6px 0;">Previous Guesses</h3>
+        <div style="background: var(--secondary-background-color); padding: 12px; border-radius: 6px; min-height: 80px; font-family: monospace;">
+        {%- set guesses = state_attr('sensor.ha_wordplay_guesses', 'all_guesses_formatted') -%}
+        {%- if guesses and guesses|length > 0 -%}
+          {%- for guess in guesses -%}
+            <div style="text-align: center; font-size: 16px; margin: 4px 0;">{{ guess }}</div>
+          {%- endfor -%}
+        {%- else -%}
+          <div style="text-align: center; color: var(--secondary-text-color); font-style: italic; padding: 20px 0;">Start a new game to begin guessing!</div>
+        {%- endif -%}
+        </div>
+      card_mod:
+        style: |
+          ha-card { background: transparent; box-shadow: none; border: none; margin: 0; }
 
-  # Input Controls
-  - type: horizontal-stack
-    cards:
-      - type: entities
-        entities:
-          - entity: text.ha_wordplay_guess_input
-            name: Type Your Guess
-      - type: button
-        name: Submit
-        icon: mdi:send
-        tap_action:
-          action: call-service
-          service: ha_wordplay.submit_guess
+    # Latest Guess
+    - type: markdown
+      content: |
+        <h3 style="margin: 12px 0 6px 0;">Latest Guess</h3>
+        <div style="background: var(--primary-color); color: var(--text-primary-color); padding: 12px; border-radius: 6px; text-align: center; font-family: monospace; font-size: 20px; letter-spacing: 2px;">
+        {%- set latest = state_attr('sensor.ha_wordplay_game_state', 'latest_result') -%}
+        {{ latest if latest else "_ _ _ _ _" }}
+        </div>
+      card_mod:
+        style: |
+          ha-card { background: transparent; box-shadow: none; border: none; margin: 0; }
 
-  # Game Information
-  - type: entities
-    title: Game Status
-    entities:
-      - entity: sensor.ha_wordplay_game_state
-        name: Game State
-      - entity: sensor.ha_wordplay_guesses
-        name: Guesses Made
-    
-  # Game Actions
-  - type: horizontal-stack
-    cards:
-      - type: button
-        name: Get Hint
-        icon: mdi:lightbulb
-        tap_action:
-          action: call-service
-          service: ha_wordplay.get_hint
-      - type: markdown
-        content: |
-          {% set hint = state_attr('sensor.ha_wordplay_game_state', 'hint') %}
-          **Hint:** {{ hint if hint else "Start a game to get hints!" }}
+    # Current Input
+    - type: markdown
+      content: |
+        <h3 style="margin: 12px 0 6px 0;">Current Guess</h3>
+        <div style="background: var(--secondary-background-color); border: 2px dashed var(--divider-color); padding: 12px; border-radius: 6px; text-align: center; font-family: monospace; font-size: 20px; letter-spacing: 2px;">
+        {%- set current = state_attr('sensor.ha_wordplay_game_state', 'current_input') -%}
+        {{ current if current else "_ _ _ _ _" }}
+        </div>
+      card_mod:
+        style: |
+          ha-card { background: transparent; box-shadow: none; border: none; margin: 0; }
 
-  # All Guesses History
-  - type: markdown
-    title: "Guess History"
-    content: |
-      {% set guesses = state_attr('sensor.ha_wordplay_guesses', 'all_guesses_formatted') %}
-      {% if guesses %}
-      {% for guess in guesses %}
-      {{ loop.index }}. {{ guess }}
-      {% endfor %}
-      {% else %}
-      No guesses yet - start a new game!
-      {% endif %}
-    card_mod:
-      style: |
-        ha-card {
-          font-family: monospace;
-          text-align: center;
-        }
+    # Hint Section (below current guess as requested)
+    - type: markdown
+      content: |
+        <div style="background: var(--info-color); color: white; padding: 8px 12px; border-radius: 6px; margin: 8px 0;">
+          <strong>💡 Hint:</strong>
+          {%- set hint = state_attr('sensor.ha_wordplay_game_state', 'hint') -%}
+          {{ hint if hint else "Start a game and click 'Get Hint' for clues!" }}
+        </div>
+      card_mod:
+        style: |
+          ha-card { background: transparent; box-shadow: none; border: none; margin: 0; }
+
+    # Input Field
+    - type: entities
+      entities:
+        - entity: text.ha_wordplay_guess_input
+          name: "Type Your Guess"
+          icon: mdi:keyboard
+        - entity: select.ha_wordplay_word_length
+          name: "Word Length"
+          icon: mdi:numeric
+      show_header_toggle: false
+      card_mod:
+        style: |
+          ha-card { 
+            background: var(--secondary-background-color); 
+            border-radius: 6px; 
+            margin: 8px 0;
+          }
+
+    # Controls - All 3 buttons in one row, much smaller
+    - type: horizontal-stack
+      cards:
+        - type: button
+          name: "Submit"
+          icon: mdi:send
+          tap_action:
+            action: call-service
+            service: ha_wordplay.submit_guess
+          card_mod:
+            style: |
+              ha-card {
+                background: var(--success-color);
+                color: white;
+                border-radius: 6px;
+                margin: 2px;
+                height: 50px !important;
+                font-size: 14px;
+              }
+        
+        - type: button
+          name: "New Game"
+          icon: mdi:play
+          tap_action:
+            action: call-service
+            service: ha_wordplay.new_game
+          card_mod:
+            style: |
+              ha-card {
+                background: var(--primary-color);
+                color: var(--text-primary-color);
+                border-radius: 6px;
+                margin: 2px;
+                height: 50px !important;
+                font-size: 14px;
+              }
+        
+        - type: button
+          name: "Get Hint"
+          icon: mdi:lightbulb
+          tap_action:
+            action: call-service
+            service: ha_wordplay.get_hint
+          card_mod:
+            style: |
+              ha-card {
+                background: var(--warning-color);
+                color: white;
+                border-radius: 6px;
+                margin: 2px;
+                height: 50px !important;
+                font-size: 14px;
+              }
 ```
 
 ## 🔧 Services
