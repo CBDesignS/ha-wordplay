@@ -41,6 +41,8 @@ class WordPlayGame:
         self.guess_results = []  # Store results for each guess
         self.current_guess_input = ""  # Track live input
         self.latest_result = []  # Store latest guess result for top row display
+        self.last_message = ""  # Store messages for UI display
+        self.message_type = ""  # Type of message: success, error, info
         
     async def start_new_game(self, word_length: int = DEFAULT_WORD_LENGTH) -> bool:
         """Start a new game with specified word length."""
@@ -60,6 +62,8 @@ class WordPlayGame:
             self.hint = ""
             self.current_guess_input = ""
             self.game_state = STATE_PLAYING
+            self.last_message = ""
+            self.message_type = ""
             
             # Clear the input field
             await self._clear_input_field()
@@ -125,6 +129,21 @@ class WordPlayGame:
         
         return True, ""
     
+    async def _speak_message(self, message: str) -> None:
+        """Use TTS to speak a message via Home Assistant frontend."""
+        try:
+            # Send TTS command to Home Assistant frontend
+            self.hass.bus.async_fire("wordplay_tts", {"message": message})
+            _LOGGER.info(f"TTS message sent: {message}")
+        except Exception as e:
+            _LOGGER.error(f"Error sending TTS message: {e}")
+    
+    def _set_message(self, message: str, message_type: str = "info") -> None:
+        """Set a message for UI display with type."""
+        self.last_message = message
+        self.message_type = message_type
+        _LOGGER.info(f"UI message set ({message_type}): {message}")
+    
     async def make_guess(self, guess: str) -> Dict[str, Any]:
         """Process a guess and return results."""
         try:
@@ -136,6 +155,10 @@ class WordPlayGame:
             # Validate guess with anti-cheat rules
             is_valid, error_msg = self._is_valid_guess(guess)
             if not is_valid:
+                # Anti-cheat violation - set error message and speak it
+                self._set_message(error_msg, "error")
+                await self._speak_message(f"Invalid guess. {error_msg}")
+                await self._update_game_states()  # Update UI to show error
                 return {"error": error_msg}
             
             # Process the guess
@@ -147,9 +170,15 @@ class WordPlayGame:
             # Check win condition
             if guess == self.current_word:
                 self.game_state = STATE_WON
+                win_message = f"Congratulations! You guessed the word {self.current_word} correctly in {len(self.guesses)} tries!"
+                self._set_message(win_message, "success")
+                await self._speak_message(win_message)
                 _LOGGER.info(f"Game won in {len(self.guesses)} guesses!")
             elif len(self.guesses) >= MAX_GUESSES:
                 self.game_state = STATE_LOST
+                loss_message = f"Game over! The word was {self.current_word}. Better luck next time!"
+                self._set_message(loss_message, "info")
+                await self._speak_message(loss_message)
                 _LOGGER.info(f"Game lost. Word was: {self.current_word}")
             
             # Clear input and update states
@@ -351,6 +380,8 @@ class WordPlayGame:
                     "hint": self.hint,
                     "latest_result": " ".join(latest_display),
                     "current_input": " ".join(current_input_display),
+                    "last_message": self.last_message,
+                    "message_type": self.message_type,
                     "friendly_name": "WordPlay Game State",
                     "icon": "mdi:gamepad-variant"
                 }
@@ -370,15 +401,15 @@ class WordPlayGame:
                 }
             )
             
-            # Debug sensor (development only)
+            # Debug sensor (development only) - Hide current word for security
             if _LOGGER.isEnabledFor(logging.DEBUG):
                 self.hass.states.async_set(
                     "sensor.ha_wordplay_debug",
-                    self.current_word,
+                    "DEBUG_MODE",
                     {
-                        "current_word": self.current_word,
                         "game_state": self.game_state,
                         "word_length": self.word_length,
+                        "guesses_count": len(self.guesses),
                         "friendly_name": "WordPlay Debug (Development Only)",
                         "icon": "mdi:bug"
                     }
