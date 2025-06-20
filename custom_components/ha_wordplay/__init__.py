@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - Fixed Platform Setup."""
+"""H.A WordPlay integration for Home Assistant - Final Fixed Version."""
 import logging
 import asyncio
 from typing import Any, Dict
@@ -83,14 +83,27 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 async def _setup_platforms(hass: HomeAssistant) -> None:
-    """Set up platforms using modern HA approach."""
+    """Set up platforms using modern HA approach - NO LAMBDA CALLBACKS."""
     from .text import async_setup_platform as setup_text
     from .select import async_setup_platform as setup_select
     from .sensor import async_setup_platform as setup_sensor
     
+    # Define entity storage helper
+    def store_text_entities(entities: list) -> None:
+        for entity in entities:
+            if hasattr(entity, '_attr_unique_id') and "guess_input" in entity._attr_unique_id:
+                hass.data[DOMAIN]["entities"]["text_input"] = entity
+                _LOGGER.debug("Text input entity stored")
+    
+    def store_select_entities(entities: list) -> None:
+        for entity in entities:
+            if hasattr(entity, '_attr_unique_id') and "word_length" in entity._attr_unique_id:
+                hass.data[DOMAIN]["entities"]["word_length"] = entity
+                _LOGGER.debug("Word length selector entity stored")
+    
     # Setup text platform
     try:
-        await setup_text(hass, {}, lambda entities: _store_entities(hass, "text", entities), None)
+        await setup_text(hass, {}, store_text_entities, None)
         hass.data[DOMAIN]["platforms_loaded"].append("text")
         _LOGGER.info("Text platform setup completed")
     except Exception as e:
@@ -99,14 +112,14 @@ async def _setup_platforms(hass: HomeAssistant) -> None:
     
     # Setup select platform
     try:
-        await setup_select(hass, {}, lambda entities: _store_entities(hass, "select", entities), None)
+        await setup_select(hass, {}, store_select_entities, None)
         hass.data[DOMAIN]["platforms_loaded"].append("select")
         _LOGGER.info("Select platform setup completed")
     except Exception as e:
         _LOGGER.error(f"Select platform setup failed: {e}")
         raise
     
-    # Setup sensor platform - NO LAMBDA CALLBACK
+    # Setup sensor platform - sensor.py handles its own entity storage
     try:
         await setup_sensor(hass, {}, None, None)
         hass.data[DOMAIN]["platforms_loaded"].append("sensor")
@@ -114,28 +127,6 @@ async def _setup_platforms(hass: HomeAssistant) -> None:
     except Exception as e:
         _LOGGER.error(f"Sensor platform setup failed: {e}")
         raise
-
-def _store_entities(hass: HomeAssistant, platform: str, entities: list) -> None:
-    """Store entity references for service access."""
-    for entity in entities:
-        if platform == "text" and hasattr(entity, '_attr_unique_id'):
-            if "guess_input" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["text_input"] = entity
-                _LOGGER.debug("Text input entity stored")
-        elif platform == "select" and hasattr(entity, '_attr_unique_id'):
-            if "word_length" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["word_length"] = entity
-                _LOGGER.debug("Word length selector entity stored")
-        elif platform == "sensor" and hasattr(entity, '_attr_unique_id'):
-            if "game_state" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["game_state"] = entity
-                _LOGGER.debug("Game state sensor entity stored")
-            elif "guesses" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["guesses"] = entity
-                _LOGGER.debug("Guesses sensor entity stored")
-            elif "debug" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["debug"] = entity
-                _LOGGER.debug("Debug sensor entity stored")
 
 async def _wait_for_entities(hass: HomeAssistant, max_wait: int = 10) -> None:
     """Wait for entities to be created with timeout."""
