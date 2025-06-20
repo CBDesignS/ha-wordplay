@@ -106,9 +106,14 @@ async def _setup_platforms(hass: HomeAssistant) -> None:
         _LOGGER.error(f"Select platform setup failed: {e}")
         raise
     
-    # Setup sensor platform (will be created by game logic)
-    hass.data[DOMAIN]["platforms_loaded"].append("sensor")
-    _LOGGER.info("Sensor platform marked as ready")
+    # Setup sensor platform - ACTUALLY CALL IT NOW!
+    try:
+        await setup_sensor(hass, {}, lambda entities: _store_entities(hass, "sensor", entities), None)
+        hass.data[DOMAIN]["platforms_loaded"].append("sensor")
+        _LOGGER.info("Sensor platform setup completed")
+    except Exception as e:
+        _LOGGER.error(f"Sensor platform setup failed: {e}")
+        raise
 
 def _store_entities(hass: HomeAssistant, platform: str, entities: list) -> None:
     """Store entity references for service access."""
@@ -121,6 +126,16 @@ def _store_entities(hass: HomeAssistant, platform: str, entities: list) -> None:
             if "word_length" in entity._attr_unique_id:
                 hass.data[DOMAIN]["entities"]["word_length"] = entity
                 _LOGGER.debug("Word length selector entity stored")
+        elif platform == "sensor" and hasattr(entity, '_attr_unique_id'):
+            if "game_state" in entity._attr_unique_id:
+                hass.data[DOMAIN]["entities"]["game_state"] = entity
+                _LOGGER.debug("Game state sensor entity stored")
+            elif "guesses" in entity._attr_unique_id:
+                hass.data[DOMAIN]["entities"]["guesses"] = entity
+                _LOGGER.debug("Guesses sensor entity stored")
+            elif "debug" in entity._attr_unique_id:
+                hass.data[DOMAIN]["entities"]["debug"] = entity
+                _LOGGER.debug("Debug sensor entity stored")
 
 async def _wait_for_entities(hass: HomeAssistant, max_wait: int = 10) -> None:
     """Wait for entities to be created with timeout."""
@@ -131,14 +146,21 @@ async def _wait_for_entities(hass: HomeAssistant, max_wait: int = 10) -> None:
         # Check if key entities exist in state registry
         text_entity = hass.states.get("text.ha_wordplay_guess_input")
         select_entity = hass.states.get("select.ha_wordplay_word_length")
+        game_state_entity = hass.states.get("sensor.ha_wordplay_game_state")
+        guesses_entity = hass.states.get("sensor.ha_wordplay_guesses")
         
-        if text_entity is not None and select_entity is not None:
+        if (text_entity is not None and 
+            select_entity is not None and 
+            game_state_entity is not None and 
+            guesses_entity is not None):
             _LOGGER.info("All required entities detected in state registry")
             break
         
         _LOGGER.debug(f"Waiting for entities... attempt {wait_count + 1}/{max_wait}")
         _LOGGER.debug(f"Text entity: {'✓' if text_entity else '✗'}")
         _LOGGER.debug(f"Select entity: {'✓' if select_entity else '✗'}")
+        _LOGGER.debug(f"Game state sensor: {'✓' if game_state_entity else '✗'}")
+        _LOGGER.debug(f"Guesses sensor: {'✓' if guesses_entity else '✗'}")
         
         await asyncio.sleep(1)
         wait_count += 1
