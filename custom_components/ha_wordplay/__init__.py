@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - Single Button Approach."""
+"""H.A WordPlay integration for Home Assistant - International Multi-API Version."""
 import logging
 import asyncio
 from typing import Any, Dict
@@ -19,12 +19,13 @@ from .const import (
 )
 from .game_logic import WordPlayGame
 from .lovelace import async_create_wordplay_dashboard
+from .api_config import get_supported_languages
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up H.A WordPlay integration - Single Button Version."""
-    _LOGGER.info("Setting up H.A WordPlay integration - Single Button Approach")
+    """Set up H.A WordPlay integration - International Multi-API Version."""
+    _LOGGER.info("Setting up H.A WordPlay integration - International Multi-API Support")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -37,9 +38,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         "game": game,
         "entities": {},
         "tts_config": tts_config,
+        "supported_languages": get_supported_languages(),
     }
     
-    # Load platforms using discovery - now includes button platform
+    # Load platforms using discovery - includes button, text, select
     await discovery.async_load_platform(hass, "button", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
@@ -72,7 +74,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Create WordPlay dashboard configuration
     await async_create_wordplay_dashboard(hass)
     
-    _LOGGER.info("H.A WordPlay integration setup complete - Single Button Ready!")
+    _LOGGER.info("H.A WordPlay integration setup complete - Multi-API Ready!")
+    _LOGGER.info(f"Supported languages: {get_supported_languages()}")
     return True
 
 async def _update_button_attributes(hass: HomeAssistant) -> None:
@@ -86,13 +89,14 @@ async def _update_button_attributes(hass: HomeAssistant) -> None:
         _LOGGER.debug(f"Could not update button attributes: {e}")
 
 async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
-    """Register all game services - enhanced for button integration."""
+    """Register all game services - enhanced for international support."""
     _LOGGER.info("Registering H.A WordPlay services...")
     
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
             word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)
+            language = call.data.get("language", "en")  # New: language parameter
             
             # Try to get from select entity if not provided
             if not word_length or word_length == DEFAULT_WORD_LENGTH:
@@ -103,10 +107,10 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
                     except (ValueError, TypeError):
                         word_length = DEFAULT_WORD_LENGTH
             
-            success = await game.start_new_game(int(word_length))
+            success = await game.start_new_game(int(word_length), language)
             
             if success:
-                _LOGGER.info(f"New game started with {word_length} letters")
+                _LOGGER.info(f"New game started: {word_length} letters, language: {language}")
                 await _update_button_attributes(hass)
             else:
                 _LOGGER.error("Failed to start new game")
