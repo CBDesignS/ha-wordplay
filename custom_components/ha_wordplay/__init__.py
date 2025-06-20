@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - Final Fixed Version."""
+"""H.A WordPlay integration for Home Assistant - Simple Working Version."""
 import logging
 import asyncio
 from typing import Any, Dict
@@ -6,10 +6,8 @@ from typing import Any, Dict
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.const import Platform
+from homeassistant.helpers import discovery
 
 from .const import (
     DOMAIN,
@@ -24,12 +22,9 @@ from .lovelace import async_create_wordplay_dashboard
 
 _LOGGER = logging.getLogger(__name__)
 
-# Define the platforms this integration provides
-PLATFORMS = [Platform.TEXT, Platform.SELECT, Platform.SENSOR]
-
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up H.A WordPlay integration."""
-    _LOGGER.info("Setting up H.A WordPlay integration with modern platform setup")
+    _LOGGER.info("Setting up H.A WordPlay integration")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -42,19 +37,15 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         "game": game,
         "entities": {},
         "tts_config": tts_config,
-        "platforms_loaded": []
     }
     
-    # Set up platforms using modern approach
-    try:
-        await _setup_platforms(hass)
-        _LOGGER.info("All platforms setup initiated")
-    except Exception as e:
-        _LOGGER.error(f"Platform setup failed: {e}")
-        return False
+    # Load platforms using discovery (this actually works!)
+    await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
+    await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
+    await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
     
-    # Wait for entities to be created before setting up services
-    await _wait_for_entities(hass)
+    # Wait a moment for entities to be created
+    await asyncio.sleep(2)
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
@@ -64,7 +55,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if new_state and entity_id == "text.ha_wordplay_guess_input":
             await game.update_current_input(new_state.state or "")
     
-    # Track the text input entity with error handling
+    # Track the text input entity
     try:
         async_track_state_change_event(
             hass, ["text.ha_wordplay_guess_input"], handle_input_change
@@ -73,107 +64,14 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     except Exception as e:
         _LOGGER.warning(f"Could not setup state tracking: {e}")
     
-    # Register services after entities are ready
+    # Register services
     await _register_services(hass, game)
     
     # Create WordPlay dashboard configuration
     await async_create_wordplay_dashboard(hass)
     
-    _LOGGER.info("H.A WordPlay integration setup complete with modern platform setup")
+    _LOGGER.info("H.A WordPlay integration setup complete")
     return True
-
-async def _setup_platforms(hass: HomeAssistant) -> None:
-    """Set up platforms using modern HA approach - NO LAMBDA CALLBACKS."""
-    from .text import async_setup_platform as setup_text
-    from .select import async_setup_platform as setup_select
-    from .sensor import async_setup_platform as setup_sensor
-    
-    # Define entity storage helper
-    def store_text_entities(entities: list) -> None:
-        for entity in entities:
-            if hasattr(entity, '_attr_unique_id') and "guess_input" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["text_input"] = entity
-                _LOGGER.debug("Text input entity stored")
-    
-    def store_select_entities(entities: list) -> None:
-        for entity in entities:
-            if hasattr(entity, '_attr_unique_id') and "word_length" in entity._attr_unique_id:
-                hass.data[DOMAIN]["entities"]["word_length"] = entity
-                _LOGGER.debug("Word length selector entity stored")
-    
-    def store_sensor_entities(entities: list) -> None:
-        """Store sensor entities properly."""
-        for entity in entities:
-            if hasattr(entity, '_attr_unique_id'):
-                if "game_state" in entity._attr_unique_id:
-                    hass.data[DOMAIN]["entities"]["game_state"] = entity
-                    _LOGGER.debug("Game state sensor entity stored")
-                elif "guesses" in entity._attr_unique_id:
-                    hass.data[DOMAIN]["entities"]["guesses"] = entity
-                    _LOGGER.debug("Guesses sensor entity stored")
-                elif "debug" in entity._attr_unique_id:
-                    hass.data[DOMAIN]["entities"]["debug"] = entity
-                    _LOGGER.debug("Debug sensor entity stored")
-    
-    # Setup text platform
-    try:
-        await setup_text(hass, {}, store_text_entities, None)
-        hass.data[DOMAIN]["platforms_loaded"].append("text")
-        _LOGGER.info("Text platform setup completed")
-    except Exception as e:
-        _LOGGER.error(f"Text platform setup failed: {e}")
-        raise
-    
-    # Setup select platform
-    try:
-        await setup_select(hass, {}, store_select_entities, None)
-        hass.data[DOMAIN]["platforms_loaded"].append("select")
-        _LOGGER.info("Select platform setup completed")
-    except Exception as e:
-        _LOGGER.error(f"Select platform setup failed: {e}")
-        raise
-    
-    # Setup sensor platform - WITH PROPER CALLBACK
-    try:
-        await setup_sensor(hass, {}, store_sensor_entities, None)
-        hass.data[DOMAIN]["platforms_loaded"].append("sensor")
-        _LOGGER.info("Sensor platform setup completed")
-    except Exception as e:
-        _LOGGER.error(f"Sensor platform setup failed: {e}")
-        raise
-
-async def _wait_for_entities(hass: HomeAssistant, max_wait: int = 10) -> None:
-    """Wait for entities to be created with timeout."""
-    _LOGGER.info("Waiting for entities to be created...")
-    
-    wait_count = 0
-    while wait_count < max_wait:
-        # Check if key entities exist in state registry
-        text_entity = hass.states.get("text.ha_wordplay_guess_input")
-        select_entity = hass.states.get("select.ha_wordplay_word_length")
-        game_state_entity = hass.states.get("sensor.ha_wordplay_game_state")
-        guesses_entity = hass.states.get("sensor.ha_wordplay_guesses")
-        
-        if (text_entity is not None and 
-            select_entity is not None and 
-            game_state_entity is not None and 
-            guesses_entity is not None):
-            _LOGGER.info("All required entities detected in state registry")
-            break
-        
-        _LOGGER.debug(f"Waiting for entities... attempt {wait_count + 1}/{max_wait}")
-        _LOGGER.debug(f"Text entity: {'✓' if text_entity else '✗'}")
-        _LOGGER.debug(f"Select entity: {'✓' if select_entity else '✗'}")
-        _LOGGER.debug(f"Game state sensor: {'✓' if game_state_entity else '✗'}")
-        _LOGGER.debug(f"Guesses sensor: {'✓' if guesses_entity else '✗'}")
-        
-        await asyncio.sleep(1)
-        wait_count += 1
-    
-    if wait_count >= max_wait:
-        _LOGGER.warning("Timeout waiting for entities - proceeding with service registration")
-    else:
-        _LOGGER.info("Entity creation verified - proceeding with service registration")
 
 async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
     """Register all game services."""
@@ -182,20 +80,15 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
-            # Get word length from select entity or service data
-            word_length = call.data.get("word_length")
+            word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)
             
-            if not word_length:
-                # Try to get from select entity
-                select_entity = hass.data[DOMAIN]["entities"].get("word_length")
-                if select_entity:
-                    word_length = select_entity.get_selected_length()
-                else:
-                    # Fallback: check state directly
-                    select_state = hass.states.get("select.ha_wordplay_word_length")
-                    if select_state:
+            # Try to get from select entity if not provided
+            if not word_length or word_length == DEFAULT_WORD_LENGTH:
+                select_state = hass.states.get("select.ha_wordplay_word_length")
+                if select_state and select_state.state:
+                    try:
                         word_length = int(select_state.state)
-                    else:
+                    except (ValueError, TypeError):
                         word_length = DEFAULT_WORD_LENGTH
             
             success = await game.start_new_game(int(word_length))
@@ -233,22 +126,14 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         try:
-            # Try multiple methods to get current input
+            # Get current input from text entity state
+            text_state = hass.states.get("text.ha_wordplay_guess_input")
             guess = None
             
-            # Method 1: From stored entity reference
-            text_entity = hass.data[DOMAIN]["entities"].get("text_input")
-            if text_entity and hasattr(text_entity, 'native_value'):
-                guess = text_entity.native_value
+            if text_state and text_state.state:
+                guess = text_state.state.upper().strip()
             
-            # Method 2: From state directly
-            if not guess:
-                text_state = hass.states.get("text.ha_wordplay_guess_input")
-                if text_state:
-                    guess = text_state.state
-            
-            if guess and guess.strip() and guess.upper() != "HELLO":
-                guess = guess.upper().strip()
+            if guess and guess != "HELLO":
                 result = await game.make_guess(guess)
                 if "error" in result:
                     _LOGGER.warning(f"Submit guess error: {result['error']}")
@@ -259,19 +144,12 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
         except Exception as e:
             _LOGGER.error(f"Error in submit_guess service: {e}")
     
-    # Register the services with error handling
+    # Register the services
     try:
         hass.services.async_register(DOMAIN, SERVICE_NEW_GAME, handle_new_game)
-        _LOGGER.debug("Registered new_game service")
-        
         hass.services.async_register(DOMAIN, SERVICE_MAKE_GUESS, handle_make_guess)
-        _LOGGER.debug("Registered make_guess service")
-        
         hass.services.async_register(DOMAIN, SERVICE_GET_HINT, handle_get_hint)
-        _LOGGER.debug("Registered get_hint service")
-        
         hass.services.async_register(DOMAIN, SERVICE_SUBMIT_GUESS, handle_submit_guess)
-        _LOGGER.debug("Registered submit_guess service")
         
         _LOGGER.info("All H.A WordPlay services registered successfully")
         
@@ -295,10 +173,10 @@ async def _setup_tts_config(hass: HomeAssistant) -> Dict[str, Any]:
         
         # Auto-configure based on available services/devices
         config = {
-            "enabled": tts_available,  # Enable if TTS service exists, regardless of speakers
+            "enabled": tts_available,
             "media_player": media_players[0] if media_players else "media_player.dummy",
             "language": "en",
-            "voice": None,  # Use default
+            "voice": None,
         }
         
         if config["enabled"]:
