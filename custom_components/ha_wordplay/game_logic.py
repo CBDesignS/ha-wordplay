@@ -173,8 +173,8 @@ class WordPlayGame:
                         break  # Use first available
             
             if not media_players:
-                _LOGGER.debug("No suitable media player found for TTS")
-                return
+                _LOGGER.debug("No media players found, using dummy target for testing")
+                media_players = ["media_player.dummy"]  # Force a target for testing
             
             # Make TTS announcement
             service_data = {
@@ -240,7 +240,7 @@ class WordPlayGame:
                 self._set_message(win_message, "success")
                 await self._speak_message(win_message)
                 _LOGGER.info(f"Game won in {len(self.guesses)} guesses!")
-            elif len(self.guesses) >= MAX_GUESSES:
+            elif len(self.guesses) >= self.word_length:
                 self.game_state = STATE_LOST
                 loss_message = f"Game over! The word was {self.current_word}. Better luck next time!"
                 self._set_message(loss_message, "info")
@@ -255,7 +255,7 @@ class WordPlayGame:
                 "guess": guess,
                 "result": result,
                 "game_state": self.game_state,
-                "guesses_remaining": MAX_GUESSES - len(self.guesses),
+                "guesses_remaining": self.word_length - len(self.guesses),
                 "success": True
             }
             
@@ -325,7 +325,7 @@ class WordPlayGame:
                             if isinstance(data, list) and len(data) > 0:
                                 word = data[0]
                                 if len(word) == length and word.isalpha():
-                                    _LOGGER.debug(f"Got random word: {word}")
+                                    _LOGGER.debug(f"Got random word of length {length}")
                                     return word
                         
                         # Fallback: get any word and check length
@@ -335,7 +335,7 @@ class WordPlayGame:
                                 if isinstance(fallback_data, list) and len(fallback_data) > 0:
                                     word = fallback_data[0]
                                     if len(word) == length and word.isalpha():
-                                        _LOGGER.debug(f"Got fallback word: {word}")
+                                        _LOGGER.debug(f"Got fallback word of length {length}")
                                         return word
                                         
             except Exception as e:
@@ -364,7 +364,7 @@ class WordPlayGame:
                                     definition = definitions[0].get("definition", "")
                                     # Simplify the definition for hint
                                     self.hint = self._simplify_definition(definition)
-                                    _LOGGER.debug(f"Got definition: {self.hint}")
+                                    _LOGGER.debug(f"Got definition for current word")
                                     return
         except Exception as e:
             _LOGGER.error(f"Error getting word definition: {e}")
@@ -460,7 +460,7 @@ class WordPlayGame:
                 {
                     "guesses": self.guesses,
                     "results": self.guess_results,
-                    "max_guesses": MAX_GUESSES,
+                    "max_guesses": self.word_length,
                     "all_guesses_formatted": self._format_all_guesses(),
                     "friendly_name": "WordPlay Guesses",
                     "icon": "mdi:format-list-numbered"
