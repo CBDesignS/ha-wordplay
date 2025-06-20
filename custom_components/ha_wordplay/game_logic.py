@@ -1,4 +1,4 @@
-"""Game logic for H.A WordPlay."""
+"""Game logic for H.A WordPlay - Fixed Sensor Updates."""
 import logging
 import aiohttp
 import asyncio
@@ -136,7 +136,8 @@ class WordPlayGame:
         """Use Home Assistant's built-in TTS system."""
         try:
             # Get TTS configuration from integration data
-            tts_config = self.hass.data.get("ha_wordplay", {}).get("tts_config", {})
+            domain_data = self.hass.data.get("ha_wordplay", {})
+            tts_config = domain_data.get("tts_config", {})
             
             if not tts_config.get("enabled", False):  # Disable TTS for now
                 _LOGGER.debug("TTS disabled for testing")
@@ -400,7 +401,8 @@ class WordPlayGame:
         """Clear the input field."""
         try:
             # Get the text entity and clear it
-            text_entity = self.hass.data.get("ha_wordplay", {}).get("entities", {}).get("text_input")
+            domain_data = self.hass.data.get("ha_wordplay", {})
+            text_entity = domain_data.get("entities", {}).get("text_input")
             if text_entity:
                 await text_entity.async_clear_value()
             
@@ -410,7 +412,7 @@ class WordPlayGame:
             _LOGGER.debug(f"Could not clear input field: {e}")
     
     async def _update_game_states(self) -> None:
-        """Update Home Assistant entity states."""
+        """Update Home Assistant entity states using proper sensor entities."""
         try:
             # Format latest result for display
             latest_display = []
@@ -435,51 +437,76 @@ class WordPlayGame:
             else:
                 current_input_display = ["_"] * self.word_length
             
-            # Update game state sensor
-            self.hass.states.async_set(
-                "sensor.ha_wordplay_game_state",
-                self.game_state,
-                {
-                    "word_length": self.word_length,
-                    "guesses_made": len(self.guesses),
-                    "guesses_remaining": self.word_length - len(self.guesses),
-                    "hint": self.hint,
-                    "latest_result": " ".join(latest_display),
-                    "current_input": " ".join(current_input_display),
-                    "last_message": self.last_message,
-                    "message_type": self.message_type,
-                    "friendly_name": "WordPlay Game State",
-                    "icon": "mdi:gamepad-variant"
-                }
-            )
+            # Prepare attributes for game state sensor
+            game_state_attributes = {
+                "word_length": self.word_length,
+                "guesses_made": len(self.guesses),
+                "guesses_remaining": self.word_length - len(self.guesses),
+                "hint": self.hint,
+                "latest_result": " ".join(latest_display),
+                "current_input": " ".join(current_input_display),
+                "last_message": self.last_message,
+                "message_type": self.message_type,
+                "friendly_name": "WordPlay Game State",
+                "icon": "mdi:gamepad-variant"
+            }
             
-            # Update guesses sensor
-            self.hass.states.async_set(
-                "sensor.ha_wordplay_guesses",
-                len(self.guesses),
-                {
-                    "guesses": self.guesses,
-                    "results": self.guess_results,
-                    "max_guesses": self.word_length,
-                    "all_guesses_formatted": self._format_all_guesses(),
-                    "friendly_name": "WordPlay Guesses",
-                    "icon": "mdi:format-list-numbered"
-                }
-            )
+            # Prepare attributes for guesses sensor
+            guesses_attributes = {
+                "guesses": self.guesses,
+                "results": self.guess_results,
+                "max_guesses": self.word_length,
+                "all_guesses_formatted": self._format_all_guesses(),
+                "friendly_name": "WordPlay Guesses",
+                "icon": "mdi:format-list-numbered"
+            }
             
-            # Debug sensor (development only) - Hide current word for security
-            if _LOGGER.isEnabledFor(logging.DEBUG):
+            # Update sensor entities if they exist
+            domain_data = self.hass.data.get("ha_wordplay", {})
+            entities = domain_data.get("entities", {})
+            
+            game_state_sensor = entities.get("game_state")
+            if game_state_sensor:
+                game_state_sensor.update_state(self.game_state, game_state_attributes)
+            else:
+                # Fallback: Update via state machine directly
                 self.hass.states.async_set(
-                    "sensor.ha_wordplay_debug",
-                    "DEBUG_MODE",
-                    {
-                        "game_state": self.game_state,
-                        "word_length": self.word_length,
-                        "guesses_count": len(self.guesses),
-                        "friendly_name": "WordPlay Debug (Development Only)",
-                        "icon": "mdi:bug"
-                    }
+                    "sensor.ha_wordplay_game_state",
+                    self.game_state,
+                    game_state_attributes
                 )
+            
+            guesses_sensor = entities.get("guesses")
+            if guesses_sensor:
+                guesses_sensor.update_state(len(self.guesses), guesses_attributes)
+            else:
+                # Fallback: Update via state machine directly
+                self.hass.states.async_set(
+                    "sensor.ha_wordplay_guesses",
+                    len(self.guesses),
+                    guesses_attributes
+                )
+            
+            # Update debug sensor (development only) - Hide current word for security
+            if _LOGGER.isEnabledFor(logging.DEBUG):
+                debug_attributes = {
+                    "game_state": self.game_state,
+                    "word_length": self.word_length,
+                    "guesses_count": len(self.guesses),
+                    "friendly_name": "WordPlay Debug (Development Only)",
+                    "icon": "mdi:bug"
+                }
+                
+                debug_sensor = entities.get("debug")
+                if debug_sensor:
+                    debug_sensor.update_state("DEBUG_MODE", debug_attributes)
+                else:
+                    # Fallback: Update via state machine directly
+                    self.hass.states.async_set(
+                        "sensor.ha_wordplay_debug",
+                        "DEBUG_MODE",
+                        debug_attributes
+                    )
                 
         except Exception as e:
             _LOGGER.error(f"Error updating game states: {e}")
