@@ -1,4 +1,4 @@
-"""Game logic for H.A WordPlay - Enhanced for Single Button Approach."""
+"""Game logic for H.A WordPlay - Enhanced Multi-API Integration."""
 import logging
 import aiohttp
 import asyncio
@@ -7,7 +7,6 @@ from typing import Optional, Dict, List, Any
 from homeassistant.core import HomeAssistant
 
 from .const import (
-    RANDOM_WORD_API,
     DICTIONARY_API,
     API_TIMEOUT,
     STATE_IDLE,
@@ -22,11 +21,20 @@ from .const import (
     MAX_WORD_LENGTH,
     DEFAULT_WORD_LENGTH,
 )
+from .api_config import (
+    get_language_config,
+    get_dictionary_config,
+    get_fallback_word,
+    build_api_url,
+    extract_word_from_response,
+    DEFAULT_LANGUAGE,
+    MAX_API_ATTEMPTS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 class WordPlayGame:
-    """Main game logic class - Enhanced for button integration."""
+    """Main game logic class - Enhanced Multi-API integration."""
     
     def __init__(self, hass: HomeAssistant):
         """Initialize the game."""
@@ -41,19 +49,21 @@ class WordPlayGame:
         self.latest_result = []  # Store latest guess result
         self.last_message = ""  # Store messages for UI display
         self.message_type = ""  # Type of message: success, error, info
+        self.language = DEFAULT_LANGUAGE  # Current language
         
-    async def start_new_game(self, word_length: int = DEFAULT_WORD_LENGTH) -> bool:
-        """Start a new game with specified word length."""
+    async def start_new_game(self, word_length: int = DEFAULT_WORD_LENGTH, language: str = DEFAULT_LANGUAGE) -> bool:
+        """Start a new game with specified word length and language."""
         try:
             # Validate word length
             if word_length < MIN_WORD_LENGTH or word_length > MAX_WORD_LENGTH:
                 _LOGGER.error("Invalid word length: %d", word_length)
                 return False
                 
-            _LOGGER.info(f"Starting new game with word length: {word_length}")
+            _LOGGER.info(f"Starting new game: {word_length} letters, language: {language}")
             
             # Reset game state
             self.word_length = word_length
+            self.language = language
             self.guesses = []
             self.guess_results = []
             self.latest_result = []
@@ -66,16 +76,14 @@ class WordPlayGame:
             # Clear the input field
             await self._clear_input_field()
             
-            # Get a random word
-            word = await self._get_random_word(word_length)
+            # Get a random word using multi-API system
+            word = await self._get_random_word_multi_api(word_length, language)
             if not word:
-                self._set_message("Internet connection issue - try again later", "error")
-                self.game_state = STATE_IDLE
-                await self._update_button_attributes()
-                return False
+                self._set_message("Using local word - APIs unavailable", "info")
+                word = get_fallback_word(language, word_length)
                 
             self.current_word = word.upper()
-            _LOGGER.info(f"New game started with {word_length} letter word")
+            _LOGGER.info(f"New game started with word: [HIDDEN] (length: {len(word)})")
             
             # Get definition for hint
             await self._get_word_definition()
@@ -239,50 +247,62 @@ class WordPlayGame:
         
         return result
     
-    async def _get_random_word(self, length: int) -> Optional[str]:
-        """Get a random word of specified length."""
-        max_attempts = 3  # Reduced attempts for faster failure
-        attempt = 0
+    async def _get_random_word_multi_api(self, length: int, language: str = DEFAULT_LANGUAGE) -> Optional[str]:
+        """Get random word using multi-API cascade system."""
+        lang_config = get_language_config(language)
         
-        while attempt < max_attempts:
+        # Try primary API
+        word = await self._try_api(lang_config["primary"], length)
+        if word:
+            _LOGGER.info(f"Got word from primary API (length: {length})")
+            return word
+        
+        # Try backup APIs
+        for backup_key in ["backup1", "backup2"]:
+            if backup_key in lang_config:
+                word = await self._try_api(lang_config[backup_key], length)
+                if word:
+                    _LOGGER.info(f"Got word from {backup_key} API (length: {length})")
+                    return word
+        
+        # All APIs failed
+        _LOGGER.warning(f"All APIs failed for language: {language}, length: {length}")
+        return None
+    
+    async def _try_api(self, api_config: dict, length: int) -> Optional[str]:
+        """Try a specific API configuration."""
+        for attempt in range(MAX_API_ATTEMPTS):
             try:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=API_TIMEOUT)) as session:
-                    # Try the length-specific API first
-                    url = f"{RANDOM_WORD_API}?length={length}"
+                    url = build_api_url(api_config, length)
+                    _LOGGER.debug(f"Trying API: {url} (attempt {attempt + 1})")
+                    
                     async with session.get(url) as response:
                         if response.status == 200:
                             data = await response.json()
-                            if isinstance(data, list) and len(data) > 0:
-                                word = data[0]
-                                if len(word) == length and word.isalpha():
-                                    _LOGGER.debug(f"Got random word of length {length}")
-                                    return word
-                        
-                        # Fallback: get any word and check length
-                        async with session.get(RANDOM_WORD_API) as fallback_response:
-                            if fallback_response.status == 200:
-                                fallback_data = await fallback_response.json()
-                                if isinstance(fallback_data, list) and len(fallback_data) > 0:
-                                    word = fallback_data[0]
-                                    if len(word) == length and word.isalpha():
-                                        _LOGGER.debug(f"Got fallback word of length {length}")
-                                        return word
-                                        
+                            word = extract_word_from_response(data, api_config)
+                            
+                            if word and len(word) == length and word.isalpha():
+                                return word.upper()
+                            else:
+                                _LOGGER.debug(f"Invalid word from API: {word}")
+                                
             except Exception as e:
-                _LOGGER.warning(f"Error getting random word (attempt {attempt + 1}): {e}")
+                _LOGGER.debug(f"API attempt {attempt + 1} failed: {e}")
             
-            attempt += 1
-            if attempt < max_attempts:
-                await asyncio.sleep(1)  # Wait before retry
+            # Wait before retry
+            if attempt < MAX_API_ATTEMPTS - 1:
+                await asyncio.sleep(1)
         
-        _LOGGER.error(f"Failed to get random word after {max_attempts} attempts - API may be down")
         return None
     
     async def _get_word_definition(self) -> None:
-        """Get definition for current word to use as hint."""
+        """Get definition for current word using multi-language dictionary APIs."""
         try:
+            dict_config = get_dictionary_config(self.language)
+            url = dict_config["primary"].format(word=self.current_word.lower())
+            
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=API_TIMEOUT)) as session:
-                url = f"{DICTIONARY_API}/{self.current_word.lower()}"
                 async with session.get(url) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -299,7 +319,14 @@ class WordPlayGame:
         except Exception as e:
             _LOGGER.debug(f"Error getting word definition: {e}")
         
-        self.hint = "A word you need to guess!"
+        # Fallback hints based on word length
+        fallback_hints = {
+            5: "A common 5-letter English word",
+            6: "A 6-letter word you might use daily",
+            7: "A 7-letter word with good letter variety", 
+            8: "An 8-letter word - think carefully!"
+        }
+        self.hint = fallback_hints.get(self.word_length, "A word you need to guess!")
     
     def _simplify_definition(self, definition: str) -> str:
         """Simplify definition to create a good hint."""
