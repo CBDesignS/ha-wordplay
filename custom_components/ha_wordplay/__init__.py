@@ -101,6 +101,20 @@ async def _setup_platforms(hass: HomeAssistant) -> None:
                 hass.data[DOMAIN]["entities"]["word_length"] = entity
                 _LOGGER.debug("Word length selector entity stored")
     
+    def store_sensor_entities(entities: list) -> None:
+        """Store sensor entities properly."""
+        for entity in entities:
+            if hasattr(entity, '_attr_unique_id'):
+                if "game_state" in entity._attr_unique_id:
+                    hass.data[DOMAIN]["entities"]["game_state"] = entity
+                    _LOGGER.debug("Game state sensor entity stored")
+                elif "guesses" in entity._attr_unique_id:
+                    hass.data[DOMAIN]["entities"]["guesses"] = entity
+                    _LOGGER.debug("Guesses sensor entity stored")
+                elif "debug" in entity._attr_unique_id:
+                    hass.data[DOMAIN]["entities"]["debug"] = entity
+                    _LOGGER.debug("Debug sensor entity stored")
+    
     # Setup text platform
     try:
         await setup_text(hass, {}, store_text_entities, None)
@@ -119,9 +133,9 @@ async def _setup_platforms(hass: HomeAssistant) -> None:
         _LOGGER.error(f"Select platform setup failed: {e}")
         raise
     
-    # Setup sensor platform - sensor.py handles its own entity storage
+    # Setup sensor platform - WITH PROPER CALLBACK
     try:
-        await setup_sensor(hass, {}, None, None)
+        await setup_sensor(hass, {}, store_sensor_entities, None)
         hass.data[DOMAIN]["platforms_loaded"].append("sensor")
         _LOGGER.info("Sensor platform setup completed")
     except Exception as e:
