@@ -2,10 +2,6 @@
 
 DOMAIN = "ha_wordplay"
 
-# API Endpoints
-RANDOM_WORD_API = "https://random-word-api.herokuapp.com/word"
-DICTIONARY_API = "https://api.dictionaryapi.dev/api/v2/entries/en"
-
 # Game Configuration
 MIN_WORD_LENGTH = 5  # Updated: removed 4-letter words
 MAX_WORD_LENGTH = 8  # Updated: added 7&8 letter words
@@ -17,12 +13,9 @@ SERVICE_MAKE_GUESS = "make_guess"
 SERVICE_GET_HINT = "get_hint"
 SERVICE_SUBMIT_GUESS = "submit_guess"
 
-# Entity IDs
-GAME_STATE_ENTITY = "sensor.ha_wordplay_game_state"
-CURRENT_WORD_ENTITY = "sensor.ha_wordplay_current_word"
-GUESSES_ENTITY = "sensor.ha_wordplay_guesses"
-WORD_LENGTH_ENTITY = "select.ha_wordplay_word_length"  # Updated: now a select entity
-GUESS_INPUT_ENTITY = "text.ha_wordplay_guess_input"    # Updated: custom text entity
+# Active Entity IDs (used by current platforms)
+WORD_LENGTH_ENTITY = "select.ha_wordplay_word_length"  # Used by select.py
+GUESS_INPUT_ENTITY = "text.ha_wordplay_guess_input"    # Used by text.py
 
 # Game States
 STATE_IDLE = "idle"

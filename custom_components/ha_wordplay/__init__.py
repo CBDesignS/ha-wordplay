@@ -18,7 +18,6 @@ from .const import (
     DEFAULT_WORD_LENGTH,
 )
 from .game_logic import WordPlayGame
-from .lovelace import async_create_wordplay_dashboard
 from .api_config import get_supported_languages
 
 _LOGGER = logging.getLogger(__name__)
@@ -70,9 +69,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     
     # Register services
     await _register_services(hass, game)
-    
-    # Create WordPlay dashboard configuration
-    await async_create_wordplay_dashboard(hass)
     
     _LOGGER.info("H.A WordPlay integration setup complete - Multi-API Ready!")
     _LOGGER.info(f"Supported languages: {get_supported_languages()}")
