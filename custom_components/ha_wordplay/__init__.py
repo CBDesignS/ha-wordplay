@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - Panel Version."""
+"""H.A WordPlay integration for Home Assistant - Panel Version with Async Static Path."""
 import logging
 import asyncio
 from typing import Any, Dict
@@ -9,6 +9,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers import discovery
 from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.http import StaticPathConfig
 
 from .const import (
     DOMAIN,
@@ -24,7 +25,7 @@ from .api_config import get_supported_languages
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up H.A WordPlay integration - Panel Version."""
+    """Set up H.A WordPlay integration - Panel Version with Async Static Path."""
     _LOGGER.info("Setting up H.A WordPlay integration - Panel Version")
     
     # Initialize TTS configuration
@@ -49,7 +50,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
     
-    # Register the WordPlay panel
+    # Register the WordPlay panel with async static path
     await _register_wordplay_panel(hass)
     
     # Set up state tracking for live input updates
@@ -79,14 +80,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 async def _register_wordplay_panel(hass: HomeAssistant) -> None:
-    """Register the WordPlay custom panel."""
+    """Register the WordPlay custom panel with async static path."""
     try:
-        # Register the panel in Home Assistant's sidebar
-        hass.http.register_static_path(
-            "/hacsfiles/ha_wordplay",
-            hass.config.path("custom_components/ha_wordplay"),
-            cache_headers=False,
-        )
+        # Register static path using new async method (HA 2025.7 compatible)
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(
+                url_path="/hacsfiles/ha_wordplay",
+                path=hass.config.path("custom_components/ha_wordplay"),
+                cache_headers=False,
+            )
+        ])
         
         # Register the panel itself
         async_register_built_in_panel(
@@ -101,7 +104,7 @@ async def _register_wordplay_panel(hass: HomeAssistant) -> None:
             require_admin=False,
         )
         
-        _LOGGER.info("WordPlay panel registered successfully - Available in sidebar!")
+        _LOGGER.info("WordPlay panel registered successfully with async static path - Available in sidebar!")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay panel: {e}")
