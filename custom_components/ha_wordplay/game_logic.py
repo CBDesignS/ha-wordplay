@@ -7,7 +7,6 @@ from typing import Optional, Dict, List, Any
 from homeassistant.core import HomeAssistant
 
 from .const import (
-    DICTIONARY_API,
     API_TIMEOUT,
     STATE_IDLE,
     STATE_PLAYING,
