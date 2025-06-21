@@ -99,7 +99,7 @@ async def _register_wordplay_panel(hass: HomeAssistant) -> None:
             sidebar_icon="mdi:gamepad-variant",
             frontend_url_path="wordplay",
             config={
-                "js_url": "/hacsfiles/ha_wordplay/wordplay-panel.js",
+                "js_url": "/hacsfiles/ha_wordplay/wordplay_panel.js",
             },
             require_admin=False,
         )
