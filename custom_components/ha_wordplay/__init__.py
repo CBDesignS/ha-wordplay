@@ -40,10 +40,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         "supported_languages": get_supported_languages(),
     }
     
-    # Load platforms using discovery - includes button, text, select
+    # Load platforms using discovery - includes button, text, select, frontend
     await discovery.async_load_platform(hass, "button", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
+    await discovery.async_load_platform(hass, "frontend", DOMAIN, {}, config)
     
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
