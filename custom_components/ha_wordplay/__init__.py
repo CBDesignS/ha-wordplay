@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - International Multi-API Version."""
+"""H.A WordPlay integration for Home Assistant - Panel Version."""
 import logging
 import asyncio
 from typing import Any, Dict
@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers import discovery
+from homeassistant.components.frontend import async_register_built_in_panel
 
 from .const import (
     DOMAIN,
@@ -23,8 +24,8 @@ from .api_config import get_supported_languages
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up H.A WordPlay integration - International Multi-API Version."""
-    _LOGGER.info("Setting up H.A WordPlay integration - International Multi-API Support")
+    """Set up H.A WordPlay integration - Panel Version."""
+    _LOGGER.info("Setting up H.A WordPlay integration - Panel Version")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -40,14 +41,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         "supported_languages": get_supported_languages(),
     }
     
-    # Load platforms using discovery - includes button, text, select, frontend
+    # Load entity platforms using discovery
     await discovery.async_load_platform(hass, "button", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
-    await discovery.async_load_platform(hass, "frontend", DOMAIN, {}, config)
     
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
+    
+    # Register the WordPlay panel
+    await _register_wordplay_panel(hass)
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
@@ -71,9 +74,37 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Register services
     await _register_services(hass, game)
     
-    _LOGGER.info("H.A WordPlay integration setup complete - Multi-API Ready!")
+    _LOGGER.info("H.A WordPlay integration setup complete - Panel Ready!")
     _LOGGER.info(f"Supported languages: {get_supported_languages()}")
     return True
+
+async def _register_wordplay_panel(hass: HomeAssistant) -> None:
+    """Register the WordPlay custom panel."""
+    try:
+        # Register the panel in Home Assistant's sidebar
+        hass.http.register_static_path(
+            "/hacsfiles/ha_wordplay",
+            hass.config.path("custom_components/ha_wordplay"),
+            cache_headers=False,
+        )
+        
+        # Register the panel itself
+        async_register_built_in_panel(
+            hass,
+            component_name="wordplay",
+            sidebar_title="🎮 WordPlay",
+            sidebar_icon="mdi:gamepad-variant",
+            frontend_url_path="wordplay",
+            config={
+                "js_url": "/hacsfiles/ha_wordplay/wordplay-panel.js",
+            },
+            require_admin=False,
+        )
+        
+        _LOGGER.info("WordPlay panel registered successfully - Available in sidebar!")
+        
+    except Exception as e:
+        _LOGGER.error(f"Failed to register WordPlay panel: {e}")
 
 async def _update_button_attributes(hass: HomeAssistant) -> None:
     """Update button entity attributes when game state changes."""
@@ -93,7 +124,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
         """Handle new game service call."""
         try:
             word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)
-            language = call.data.get("language", "en")  # New: language parameter
+            language = call.data.get("language", "en")
             
             # Try to get from select entity if not provided
             if not word_length or word_length == DEFAULT_WORD_LENGTH:
@@ -192,7 +223,7 @@ async def _setup_tts_config(hass: HomeAssistant) -> Dict[str, Any]:
         config = {
             "enabled": False,  # Disable TTS for now to avoid test server noise
             "media_player": media_players[0] if media_players else "media_player.dummy",
-            "language": "en-US",  # Fixed language code
+            "language": "en-US",
             "voice": None,
         }
         
