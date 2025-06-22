@@ -1,6 +1,7 @@
-"""H.A WordPlay integration for Home Assistant - Panel Version with Async Static Path."""
+"""H.A WordPlay integration for Home Assistant - HTML Panel Version."""
 import logging
 import asyncio
+import os
 from typing import Any, Dict
 
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -25,8 +26,8 @@ from .api_config import get_supported_languages
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up H.A WordPlay integration - Panel Version with Async Static Path."""
-    _LOGGER.info("Setting up H.A WordPlay integration - Panel Version")
+    """Set up H.A WordPlay integration - HTML Panel Version."""
+    _LOGGER.info("Setting up H.A WordPlay integration - HTML Panel Version")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -46,12 +47,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await discovery.async_load_platform(hass, "button", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
     await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
+    await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
     
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
     
-    # Register the WordPlay panel with async static path
-    await _register_wordplay_panel(hass)
+    # Register the WordPlay HTML panel
+    await _register_wordplay_html_panel(hass)
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
@@ -75,23 +77,26 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Register services
     await _register_services(hass, game)
     
-    _LOGGER.info("H.A WordPlay integration setup complete - Panel Ready!")
+    _LOGGER.info("H.A WordPlay integration setup complete - HTML Panel Ready!")
     _LOGGER.info(f"Supported languages: {get_supported_languages()}")
     return True
 
-async def _register_wordplay_panel(hass: HomeAssistant) -> None:
-    """Register the WordPlay custom panel with async static path."""
+async def _register_wordplay_html_panel(hass: HomeAssistant) -> None:
+    """Register the WordPlay HTML panel with static file serving."""
     try:
-        # Register static path using new async method (HA 2025.7 compatible)
+        # Get the integration directory path
+        integration_dir = os.path.dirname(__file__)
+        
+        # Register static path for the integration files
         await hass.http.async_register_static_paths([
             StaticPathConfig(
                 url_path="/hacsfiles/ha_wordplay",
-                path=hass.config.path("custom_components/ha_wordplay"),
+                path=integration_dir,
                 cache_headers=False,
             )
         ])
         
-        # Register the panel itself
+        # Register the HTML panel
         async_register_built_in_panel(
             hass,
             component_name="wordplay",
@@ -99,15 +104,16 @@ async def _register_wordplay_panel(hass: HomeAssistant) -> None:
             sidebar_icon="mdi:gamepad-variant",
             frontend_url_path="wordplay",
             config={
-                "js_url": "/hacsfiles/ha_wordplay/wordplay_panel.js",
+                "html_url": "/hacsfiles/ha_wordplay/wordplay_game.html",
             },
             require_admin=False,
         )
         
-        _LOGGER.info("WordPlay panel registered successfully with async static path - Available in sidebar!")
+        _LOGGER.info("WordPlay HTML panel registered successfully - Available in sidebar!")
+        _LOGGER.info("Panel URL: /hacsfiles/ha_wordplay/wordplay_game.html")
         
     except Exception as e:
-        _LOGGER.error(f"Failed to register WordPlay panel: {e}")
+        _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
 
 async def _update_button_attributes(hass: HomeAssistant) -> None:
     """Update button entity attributes when game state changes."""

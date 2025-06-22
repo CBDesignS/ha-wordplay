@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H.A WordPlay - Game Interface</title>
+    <style>
+        /* Home Assistant inspired variables */
+        :root {
+            --primary-color: #03a9f4;
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+            --accent-color: #ff9800;
+            
+            /* Game colors */
+            --tile-correct: #4caf50;     /* Green - correct */
+            --tile-partial: #ff9800;     /* Orange - partial */
+            --tile-absent: #9e9e9e;      /* Gray - absent */
+            --tile-empty: #ffffff;       /* White - empty */
+            --tile-border: #d1d5db;      /* Light gray border */
+            
+            /* Card spacing */
+            --card-margin: 16px;
+            --tile-gap: 4px;
+            --tile-size: 60px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Roboto, sans-serif;
+            background: var(--primary-background-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary-color);
+        }
+
+        .wordplay-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .connection-status {
+            padding: 8px 16px;
+            background: #4caf50;
+            color: white;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .connection-status.disconnected {
+            background: #f44336;
+        }
+
+        .connection-status.connecting {
+            background: #ff9800;
+        }
+
+        /* WordPlay Card */
+        .wordplay-card {
+            padding: var(--card-margin);
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .game-header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .game-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-primary-color);
+            margin: 0;
+        }
+
+        .game-status {
+            font-size: 14px;
+            color: var(--text-secondary-color);
+            margin: 4px 0 0 0;
+        }
+
+        /* Dynamic Game Grid */
+        .game-grid {
+            display: grid;
+            gap: var(--tile-gap);
+            justify-content: center;
+            margin: 16px 0;
+            transition: all 0.3s ease;
+        }
+
+        .game-tile {
+            width: var(--tile-size);
+            height: var(--tile-size);
+            border: 2px solid var(--tile-border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            background: var(--tile-empty);
+            transition: all 0.3s ease;
+        }
+
+        .game-tile:hover {
+            transform: scale(1.05);
+        }
+
+        .game-tile.filled {
+            background: var(--secondary-background-color);
+            border-color: var(--text-secondary-color);
+        }
+
+        .game-tile.correct {
+            background: var(--tile-correct);
+            color: white;
+            border-color: var(--tile-correct);
+            animation: flip 0.6s ease;
+        }
+
+        .game-tile.partial {
+            background: var(--tile-partial);
+            color: white;
+            border-color: var(--tile-partial);
+            animation: flip 0.6s ease;
+        }
+
+        .game-tile.absent {
+            background: var(--tile-absent);
+            color: white;
+            border-color: var(--tile-absent);
+            animation: flip 0.6s ease;
+        }
+
+        @keyframes flip {
+            0% { transform: rotateY(0deg); }
+            50% { transform: rotateY(90deg); }
+            100% { transform: rotateY(0deg); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .game-tile.invalid {
+            animation: shake 0.5s ease;
+            border-color: #f44336;
+        }
+
+        /* Word Length Selector */
+        .word-length-controls {
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .word-length-selector {
+            margin: 8px;
+        }
+
+        .word-length-selector button {
+            margin: 0 4px;
+            padding: 8px 16px;
+            border: 2px solid var(--primary-color);
+            background: white;
+            color: var(--primary-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .word-length-selector button.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .word-length-selector button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Input Section */
+        .game-input {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            text-align: center;
+            text-transform: uppercase;
+            border: 2px solid var(--tile-border);
+            border-radius: 4px;
+            margin-bottom: 12px;
+            background: white;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(3, 169, 244, 0.2);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .action-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 100px;
+        }
+
+        .action-button.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .action-button.secondary {
+            background: var(--secondary-background-color);
+            color: var(--text-primary-color);
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .action-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Game Info */
+        .game-info {
+            text-align: center;
+            margin-top: 16px;
+            padding: 12px;
+            background: var(--secondary-background-color);
+            border-radius: 4px;
+            max-width: 400px;
+        }
+
+        .hint-text {
+            font-style: italic;
+            color: var(--text-secondary-color);
+            margin: 8px 0;
+        }
+
+        .message-text {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .message-text.success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .message-text.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .message-text.info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            :root {
+                --tile-size: 45px;
+                --tile-gap: 3px;
+            }
+            
+            body {
+                padding: 10px;
+            }
+            
+            .wordplay-card {
+                padding: 12px;
+            }
+            
+            .game-title {
+                font-size: 20px;
+            }
+            
+            .input-field {
+                font-size: 16px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .action-button {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            :root {
+                --tile-size: 35px;
+                --tile-gap: 2px;
+            }
+            
+            .wordplay-container {
+                margin: 5px;
+                border-radius: 4px;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-background-color: #121212;
+                --secondary-background-color: #1e1e1e;
+                --text-primary-color: #ffffff;
+                --text-secondary-color: #b3b3b3;
+                --divider-color: #333333;
+                --tile-empty: #2c2c2c;
+                --tile-border: #444444;
+            }
+            
+            body {
+                background: var(--primary-background-color);
+            }
+            
+            .wordplay-container {
+                background: #1e1e1e;
+            }
+            
+            .input-field {
+                background: var(--tile-empty);
+                color: var(--text-primary-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wordplay-container">
+        <div class="connection-status" id="connectionStatus">
+            🔗 Connecting to Home Assistant...
+        </div>
+
+        <div class="wordplay-card">
+            <div class="game-header">
+                <h1 class="game-title">🎮 H.A WordPlay</h1>
+                <p class="game-status" id="gameStatus">Ready to play • Select word length</p>
+            </div>
+
+            <div class="word-length-controls">
+                <div class="word-length-selector">
+                    <span>Word Length:</span>
+                    <button id="length5" class="active" onclick="changeWordLength(5)">5</button>
+                    <button id="length6" onclick="changeWordLength(6)">6</button>
+                    <button id="length7" onclick="changeWordLength(7)">7</button>
+                    <button id="length8" onclick="changeWordLength(8)">8</button>
+                </div>
+            </div>
+
+            <div class="game-grid" id="gameGrid">
+                <!-- Grid tiles will be generated by JavaScript -->
+            </div>
+
+            <div class="game-input">
+                <input type="text" class="input-field" placeholder="Enter your guess..." 
+                       maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)">
+                
+                <div class="action-buttons">
+                    <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
+                    <button class="action-button secondary" onclick="getHint()">Get Hint</button>
+                    <button class="action-button secondary" onclick="newGame()">New Game</button>
+                </div>
+            </div>
+
+            <div class="game-info" id="gameInfo">
+                <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
+                <div class="message-text" id="messageText" style="display: none;"></div>
+                <p><strong>How to play:</strong> 🟢 Correct • 🟠 Wrong position • ⚪ Not in word</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game state variables
+        let currentWordLength = 5;
+        let gameGrid = [];
+        let gameState = 'idle';
+        let ws = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        
+        // Game data
+        let currentGameData = {
+            word_length: 5,
+            game_state: 'idle',
+            guesses: [],
+            guess_results: [],
+            hint: '',
+            last_message: '',
+            message_type: '',
+            current_input: ''
+        };
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/api/websocket`;
+            
+            updateConnectionStatus('connecting', '🔄 Connecting to Home Assistant...');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('🎮 WordPlay: WebSocket connected');
+                updateConnectionStatus('connected', '✅ Connected to Home Assistant');
+                reconnectAttempts = 0;
+                
+                // Authenticate
+                ws.send(JSON.stringify({
+                    type: 'auth',
+                    access_token: getAccessToken()
+                }));
+            };
+            
+            ws.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleWebSocketMessage(message);
+            };
+            
+            ws.onclose = function() {
+                console.log('🎮 WordPlay: WebSocket disconnected');
+                updateConnectionStatus('disconnected', '❌ Disconnected from Home Assistant');
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(() => {
+                        console.log(`🎮 WordPlay: Reconnection attempt ${reconnectAttempts}`);
+                        initWebSocket();
+                    }, 2000 * reconnectAttempts);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('🎮 WordPlay: WebSocket error:', error);
+                updateConnectionStatus('disconnected', '❌ Connection error');
+            };
+        }
+
+        // Get access token from current session
+        function getAccessToken() {
+            // Try to get token from localStorage (HA stores it there)
+            return localStorage.getItem('hassTokens') ? 
+                   JSON.parse(localStorage.getItem('hassTokens')).access_token : 
+                   null;
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(message) {
+            switch (message.type) {
+                case 'auth_required':
+                    console.log('🎮 WordPlay: Authentication required');
+                    break;
+                    
+                case 'auth_ok':
+                    console.log('🎮 WordPlay: Authentication successful');
+                    subscribeToEntities();
+                    break;
+                    
+                case 'auth_invalid':
+                    console.error('🎮 WordPlay: Authentication failed');
+                    updateConnectionStatus('disconnected', '❌ Authentication failed');
+                    break;
+                    
+                case 'event':
+                    if (message.event.event_type === 'state_changed') {
+                        handleStateChange(message.event.data);
+                    }
+                    break;
+                    
+                case 'result':
+                    handleServiceResult(message);
+                    break;
+            }
+        }
+
+        // Subscribe to entity state changes
+        function subscribeToEntities() {
+            // Subscribe to game state changes
+            ws.send(JSON.stringify({
+                id: 1,
+                type: 'subscribe_events',
+                event_type: 'state_changed'
+            }));
+            
+            // Get initial states
+            ws.send(JSON.stringify({
+                id: 2,
+                type: 'get_states'
+            }));
+        }
+
+        // Handle entity state changes
+        function handleStateChange(data) {
+            const entityId = data.entity_id;
+            const newState = data.new_state;
+            
+            if (!newState) return;
+            
+            switch (entityId) {
+                case 'sensor.ha_wordplay_game_state':
+                    updateGameState(newState);
+                    break;
+                    
+                case 'text.ha_wordplay_guess_input':
+                    updateInputFromEntity(newState.state);
+                    break;
+                    
+                case 'select.ha_wordplay_word_length':
+                    updateWordLengthFromEntity(parseInt(newState.state));
+                    break;
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = message;
+            statusEl.className = `connection-status ${status}`;
+        }
+
+        // Call Home Assistant service
+        function callService(domain, service, serviceData = {}) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                console.error('🎮 WordPlay: WebSocket not connected');
+                showMessage('Connection error - please refresh', 'error');
+                return;
+            }
+            
+            const message = {
+                id: Date.now(),
+                type: 'call_service',
+                domain: domain,
+                service: service,
+                service_data: serviceData
+            };
+            
+            console.log(`🎮 WordPlay: Calling service ${domain}.${service}`, serviceData);
+            ws.send(JSON.stringify(message));
+        }
+
+        // Handle service call results
+        function handleServiceResult(message) {
+            if (message.success) {
+                console.log('🎮 WordPlay: Service call successful', message);
+            } else {
+                console.error('🎮 WordPlay: Service call failed', message.error);
+                showMessage('Service call failed', 'error');
+            }
+        }
+
+        // Update game state from sensor
+        function updateGameState(state) {
+            const attributes = state.attributes || {};
+            
+            currentGameData = {
+                word_length: attributes.word_length || 5,
+                game_state: state.state || 'idle',
+                guesses: attributes.guess_history || [],
+                guess_results: attributes.guess_results || [],
+                hint: attributes.hint || '',
+                last_message: attributes.last_message || '',
+                message_type: attributes.message_type || 'info',
+                current_input: attributes.current_input || ''
+            };
+            
+            updateUI();
+        }
+
+        // Update UI based on current game data
+        function updateUI() {
+            // Update game status
+            const statusEl = document.getElementById('gameStatus');
+            if (currentGameData.game_state === 'playing') {
+                const remaining = currentGameData.word_length - currentGameData.guesses.length;
+                statusEl.textContent = `Playing • ${currentGameData.word_length} letters • ${remaining} guesses remaining`;
+            } else if (currentGameData.game_state === 'won') {
+                statusEl.textContent = `🎉 You won! • ${currentGameData.guesses.length} guesses`;
+            } else if (currentGameData.game_state === 'lost') {
+                statusEl.textContent = `😞 Game over • Better luck next time!`;
+            } else {
+                statusEl.textContent = `Ready to play • Select word length`;
+            }
+            
+            // Update word length selector
+            updateWordLengthButtons(currentGameData.word_length);
+            
+            // Update grid
+            createGrid(currentGameData.word_length);
+            populateGrid();
+            
+            // Update hint
+            document.getElementById('hintText').textContent = 
+                currentGameData.hint || '💡 Click "Get Hint" for a clue!';
+            
+            // Update message
+            if (currentGameData.last_message) {
+                showMessage(currentGameData.last_message, currentGameData.message_type);
+            }
+            
+            // Update input max length
+            document.getElementById('guessInput').maxLength = currentGameData.word_length;
+            
+            // Update button states
+            updateButtonStates();
+        }
+
+        // Create game grid
+        function createGrid(wordLength) {
+            if (wordLength === currentWordLength && gameGrid.length > 0) {
+                return; // Grid already exists for this word length
+            }
+            
+            currentWordLength = wordLength;
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = '';
+            
+            // Set CSS grid template
+            grid.style.gridTemplateColumns = `repeat(${wordLength}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${wordLength}, 1fr)`;
+            
+            // Create tiles
+            gameGrid = [];
+            for (let row = 0; row < wordLength; row++) {
+                gameGrid[row] = [];
+                for (let col = 0; col < wordLength; col++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'game-tile';
+                    tile.dataset.row = row;
+                    tile.dataset.col = col;
+                    grid.appendChild(tile);
+                    gameGrid[row][col] = tile;
+                }
+            }
+        }
+
+        // Populate grid with game data
+        function populateGrid() {
+            // Clear all tiles
+            gameGrid.forEach(row => {
+                row.forEach(tile => {
+                    tile.textContent = '';
+                    tile.className = 'game-tile';
+                });
+            });
+
+            // Add completed guesses
+            currentGameData.guesses.forEach((guess, guessIndex) => {
+                const result = currentGameData.guess_results[guessIndex] || [];
+                
+                for (let i = 0; i < guess.length; i++) {
+                    if (gameGrid[guessIndex] && gameGrid[guessIndex][i]) {
+                        const tile = gameGrid[guessIndex][i];
+                        tile.textContent = guess[i];
+                        tile.classList.add('filled');
+                        
+                        if (result[i]) {
+                            tile.classList.add(result[i]);
+                        }
+                    }
+                }
+            });
+
+            // Show current input on next row
+            if (currentGameData.game_state === 'playing') {
+                const currentRow = currentGameData.guesses.length;
+                const currentInput = document.getElementById('guessInput').value.toUpperCase();
+                
+                if (gameGrid[currentRow]) {
+                    for (let i = 0; i < currentWordLength; i++) {
+                        const tile = gameGrid[currentRow][i];
+                        if (i < currentInput.length) {
+                            tile.textContent = currentInput[i];
+                            tile.classList.add('filled');
+                        } else {
+                            tile.textContent = '';
+                            tile.classList.remove('filled');
+                        }
+                    }
+                }
+            }
+        }
+
+        // Word length functions
+        function changeWordLength(length) {
+            if (currentGameData.game_state === 'playing') {
+                if (!confirm('This will end the current game. Continue?')) {
+                    return;
+                }
+            }
+            
+            currentWordLength = length;
+            callService('select', 'select_option', {
+                entity_id: 'select.ha_wordplay_word_length',
+                option: length.toString()
+            });
+        }
+
+        function updateWordLengthFromEntity(length) {
+            updateWordLengthButtons(length);
+            if (length !== currentWordLength) {
+                currentWordLength = length;
+                createGrid(length);
+            }
+        }
+
+        function updateWordLengthButtons(activeLength) {
+            [5, 6, 7, 8].forEach(length => {
+                const btn = document.getElementById(`length${length}`);
+                if (btn) {
+                    btn.classList.toggle('active', length === activeLength);
+                }
+            });
+        }
+
+        // Input handling
+        function updateInput() {
+            const input = document.getElementById('guessInput');
+            const value = input.value.toUpperCase();
+            
+            // Update current row preview
+            if (currentGameData.game_state === 'playing') {
+                const currentRow = currentGameData.guesses.length;
+                if (gameGrid[currentRow]) {
+                    for (let i = 0; i < currentWordLength; i++) {
+                        const tile = gameGrid[currentRow][i];
+                        if (i < value.length) {
+                            tile.textContent = value[i];
+                            tile.classList.add('filled');
+                        } else {
+                            tile.textContent = '';
+                            tile.classList.remove('filled');
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateInputFromEntity(value) {
+            document.getElementById('guessInput').value = value || '';
+            updateInput();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                submitGuess();
+            }
+        }
+
+        // Game action functions
+        function newGame() {
+            callService('ha_wordplay', 'new_game', {
+                word_length: currentWordLength
+            });
+        }
+
+        function submitGuess() {
+            const guess = document.getElementById('guessInput').value.trim();
+            
+            if (guess.length !== currentWordLength) {
+                showInvalidGuess();
+                return;
+            }
+            
+            callService('ha_wordplay', 'submit_guess');
+        }
+
+        function getHint() {
+            callService('ha_wordplay', 'get_hint');
+        }
+
+        // UI helper functions
+        function showMessage(message, type = 'info') {
+            const messageEl = document.getElementById('messageText');
+            messageEl.textContent = message;
+            messageEl.className = `message-text ${type}`;
+            messageEl.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function showInvalidGuess() {
+            const currentRow = currentGameData.guesses.length;
+            if (gameGrid[currentRow]) {
+                gameGrid[currentRow].forEach(tile => {
+                    tile.classList.add('invalid');
+                    setTimeout(() => tile.classList.remove('invalid'), 500);
+                });
+            }
+            showMessage(`Guess must be ${currentWordLength} letters`, 'error');
+        }
+
+        function updateButtonStates() {
+            const submitBtn = document.getElementById('submitBtn');
+            const isPlaying = currentGameData.game_state === 'playing';
+            const hasValidInput = document.getElementById('guessInput').value.length === currentWordLength;
+            
+            submitBtn.disabled = !isPlaying || !hasValidInput;
+        }
+
+        // Initialize everything
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎮 WordPlay: Initializing interface');
+            createGrid(5);
+            initWebSocket();
+            
+            // Update button states on input
+            document.getElementById('guessInput').addEventListener('input', updateButtonStates);
+        });
+    </script>
+</body>
+</html>
