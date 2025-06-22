@@ -96,21 +96,22 @@ async def _register_wordplay_html_panel(hass: HomeAssistant) -> None:
             )
         ])
         
-        # Register the HTML panel
+        # Register iframe panel (more reliable than HTML panel)
         async_register_built_in_panel(
             hass,
-            component_name="wordplay",
+            component_name="iframe",
             sidebar_title="🎮 WordPlay",
             sidebar_icon="mdi:gamepad-variant",
             frontend_url_path="wordplay",
             config={
-                "html_url": "/hacsfiles/ha_wordplay/wordplay_game.html",
+                "url": "/hacsfiles/ha_wordplay/wordplay_game.html",
+                "title": "🎮 H.A WordPlay",
             },
             require_admin=False,
         )
         
-        _LOGGER.info("WordPlay HTML panel registered successfully - Available in sidebar!")
-        _LOGGER.info("Panel URL: /hacsfiles/ha_wordplay/wordplay_game.html")
+        _LOGGER.info("WordPlay iframe panel registered successfully - Available in sidebar!")
+        _LOGGER.info("Panel iframe URL: /hacsfiles/ha_wordplay/wordplay_game.html")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
