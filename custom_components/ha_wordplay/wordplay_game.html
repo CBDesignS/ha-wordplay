@@ -76,7 +76,7 @@
         .wordplay-container {
             max-width: 800px;
             margin: 0 auto;
-            background: white;
+            background: var(--secondary-background-color);
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -177,7 +177,8 @@
             border: 2px solid var(--tile-border);
             border-radius: 4px;
             margin-bottom: 12px;
-            background: white;
+            background: var(--tile-empty);
+            color: var(--text-primary-color);
         }
 
         .input-field:focus {
@@ -648,7 +649,7 @@ Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
                         tile.classList.add('filled');
                         
                         // Parse "R⬜ O🟥 P⬜ E⬜ S⬜" format
-                        if (typeof resultString === 'string' && resultString.includes('⬜')) {
+                        if (typeof resultString === 'string' && (resultString.includes('⬜') || resultString.includes('🟥') || resultString.includes('🟦'))) {
                             const letterPairs = resultString.split(' ');
                             const letterResult = letterPairs[i];
                             if (letterResult) {
