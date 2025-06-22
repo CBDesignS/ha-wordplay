@@ -421,9 +421,8 @@
         let currentWordLength = 5;
         let gameGrid = [];
         let gameState = 'idle';
-        let ws = null;
-        let reconnectAttempts = 0;
-        let maxReconnectAttempts = 5;
+        let updateInterval = null;
+        let eventSource = null;
         
         // Game data
         let currentGameData = {
@@ -437,105 +436,81 @@
             current_input: ''
         };
 
-        // Initialize WebSocket connection
-        function initWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/api/websocket`;
-            
+        // Initialize REST API connection
+        function initConnection() {
             updateConnectionStatus('connecting', '🔄 Connecting to Home Assistant...');
             
-            ws = new WebSocket(wsUrl);
+            // Try to establish initial connection
+            testConnection();
             
-            ws.onopen = function() {
-                console.log('🎮 WordPlay: WebSocket connected');
-                updateConnectionStatus('connected', '✅ Connected to Home Assistant');
-                reconnectAttempts = 0;
-                
-                // Authenticate
-                ws.send(JSON.stringify({
-                    type: 'auth',
-                    access_token: getAccessToken()
-                }));
-            };
+            // Start polling for state updates (fallback)
+            startPolling();
             
-            ws.onmessage = function(event) {
-                const message = JSON.parse(event.data);
-                handleWebSocketMessage(message);
-            };
-            
-            ws.onclose = function() {
-                console.log('🎮 WordPlay: WebSocket disconnected');
-                updateConnectionStatus('disconnected', '❌ Disconnected from Home Assistant');
-                
-                if (reconnectAttempts < maxReconnectAttempts) {
-                    reconnectAttempts++;
-                    setTimeout(() => {
-                        console.log(`🎮 WordPlay: Reconnection attempt ${reconnectAttempts}`);
-                        initWebSocket();
-                    }, 2000 * reconnectAttempts);
+            // Try to use Server-Sent Events for real-time updates
+            setupEventSource();
+        }
+
+        // Test basic REST API connectivity
+        async function testConnection() {
+            try {
+                const response = await fetch('/api/states/sensor.ha_wordplay_game_state');
+                if (response.ok) {
+                    updateConnectionStatus('connected', '✅ Connected to Home Assistant');
+                    console.log('🎮 WordPlay: REST API connected successfully');
+                    
+                    // Get initial game state
+                    await refreshGameState();
+                    return true;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
                 }
-            };
-            
-            ws.onerror = function(error) {
-                console.error('🎮 WordPlay: WebSocket error:', error);
-                updateConnectionStatus('disconnected', '❌ Connection error');
-            };
-        }
-
-        // Get access token from current session
-        function getAccessToken() {
-            // Try to get token from localStorage (HA stores it there)
-            return localStorage.getItem('hassTokens') ? 
-                   JSON.parse(localStorage.getItem('hassTokens')).access_token : 
-                   null;
-        }
-
-        // Handle WebSocket messages
-        function handleWebSocketMessage(message) {
-            switch (message.type) {
-                case 'auth_required':
-                    console.log('🎮 WordPlay: Authentication required');
-                    break;
-                    
-                case 'auth_ok':
-                    console.log('🎮 WordPlay: Authentication successful');
-                    subscribeToEntities();
-                    break;
-                    
-                case 'auth_invalid':
-                    console.error('🎮 WordPlay: Authentication failed');
-                    updateConnectionStatus('disconnected', '❌ Authentication failed');
-                    break;
-                    
-                case 'event':
-                    if (message.event.event_type === 'state_changed') {
-                        handleStateChange(message.event.data);
-                    }
-                    break;
-                    
-                case 'result':
-                    handleServiceResult(message);
-                    break;
+            } catch (error) {
+                console.error('🎮 WordPlay: Connection test failed:', error);
+                updateConnectionStatus('disconnected', '❌ Connection failed - checking...');
+                return false;
             }
         }
 
-        // Subscribe to entity state changes
-        function subscribeToEntities() {
-            // Subscribe to game state changes
-            ws.send(JSON.stringify({
-                id: 1,
-                type: 'subscribe_events',
-                event_type: 'state_changed'
-            }));
-            
-            // Get initial states
-            ws.send(JSON.stringify({
-                id: 2,
-                type: 'get_states'
-            }));
+        // Setup Server-Sent Events for real-time updates (if available)
+        function setupEventSource() {
+            try {
+                eventSource = new EventSource('/api/stream');
+                
+                eventSource.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.event_type === 'state_changed') {
+                            handleStateChange(data.data);
+                        }
+                    } catch (e) {
+                        console.debug('🎮 WordPlay: Non-JSON event data:', event.data);
+                    }
+                };
+                
+                eventSource.onerror = function(error) {
+                    console.debug('🎮 WordPlay: EventSource error, falling back to polling');
+                    eventSource.close();
+                    eventSource = null;
+                };
+                
+                console.log('🎮 WordPlay: EventSource established for real-time updates');
+            } catch (error) {
+                console.debug('🎮 WordPlay: EventSource not available, using polling only');
+            }
         }
 
-        // Handle entity state changes
+        // Polling fallback for state updates
+        function startPolling() {
+            if (updateInterval) clearInterval(updateInterval);
+            
+            updateInterval = setInterval(async () => {
+                if (!eventSource) { // Only poll if EventSource isn't working
+                    await refreshGameState();
+                }
+            }, 2000); // Poll every 2 seconds
+        }
+
+        // Handle state changes from EventSource
         function handleStateChange(data) {
             const entityId = data.entity_id;
             const newState = data.new_state;
@@ -544,7 +519,7 @@
             
             switch (entityId) {
                 case 'sensor.ha_wordplay_game_state':
-                    updateGameState(newState);
+                    updateGameStateFromEntity(newState);
                     break;
                     
                 case 'text.ha_wordplay_guess_input':
@@ -557,6 +532,36 @@
             }
         }
 
+        // Refresh game state via REST API
+        async function refreshGameState() {
+            try {
+                // Get game state sensor
+                const gameStateResponse = await fetch('/api/states/sensor.ha_wordplay_game_state');
+                if (gameStateResponse.ok) {
+                    const gameStateData = await gameStateResponse.json();
+                    updateGameStateFromEntity(gameStateData);
+                }
+                
+                // Get input state
+                const inputResponse = await fetch('/api/states/text.ha_wordplay_guess_input');
+                if (inputResponse.ok) {
+                    const inputData = await inputResponse.json();
+                    updateInputFromEntity(inputData.state);
+                }
+                
+                // Get word length selector
+                const lengthResponse = await fetch('/api/states/select.ha_wordplay_word_length');
+                if (lengthResponse.ok) {
+                    const lengthData = await lengthResponse.json();
+                    updateWordLengthFromEntity(parseInt(lengthData.state));
+                }
+                
+            } catch (error) {
+                console.error('🎮 WordPlay: Error refreshing game state:', error);
+                updateConnectionStatus('disconnected', '❌ Connection error');
+            }
+        }
+
         // Update connection status
         function updateConnectionStatus(status, message) {
             const statusEl = document.getElementById('connectionStatus');
@@ -564,43 +569,42 @@
             statusEl.className = `connection-status ${status}`;
         }
 
-        // Call Home Assistant service
-        function callService(domain, service, serviceData = {}) {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                console.error('🎮 WordPlay: WebSocket not connected');
-                showMessage('Connection error - please refresh', 'error');
-                return;
+        // Call Home Assistant service via REST API
+        async function callService(domain, service, serviceData = {}) {
+            try {
+                const response = await fetch('/api/services/' + domain + '/' + service, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(serviceData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                console.log(`🎮 WordPlay: Service call successful: ${domain}.${service}`);
+                
+                // Refresh state after service call
+                setTimeout(() => refreshGameState(), 500);
+                
+                return await response.json();
+                
+            } catch (error) {
+                console.error(`🎮 WordPlay: Service call failed: ${domain}.${service}`, error);
+                showMessage('Service call failed - please try again', 'error');
+                throw error;
             }
-            
-            const message = {
-                id: Date.now(),
-                type: 'call_service',
-                domain: domain,
-                service: service,
-                service_data: serviceData
-            };
-            
-            console.log(`🎮 WordPlay: Calling service ${domain}.${service}`, serviceData);
-            ws.send(JSON.stringify(message));
         }
 
-        // Handle service call results
-        function handleServiceResult(message) {
-            if (message.success) {
-                console.log('🎮 WordPlay: Service call successful', message);
-            } else {
-                console.error('🎮 WordPlay: Service call failed', message.error);
-                showMessage('Service call failed', 'error');
-            }
-        }
-
-        // Update game state from sensor
-        function updateGameState(state) {
-            const attributes = state.attributes || {};
+        // Update game state from entity data
+        function updateGameStateFromEntity(entityData) {
+            const attributes = entityData.attributes || {};
             
             currentGameData = {
                 word_length: attributes.word_length || 5,
-                game_state: state.state || 'idle',
+                game_state: entityData.state || 'idle',
                 guesses: attributes.guess_history || [],
                 guess_results: attributes.guess_results || [],
                 hint: attributes.hint || '',
@@ -727,18 +731,22 @@
         }
 
         // Word length functions
-        function changeWordLength(length) {
+        async function changeWordLength(length) {
             if (currentGameData.game_state === 'playing') {
                 if (!confirm('This will end the current game. Continue?')) {
                     return;
                 }
             }
             
-            currentWordLength = length;
-            callService('select', 'select_option', {
-                entity_id: 'select.ha_wordplay_word_length',
-                option: length.toString()
-            });
+            try {
+                await callService('select', 'select_option', {
+                    entity_id: 'select.ha_wordplay_word_length',
+                    option: length.toString()
+                });
+                currentWordLength = length;
+            } catch (error) {
+                console.error('🎮 WordPlay: Failed to change word length:', error);
+            }
         }
 
         function updateWordLengthFromEntity(length) {
@@ -782,8 +790,11 @@
         }
 
         function updateInputFromEntity(value) {
-            document.getElementById('guessInput').value = value || '';
-            updateInput();
+            const currentInput = document.getElementById('guessInput').value;
+            if (currentInput !== (value || '')) {
+                document.getElementById('guessInput').value = value || '';
+                updateInput();
+            }
         }
 
         function handleKeyPress(event) {
@@ -793,13 +804,17 @@
         }
 
         // Game action functions
-        function newGame() {
-            callService('ha_wordplay', 'new_game', {
-                word_length: currentWordLength
-            });
+        async function newGame() {
+            try {
+                await callService('ha_wordplay', 'new_game', {
+                    word_length: currentWordLength
+                });
+            } catch (error) {
+                console.error('🎮 WordPlay: Failed to start new game:', error);
+            }
         }
 
-        function submitGuess() {
+        async function submitGuess() {
             const guess = document.getElementById('guessInput').value.trim();
             
             if (guess.length !== currentWordLength) {
@@ -807,11 +822,19 @@
                 return;
             }
             
-            callService('ha_wordplay', 'submit_guess');
+            try {
+                await callService('ha_wordplay', 'submit_guess');
+            } catch (error) {
+                console.error('🎮 WordPlay: Failed to submit guess:', error);
+            }
         }
 
-        function getHint() {
-            callService('ha_wordplay', 'get_hint');
+        async function getHint() {
+            try {
+                await callService('ha_wordplay', 'get_hint');
+            } catch (error) {
+                console.error('🎮 WordPlay: Failed to get hint:', error);
+            }
         }
 
         // UI helper functions
@@ -846,14 +869,29 @@
             submitBtn.disabled = !isPlaying || !hasValidInput;
         }
 
+        // Cleanup function
+        function cleanup() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+        }
+
         // Initialize everything
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎮 WordPlay: Initializing interface');
+            console.log('🎮 WordPlay: Initializing REST API interface');
             createGrid(5);
-            initWebSocket();
+            initConnection();
             
             // Update button states on input
             document.getElementById('guessInput').addEventListener('input', updateButtonStates);
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', cleanup);
         });
     </script>
 </body>
