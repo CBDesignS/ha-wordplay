@@ -200,8 +200,20 @@
         }
 
         .action-button.primary { background: var(--primary-color); color: white; }
-        .action-button.secondary { background: var(--secondary-background-color); color: var(--text-primary-color); }
+        .action-button.secondary { background: var(--secondary-background-color); color: var(--text-primary-color); border: 2px solid var(--divider-color); }
+        .action-button.hint { background: #9c27b0; color: white; border: 2px solid #9c27b0; }
+        .action-button.new-game { background: #4caf50; color: white; border: 2px solid #4caf50; }
+        .action-button.new-game.pulse-text { 
+            background: #4caf50; 
+            border: 2px solid #4caf50;
+            animation: textPulse 2s ease-in-out infinite;
+        }
         .action-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        @keyframes textPulse {
+            0%, 100% { color: white; }
+            50% { color: black; }
+        }
 
         .game-info {
             text-align: center;
@@ -288,8 +300,8 @@
                 
                 <div class="action-buttons">
                     <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
-                    <button class="action-button secondary" id="hintBtn" onclick="getHint()">Get Hint</button>
-                    <button class="action-button secondary" id="newGameBtn" onclick="newGame()">New Game</button>
+                    <button class="action-button hint" id="hintBtn" onclick="getHint()">Get Hint</button>
+                    <button class="action-button new-game" id="newGameBtn" onclick="newGame()">New Game</button>
                 </div>
             </div>
 
@@ -701,13 +713,21 @@ Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
         // Update button states
         function updateButtonStates() {
             const submitBtn = document.getElementById('submitBtn');
+            const newGameBtn = document.getElementById('newGameBtn');
             const isPlaying = currentGameData.game_state === 'playing';
             const hasValidInput = document.getElementById('guessInput').value.length === currentWordLength;
             
             submitBtn.disabled = !isPlaying || !hasValidInput || cooldowns.submitGuess;
             
             document.getElementById('hintBtn').disabled = !isPlaying || cooldowns.getHint;
-            document.getElementById('newGameBtn').disabled = cooldowns.newGame;
+            newGameBtn.disabled = cooldowns.newGame;
+            
+            // Add pulsing text animation when game is idle
+            if (currentGameData.game_state === 'idle' || currentGameData.game_state === 'won' || currentGameData.game_state === 'lost') {
+                newGameBtn.classList.add('pulse-text');
+            } else {
+                newGameBtn.classList.remove('pulse-text');
+            }
         }
 
         // Game actions - FIXED to match working backend
