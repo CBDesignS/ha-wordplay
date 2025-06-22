@@ -174,14 +174,30 @@
 
         .hint-text { font-style: italic; color: var(--text-secondary-color); margin: 8px 0; }
 
-        .debug-info {
+        .debug-panel {
             margin-top: 16px;
-            padding: 8px;
-            background: #f5f5f5;
+            padding: 12px;
+            background: #f0f8ff;
+            border: 1px solid #b3d9ff;
             border-radius: 4px;
             font-size: 12px;
-            color: #666;
+            color: #333;
             text-align: left;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .debug-toggle {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
         }
 
         @media (max-width: 768px) {
@@ -241,10 +257,10 @@
                 <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
                 <p><strong>How to play:</strong> 🟢 Correct • 🟠 Wrong position • ⚪ Not in word</p>
                 
-                <div class="debug-info" id="debugInfo">
-                    Connection: Initializing...<br>
-                    Game State: Checking...<br>
-                    Last Update: Never
+                <button class="debug-toggle" onclick="toggleDebugPanel()">Toggle Debug Panel</button>
+                <div class="debug-panel" id="debugPanel" style="display: block;">
+                    <strong>🔍 FRONTEND DEBUG PANEL</strong>
+                    <div id="debugContent">Initializing debug panel...</div>
                 </div>
             </div>
         </div>
@@ -257,8 +273,13 @@
         let accessToken = null;
         let updateInterval = null;
         let lastUpdate = 'Never';
+        // Start with debug visible
+        let debugVisible = true;
         
-        // Game data from your button entity
+        // Raw button entity data for debugging
+        let rawButtonData = null;
+        
+        // Parsed game data
         let currentGameData = {
             word_length: 5,
             game_state: 'idle',
@@ -268,6 +289,59 @@
             last_message: '',
             message_type: ''
         };
+
+        // Debug logging
+        function debugLog(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            console.log(logEntry, data);
+            
+            const debugContent = document.getElementById('debugContent');
+            if (debugContent) {
+                debugContent.textContent += `\n${logEntry}`;
+                if (data) {
+                    debugContent.textContent += `\nData: ${JSON.stringify(data, null, 2)}`;
+                }
+                debugContent.scrollTop = debugContent.scrollHeight;
+            }
+        }
+
+        function toggleDebugPanel() {
+            debugVisible = !debugVisible;
+            const panel = document.getElementById('debugPanel');
+            panel.style.display = debugVisible ? 'block' : 'none';
+            if (debugVisible) {
+                updateDebugPanel();
+            }
+        }
+
+        function updateDebugPanel() {
+            if (!debugVisible) return;
+            
+            const debugContent = document.getElementById('debugContent');
+            debugContent.textContent = `🔍 FRONTEND DEBUG PANEL - ${new Date().toLocaleTimeString()}
+
+=== RAW BUTTON ENTITY DATA ===
+${rawButtonData ? JSON.stringify(rawButtonData, null, 2) : 'No data loaded yet'}
+
+=== PARSED GAME DATA ===
+Word Length: ${currentGameData.word_length}
+Game State: ${currentGameData.game_state}
+Guesses Made: ${currentGameData.guesses.length}
+Guesses: ${JSON.stringify(currentGameData.guesses)}
+Guess Results: ${JSON.stringify(currentGameData.guess_results)}
+Hint: ${currentGameData.hint}
+Last Message: ${currentGameData.last_message}
+
+=== FRONTEND STATE ===
+Current Word Length: ${currentWordLength}
+Access Token: ${accessToken ? 'Present' : 'Missing'}
+Last Update: ${lastUpdate}
+
+=== GRID DEBUG ===
+Grid Rows: ${gameGrid.length}
+Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
+        }
 
         // Action cooldowns to prevent spam
         let cooldowns = {
@@ -306,22 +380,14 @@
             const statusEl = document.getElementById('connectionStatus');
             statusEl.textContent = message;
             statusEl.className = `connection-status ${status}`;
+            debugLog(`Connection status: ${status} - ${message}`);
         }
 
         function updateGameStatus(message, type = 'info') {
             const statusEl = document.getElementById('gameStatus');
             statusEl.textContent = message;
             statusEl.className = `game-status ${type}`;
-        }
-
-        function updateDebugInfo() {
-            const debugEl = document.getElementById('debugInfo');
-            debugEl.innerHTML = `
-                Connection: ${accessToken ? 'Authenticated' : 'No Auth'}<br>
-                Game State: ${currentGameData.game_state}<br>
-                Guesses: ${currentGameData.guesses.length}/${currentGameData.word_length}<br>
-                Last Update: ${lastUpdate}
-            `;
+            debugLog(`Game status: ${type} - ${message}`);
         }
 
         // Cooldown system
@@ -331,13 +397,17 @@
 
         function setActionCooldown(action, duration = 2000) {
             cooldowns[action] = true;
+            debugLog(`Action cooldown set: ${action} for ${duration}ms`);
             setTimeout(() => {
                 cooldowns[action] = false;
+                debugLog(`Action cooldown cleared: ${action}`);
             }, duration);
         }
 
         // API calls to Home Assistant
         async function callHAService(domain, service, data = {}) {
+            debugLog(`🔧 Calling HA service: ${domain}.${service}`, data);
+            
             const headers = {'Content-Type': 'application/json'};
             if (accessToken) {
                 headers['Authorization'] = `Bearer ${accessToken}`;
@@ -350,10 +420,13 @@
             });
 
             if (!response.ok) {
+                debugLog(`❌ Service call failed: ${response.status}`);
                 throw new Error(`Service call failed: ${response.status}`);
             }
 
-            return response.json();
+            const result = await response.json();
+            debugLog(`✅ Service call successful`, result);
+            return result;
         }
 
         async function getEntityState(entityId) {
@@ -374,19 +447,23 @@
             return response.json();
         }
 
-        // Refresh game state from YOUR button entity
+        // Refresh game state from button entity
         async function refreshGameState() {
             try {
-                // Get game data from YOUR button entity (where the data actually lives)
+                debugLog('🔄 Refreshing game state from button entity...');
+                
+                // Get game data from button entity
                 const buttonEntity = await getEntityState('button.ha_wordplay_game');
+                rawButtonData = buttonEntity; // Store for debugging
                 
                 if (buttonEntity && buttonEntity.attributes) {
                     const attrs = buttonEntity.attributes;
+                    debugLog('📊 Raw button attributes received', attrs);
                     
-                    // Parse the game data from YOUR button entity structure
+                    // Parse data from YOUR button.py structure
                     currentGameData = {
                         word_length: attrs.word_length || 5,
-                        game_state: attrs.game_status || 'idle',
+                        game_state: parseGameState(attrs.game_status),
                         guesses: attrs.guess_history || [],
                         guess_results: attrs.guess_results || [],
                         hint: attrs.hint || '',
@@ -394,9 +471,12 @@
                         message_type: attrs.message_type || 'info'
                     };
                     
+                    debugLog('📈 Parsed game data', currentGameData);
+                    
                     lastUpdate = new Date().toLocaleTimeString();
                     updateUI();
-                    updateDebugInfo();
+                    updateDebugPanel();
+                    updateConnectionStatus('connected', '✅ Connected to Home Assistant');
                     return true;
                 }
                 
@@ -405,17 +485,33 @@
                 if (lengthEntity && lengthEntity.state) {
                     currentWordLength = parseInt(lengthEntity.state);
                     updateWordLengthButtons();
+                    debugLog(`🔢 Word length from select: ${currentWordLength}`);
                 }
                 
             } catch (error) {
-                console.error('Failed to refresh game state:', error);
+                debugLog('❌ Failed to refresh game state', error);
                 updateConnectionStatus('disconnected', '❌ Connection failed');
                 return false;
             }
         }
 
+        // Parse game state from your button.py format
+        function parseGameState(gameStatus) {
+            if (!gameStatus) return 'idle';
+            
+            const status = gameStatus.toLowerCase();
+            if (status.includes('playing')) return 'playing';
+            if (status.includes('won')) return 'won';
+            if (status.includes('game over') || status.includes('lost')) return 'lost';
+            if (status.includes('ready')) return 'idle';
+            
+            return 'idle';
+        }
+
         // Update the UI based on current game data
         function updateUI() {
+            debugLog('🎨 Updating UI with current game data');
+            
             // Update game status
             if (currentGameData.game_state === 'playing') {
                 const remaining = currentGameData.word_length - currentGameData.guesses.length;
@@ -441,6 +537,8 @@
             
             // Update button states
             updateButtonStates();
+            
+            debugLog('✅ UI update complete');
         }
 
         // Create game grid
@@ -448,6 +546,8 @@
             if (wordLength === currentWordLength && gameGrid.length > 0) {
                 return;
             }
+            
+            debugLog(`🎯 Creating grid: ${wordLength}x${wordLength}`);
             
             currentWordLength = wordLength;
             const grid = document.getElementById('gameGrid');
@@ -466,10 +566,14 @@
                     gameGrid[row][col] = tile;
                 }
             }
+            
+            debugLog(`✅ Grid created: ${gameGrid.length} rows`);
         }
 
-        // Populate grid with guesses (ONLY submitted guesses, not typing)
+        // Populate grid with guesses from backend data
         function populateGrid() {
+            debugLog('🔤 Populating grid with guesses from backend data');
+            
             // Clear all tiles
             gameGrid.forEach(row => {
                 row.forEach(tile => {
@@ -478,9 +582,16 @@
                 });
             });
 
-            // Show completed guesses only
+            // Show completed guesses from backend
+            debugLog(`📝 Processing ${currentGameData.guesses.length} guesses`, {
+                guesses: currentGameData.guesses,
+                results: currentGameData.guess_results
+            });
+            
             currentGameData.guesses.forEach((guess, guessIndex) => {
                 const result = currentGameData.guess_results[guessIndex] || [];
+                
+                debugLog(`📍 Processing guess ${guessIndex}: "${guess}" with result:`, result);
                 
                 for (let i = 0; i < guess.length && i < currentWordLength; i++) {
                     if (gameGrid[guessIndex] && gameGrid[guessIndex][i]) {
@@ -490,10 +601,13 @@
                         
                         if (result[i]) {
                             tile.classList.add(result[i]);
+                            debugLog(`🎨 Tile [${guessIndex},${i}]: "${guess[i]}" -> ${result[i]}`);
                         }
                     }
                 }
             });
+            
+            debugLog('✅ Grid population complete');
         }
 
         // Update word length buttons
@@ -506,7 +620,7 @@
             });
         }
 
-        // Input handling (no grid preview while typing)
+        // Input handling
         function updateInput() {
             updateButtonStates();
         }
@@ -514,6 +628,7 @@
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
+                debugLog('⌨️ Enter key pressed - calling submitGuess()');
                 submitGuess();
             }
         }
@@ -530,13 +645,18 @@
             document.getElementById('newGameBtn').disabled = cooldowns.newGame;
         }
 
-        // Game actions using YOUR existing services
+        // Game actions - FIXED to match working backend
         async function newGame() {
-            if (!isActionAllowed('newGame')) return;
+            if (!isActionAllowed('newGame')) {
+                debugLog('🚫 New game blocked by cooldown');
+                return;
+            }
             
             try {
                 setActionCooldown('newGame', 3000);
                 updateGameStatus('🎮 Starting new game...', 'loading');
+                
+                debugLog(`🎮 Starting new game with word length: ${currentWordLength}`);
                 
                 await callHAService('ha_wordplay', 'new_game', {
                     word_length: currentWordLength
@@ -545,22 +665,31 @@
                 // Clear input
                 document.getElementById('guessInput').value = '';
                 
-                // Refresh state
-                setTimeout(() => refreshGameState(), 1000);
+                // Refresh state after delay
+                setTimeout(() => {
+                    debugLog('🔄 Refreshing state after new game');
+                    refreshGameState();
+                }, 1500);
                 
             } catch (error) {
-                console.error('New game failed:', error);
+                debugLog('❌ New game failed', error);
                 updateGameStatus('Failed to start new game', 'error');
             }
         }
 
         async function submitGuess() {
-            if (!isActionAllowed('submitGuess')) return;
+            if (!isActionAllowed('submitGuess')) {
+                debugLog('🚫 Submit guess blocked by cooldown');
+                return;
+            }
             
             const input = document.getElementById('guessInput');
             const guess = input.value.trim().toUpperCase();
             
+            debugLog(`📝 Submit guess called with: "${guess}"`);
+            
             if (guess.length !== currentWordLength) {
+                debugLog(`❌ Invalid guess length: ${guess.length} (expected ${currentWordLength})`);
                 return;
             }
             
@@ -568,46 +697,66 @@
                 setActionCooldown('submitGuess', 2000);
                 updateGameStatus('🔍 Processing guess...', 'loading');
                 
-                // Use YOUR two-step submit process
+                debugLog('🔧 Step 1: Setting text input value');
+                
+                // Step 1: Set the text input (like Enter key does)
                 await callHAService('text', 'set_value', {
                     entity_id: 'text.ha_wordplay_guess_input',
                     value: guess
                 });
                 
+                debugLog('🔧 Step 2: Calling submit_guess service');
+                
+                // Step 2: Submit the guess (like Enter key does)
                 await callHAService('ha_wordplay', 'submit_guess');
                 
                 // Clear input
                 input.value = '';
                 
-                // Refresh state
-                setTimeout(() => refreshGameState(), 1000);
+                debugLog('✅ Guess submitted successfully, refreshing state');
+                
+                // Refresh state after delay
+                setTimeout(() => {
+                    refreshGameState();
+                }, 1500);
                 
             } catch (error) {
-                console.error('Submit guess failed:', error);
+                debugLog('❌ Submit guess failed', error);
                 updateGameStatus('Failed to submit guess', 'error');
             }
         }
 
         async function getHint() {
-            if (!isActionAllowed('getHint')) return;
+            if (!isActionAllowed('getHint')) {
+                debugLog('🚫 Get hint blocked by cooldown');
+                return;
+            }
             
             try {
                 setActionCooldown('getHint', 2000);
                 updateGameStatus('💡 Getting hint...', 'loading');
                 
+                debugLog('💡 Calling get_hint service');
+                
                 await callHAService('ha_wordplay', 'get_hint');
                 
-                // Refresh state
-                setTimeout(() => refreshGameState(), 1000);
+                debugLog('✅ Hint service called, refreshing state');
+                
+                // Refresh state after delay
+                setTimeout(() => {
+                    refreshGameState();
+                }, 1000);
                 
             } catch (error) {
-                console.error('Get hint failed:', error);
+                debugLog('❌ Get hint failed', error);
                 updateGameStatus('Failed to get hint', 'error');
             }
         }
 
         async function changeWordLength(length) {
             try {
+                debugLog(`🔢 Changing word length to: ${length}`);
+                
                 await callHAService('select', 'select_option', {
                     entity_id: 'select.ha_wordplay_word_length',
                     option: length.toString()
@@ -616,18 +765,22 @@
                 currentWordLength = length;
                 updateWordLengthButtons();
                 
-                setTimeout(() => refreshGameState(), 500);
+                setTimeout(() => {
+                    debugLog('🔄 Refreshing state after word length change');
+                    refreshGameState();
+                }, 500);
                 
             } catch (error) {
-                console.error('Change word length failed:', error);
+                debugLog('❌ Change word length failed', error);
             }
         }
 
         // Initialize
         async function initWordPlay() {
-            console.log('🎮 WordPlay: Initializing with YOUR backend structure');
+            debugLog('🚀 WordPlay: Initializing frontend with backend integration');
             
             accessToken = getAccessToken();
+            debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
             
             // Create initial grid
             createGrid(5);
@@ -635,23 +788,29 @@
             // Test connection and get initial state
             try {
                 await refreshGameState();
-                updateConnectionStatus('connected', '✅ Connected to Home Assistant');
                 
-                // Start polling every 5 seconds
-                updateInterval = setInterval(refreshGameState, 5000);
+                // Start polling every 3 seconds
+                updateInterval = setInterval(refreshGameState, 3000);
+                debugLog('⏰ Polling started (3 second intervals)');
                 
             } catch (error) {
+                debugLog('❌ Initialization failed', error);
                 updateConnectionStatus('disconnected', '❌ Connection failed');
-                console.error('Connection failed:', error);
             }
         }
 
         // Start when page loads
-        document.addEventListener('DOMContentLoaded', initWordPlay);
+        document.addEventListener('DOMContentLoaded', () => {
+            debugLog('📄 DOM loaded, initializing WordPlay');
+            initWordPlay();
+        });
 
         // Cleanup
         window.addEventListener('beforeunload', () => {
-            if (updateInterval) clearInterval(updateInterval);
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                debugLog('🧹 Cleanup: Polling stopped');
+            }
         });
     </script>
 </body>
