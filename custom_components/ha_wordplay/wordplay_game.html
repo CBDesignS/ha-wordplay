@@ -298,6 +298,17 @@
             color: #1565c0;
         }
 
+        .debug-info {
+            margin-top: 16px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+            text-align: left;
+            max-width: 400px;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             :root {
@@ -412,17 +423,29 @@
                 <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
                 <div class="message-text" id="messageText" style="display: none;"></div>
                 <p><strong>How to play:</strong> 🟢 Correct • 🟠 Wrong position • ⚪ Not in word</p>
+                
+                <div class="debug-info" id="debugInfo">
+                    Auth Status: Checking...<br>
+                    Last API Call: None<br>
+                    Connection Method: Initializing...
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Game state variables
+        // Global variables
         let currentWordLength = 5;
         let gameGrid = [];
         let gameState = 'idle';
         let updateInterval = null;
         let eventSource = null;
+        let authMethod = 'unknown';
+        let accessToken = null;
+        let apiCallCount = 0;
+        let lastApiCall = 'none';
+        let connectionRetries = 0;
+        const MAX_RETRIES = 3;
         
         // Game data
         let currentGameData = {
@@ -436,31 +459,122 @@
             current_input: ''
         };
 
-        // Initialize REST API connection
+        // 🔧 AUTH DISCOVERY SYSTEM - AUTO-DETECT TOKENS
+        function getAccessToken() {
+            // Try multiple methods to get authentication token
+            
+            // Method 1: Check for HA's stored tokens in various locations
+            try {
+                // Home Assistant stores auth tokens in localStorage
+                const haTokens = localStorage.getItem('hassTokens');
+                if (haTokens) {
+                    const tokens = JSON.parse(haTokens);
+                    if (tokens.access_token) {
+                        authMethod = 'localStorage-hassTokens';
+                        updateDebugInfo(`Auth: Found HA tokens in localStorage`);
+                        return tokens.access_token;
+                    }
+                }
+            } catch (e) {
+                console.debug('🎮 WordPlay: No hassTokens in localStorage');
+            }
+
+            // Method 2: Check for auth data in sessionStorage
+            try {
+                const sessionAuth = sessionStorage.getItem('hass_auth');
+                if (sessionAuth) {
+                    const auth = JSON.parse(sessionAuth);
+                    if (auth.access_token) {
+                        authMethod = 'sessionStorage-hass_auth';
+                        updateDebugInfo(`Auth: Found session auth token`);
+                        return auth.access_token;
+                    }
+                }
+            } catch (e) {
+                console.debug('🎮 WordPlay: No hass_auth in sessionStorage');
+            }
+
+            // Method 3: Check window.parent for HA auth (iframe context)
+            try {
+                if (window.parent && window.parent !== window) {
+                    // We're in an iframe, try to access parent's auth
+                    const parentAuth = window.parent.localStorage?.getItem('hassTokens');
+                    if (parentAuth) {
+                        const tokens = JSON.parse(parentAuth);
+                        if (tokens.access_token) {
+                            authMethod = 'parent-iframe-tokens';
+                            updateDebugInfo(`Auth: Found parent frame tokens`);
+                            return tokens.access_token;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.debug('🎮 WordPlay: Cannot access parent frame auth (CORS)');
+            }
+
+            // Method 4: Check for any HA-related auth cookies
+            try {
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    if (cookie.includes('hass') || cookie.includes('auth')) {
+                        console.debug('🎮 WordPlay: Found HA-related cookie, but cannot extract token');
+                    }
+                }
+            } catch (e) {
+                console.debug('🎮 WordPlay: No auth cookies found');
+            }
+
+            // Method 5: Return null for no-auth attempt
+            authMethod = 'no-auth-attempt';
+            updateDebugInfo(`Auth: No token found, trying no-auth`);
+            return null;
+        }
+
+        // Update debug info display
+        function updateDebugInfo(message) {
+            const debugEl = document.getElementById('debugInfo');
+            if (debugEl) {
+                debugEl.innerHTML = `
+                    Auth Status: ${authMethod}<br>
+                    Last API Call: ${lastApiCall}<br>
+                    Connection Method: ${message}<br>
+                    API Calls Made: ${apiCallCount}<br>
+                    Retries: ${connectionRetries}/${MAX_RETRIES}
+                `;
+            }
+        }
+
+        // Enhanced connection initialization with better error handling
         function initConnection() {
             updateConnectionStatus('connecting', '🔄 Connecting to Home Assistant...');
+            updateDebugInfo('Starting connection attempt...');
+            
+            // Get authentication token
+            accessToken = getAccessToken();
             
             // Try to establish initial connection
             testConnection();
             
-            // Start polling for state updates (fallback)
+            // Start conservative polling (increased to 5 seconds, was 2)
             startPolling();
             
             // Try to use Server-Sent Events for real-time updates
             setupEventSource();
         }
 
-        // Test basic REST API connectivity with authentication
+        // Enhanced connection test with better auth handling
         async function testConnection() {
             try {
-                const token = getAccessToken();
                 const headers = {
                     'Content-Type': 'application/json'
                 };
                 
                 // Add auth header if token available
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
+                if (accessToken) {
+                    headers['Authorization'] = `Bearer ${accessToken}`;
+                    updateDebugInfo('Testing connection with auth token...');
+                } else {
+                    updateDebugInfo('Testing connection without auth token...');
                 }
                 
                 const response = await fetch('/api/states/sensor.ha_wordplay_game_state', {
@@ -468,27 +582,56 @@
                     headers: headers
                 });
                 
+                apiCallCount++;
+                lastApiCall = `GET game_state: ${response.status}`;
+                
                 if (response.ok) {
                     updateConnectionStatus('connected', '✅ Connected to Home Assistant');
+                    updateDebugInfo('✅ Connection successful!');
+                    connectionRetries = 0; // Reset retry counter
                     console.log('🎮 WordPlay: REST API connected successfully');
                     
                     // Get initial game state
                     await refreshGameState();
                     return true;
+                } else if (response.status === 401) {
+                    throw new Error(`Authentication failed (401) - Token invalid or missing`);
+                } else if (response.status === 403) {
+                    throw new Error(`Access forbidden (403) - Check permissions`);
                 } else {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
             } catch (error) {
+                connectionRetries++;
                 console.error('🎮 WordPlay: Connection test failed:', error);
-                updateConnectionStatus('disconnected', '❌ Connection failed - checking...');
+                updateConnectionStatus('disconnected', `❌ Connection failed: ${error.message}`);
+                updateDebugInfo(`❌ Connection failed: ${error.message}`);
+                
+                // If we've hit max retries, suggest manual refresh
+                if (connectionRetries >= MAX_RETRIES) {
+                    updateConnectionStatus('disconnected', '❌ Max retries reached - Manual refresh needed');
+                    updateDebugInfo('❌ Max retries reached - Try refreshing page');
+                }
+                
                 return false;
             }
         }
 
-        // Setup Server-Sent Events for real-time updates (if available)
+        // Enhanced Server-Sent Events setup with better error handling
         function setupEventSource() {
+            // Only try EventSource if we have some form of auth or if initial test succeeded
+            if (!accessToken && connectionRetries > 0) {
+                console.debug('🎮 WordPlay: Skipping EventSource - no auth and connection issues');
+                return;
+            }
+            
             try {
                 eventSource = new EventSource('/api/stream');
+                
+                eventSource.onopen = function() {
+                    console.log('🎮 WordPlay: EventSource opened');
+                    updateDebugInfo('EventSource connected');
+                };
                 
                 eventSource.onmessage = function(event) {
                     try {
@@ -502,26 +645,49 @@
                 };
                 
                 eventSource.onerror = function(error) {
-                    console.debug('🎮 WordPlay: EventSource error, falling back to polling');
-                    eventSource.close();
-                    eventSource = null;
+                    console.debug('🎮 WordPlay: EventSource error, falling back to polling only');
+                    updateDebugInfo('EventSource failed, using polling only');
+                    if (eventSource) {
+                        eventSource.close();
+                        eventSource = null;
+                    }
                 };
                 
                 console.log('🎮 WordPlay: EventSource established for real-time updates');
             } catch (error) {
                 console.debug('🎮 WordPlay: EventSource not available, using polling only');
+                updateDebugInfo('EventSource not available, polling only');
             }
         }
 
-        // Polling fallback for state updates
+        // Conservative polling with exponential backoff
         function startPolling() {
             if (updateInterval) clearInterval(updateInterval);
             
+            // Start with 5 second intervals (was 2 seconds)
+            let pollInterval = 5000;
+            
             updateInterval = setInterval(async () => {
-                if (!eventSource) { // Only poll if EventSource isn't working
-                    await refreshGameState();
+                if (!eventSource && connectionRetries < MAX_RETRIES) { 
+                    const success = await refreshGameState();
+                    
+                    // If polling fails, increase interval (backoff)
+                    if (!success) {
+                        pollInterval = Math.min(pollInterval * 1.5, 30000); // Max 30 seconds
+                        clearInterval(updateInterval);
+                        updateInterval = setInterval(arguments.callee, pollInterval);
+                        updateDebugInfo(`Polling slowed to ${pollInterval/1000}s due to errors`);
+                    } else {
+                        // Reset to normal interval on success
+                        if (pollInterval > 5000) {
+                            pollInterval = 5000;
+                            clearInterval(updateInterval);
+                            updateInterval = setInterval(arguments.callee, pollInterval);
+                            updateDebugInfo('Polling restored to 5s intervals');
+                        }
+                    }
                 }
-            }, 2000); // Poll every 2 seconds
+            }, pollInterval);
         }
 
         // Handle state changes from EventSource
@@ -546,17 +712,16 @@
             }
         }
 
-        // Refresh game state via REST API with authentication
+        // Enhanced state refresh with better error handling
         async function refreshGameState() {
             try {
-                const token = getAccessToken();
                 const headers = {
                     'Content-Type': 'application/json'
                 };
                 
                 // Add auth header if token available
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
+                if (accessToken) {
+                    headers['Authorization'] = `Bearer ${accessToken}`;
                 }
                 
                 // Get game state sensor
@@ -564,9 +729,15 @@
                     method: 'GET',
                     headers: headers
                 });
+                
+                apiCallCount++;
+                lastApiCall = `GET game_state: ${gameStateResponse.status}`;
+                
                 if (gameStateResponse.ok) {
                     const gameStateData = await gameStateResponse.json();
                     updateGameStateFromEntity(gameStateData);
+                } else {
+                    console.warn('🎮 WordPlay: Game state fetch failed:', gameStateResponse.status);
                 }
                 
                 // Get input state
@@ -589,9 +760,14 @@
                     updateWordLengthFromEntity(parseInt(lengthData.state));
                 }
                 
+                updateDebugInfo('State refresh successful');
+                return true;
+                
             } catch (error) {
                 console.error('🎮 WordPlay: Error refreshing game state:', error);
-                updateConnectionStatus('disconnected', '❌ Connection error');
+                updateConnectionStatus('disconnected', `❌ Refresh error: ${error.message}`);
+                updateDebugInfo(`❌ Refresh failed: ${error.message}`);
+                return false;
             }
         }
 
@@ -602,39 +778,49 @@
             statusEl.className = `connection-status ${status}`;
         }
 
-        // Call Home Assistant service via REST API with authentication
+        // Enhanced service calls with better auth and error handling
         async function callService(domain, service, serviceData = {}) {
             try {
-                const token = getAccessToken();
                 const headers = {
                     'Content-Type': 'application/json',
                 };
                 
                 // Add auth header if token available
-                if (token) {
-                    headers['Authorization'] = `Bearer ${token}`;
+                if (accessToken) {
+                    headers['Authorization'] = `Bearer ${accessToken}`;
                 }
                 
-                const response = await fetch('/api/services/' + domain + '/' + service, {
+                const response = await fetch(`/api/services/${domain}/${service}`, {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(serviceData)
                 });
                 
+                apiCallCount++;
+                lastApiCall = `POST ${domain}.${service}: ${response.status}`;
+                updateDebugInfo(`Service call: ${domain}.${service} (${response.status})`);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    if (response.status === 401) {
+                        throw new Error(`Authentication failed for service call`);
+                    } else if (response.status === 404) {
+                        throw new Error(`Service ${domain}.${service} not found`);
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
                 }
                 
                 console.log(`🎮 WordPlay: Service call successful: ${domain}.${service}`);
                 
-                // Refresh state after service call
+                // Refresh state after service call (with delay)
                 setTimeout(() => refreshGameState(), 500);
                 
                 return await response.json();
                 
             } catch (error) {
                 console.error(`🎮 WordPlay: Service call failed: ${domain}.${service}`, error);
-                showMessage('Service call failed - please try again', 'error');
+                showMessage(`Service call failed: ${error.message}`, 'error');
+                updateDebugInfo(`❌ Service call failed: ${error.message}`);
                 throw error;
             }
         }
@@ -785,6 +971,7 @@
                     option: length.toString()
                 });
                 currentWordLength = length;
+                updateDebugInfo(`Changed word length to ${length}`);
             } catch (error) {
                 console.error('🎮 WordPlay: Failed to change word length:', error);
             }
@@ -847,6 +1034,7 @@
         // Game action functions
         async function newGame() {
             try {
+                updateDebugInfo('Starting new game...');
                 await callService('ha_wordplay', 'new_game', {
                     word_length: currentWordLength
                 });
@@ -864,6 +1052,7 @@
             }
             
             try {
+                updateDebugInfo(`Submitting guess: ${guess}`);
                 await callService('ha_wordplay', 'submit_guess');
             } catch (error) {
                 console.error('🎮 WordPlay: Failed to submit guess:', error);
@@ -872,6 +1061,7 @@
 
         async function getHint() {
             try {
+                updateDebugInfo('Getting hint...');
                 await callService('ha_wordplay', 'get_hint');
             } catch (error) {
                 console.error('🎮 WordPlay: Failed to get hint:', error);
@@ -910,6 +1100,12 @@
             submitBtn.disabled = !isPlaying || !hasValidInput;
         }
 
+        // Manual refresh function for troubleshooting
+        function manualRefresh() {
+            updateDebugInfo('Manual refresh triggered...');
+            refreshGameState();
+        }
+
         // Cleanup function
         function cleanup() {
             if (updateInterval) {
@@ -924,16 +1120,36 @@
 
         // Initialize everything
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎮 WordPlay: Initializing REST API interface');
+            console.log('🎮 WordPlay: Initializing AUTH-FIXED REST API interface');
             createGrid(5);
+            updateDebugInfo('DOM loaded, starting connection...');
             initConnection();
             
             // Update button states on input
             document.getElementById('guessInput').addEventListener('input', updateButtonStates);
             
+            // Add manual refresh capability (for debugging)
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === 'r') {
+                    e.preventDefault();
+                    manualRefresh();
+                }
+            });
+            
             // Cleanup on page unload
             window.addEventListener('beforeunload', cleanup);
+            
+            console.log('🎮 WordPlay: AUTH-FIXED version initialized');
         });
+
+        // Add to window for debugging
+        window.wordplayDebug = {
+            manualRefresh,
+            getAccessToken,
+            testConnection,
+            refreshGameState,
+            callService: (domain, service, data) => callService(domain, service, data)
+        };
     </script>
 </body>
 </html>
