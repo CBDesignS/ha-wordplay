@@ -7,11 +7,6 @@
     <style>
         :root {
             --primary-color: #03a9f4;
-            --primary-background-color: #fafafa;
-            --secondary-background-color: #e5e5e5;
-            --text-primary-color: #212121;
-            --text-secondary-color: #727272;
-            --divider-color: #e0e0e0;
             --accent-color: #ff9800;
             
             --tile-correct: #4caf50;
@@ -23,6 +18,49 @@
             --card-margin: 16px;
             --tile-gap: 4px;
             --tile-size: 60px;
+        }
+
+        /* Light theme (default) */
+        :root {
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+        }
+
+        /* Dark theme auto-detection */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-background-color: #111111;
+                --secondary-background-color: #1e1e1e;
+                --text-primary-color: #ffffff;
+                --text-secondary-color: #b3b3b3;
+                --divider-color: #333333;
+                --tile-empty: #2c2c2c;
+                --tile-border: #444444;
+            }
+        }
+
+        /* HA theme integration - auto-detect from parent frame */
+        body[data-theme="dark"] {
+            --primary-background-color: #111111;
+            --secondary-background-color: #1e1e1e;
+            --text-primary-color: #ffffff;
+            --text-secondary-color: #b3b3b3;
+            --divider-color: #333333;
+            --tile-empty: #2c2c2c;
+            --tile-border: #444444;
+        }
+
+        body[data-theme="light"] {
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+            --tile-empty: #ffffff;
+            --tile-border: #d1d5db;
         }
 
         * { box-sizing: border-box; }
@@ -800,9 +838,12 @@ Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
             }
         }
 
-        // Initialize
+        // Initialize theme detection
         async function initWordPlay() {
             debugLog('🚀 WordPlay: Initializing frontend with backend integration');
+            
+            // Auto-detect HA theme
+            detectHATheme();
             
             accessToken = getAccessToken();
             debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
@@ -821,6 +862,44 @@ Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
             } catch (error) {
                 debugLog('❌ Initialization failed', error);
                 updateConnectionStatus('disconnected', '❌ Connection failed');
+            }
+        }
+
+        // Auto-detect Home Assistant theme
+        function detectHATheme() {
+            try {
+                // Method 1: Check parent frame theme
+                if (window.parent && window.parent !== window) {
+                    const parentDoc = window.parent.document;
+                    if (parentDoc) {
+                        const haMain = parentDoc.querySelector('home-assistant');
+                        if (haMain && haMain.hass && haMain.hass.themes) {
+                            const currentTheme = haMain.hass.themes.darkMode ? 'dark' : 'light';
+                            document.body.setAttribute('data-theme', currentTheme);
+                            debugLog(`🎨 HA theme detected: ${currentTheme}`);
+                            return;
+                        }
+                    }
+                }
+                
+                // Method 2: Check URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('theme')) {
+                    const theme = urlParams.get('theme');
+                    document.body.setAttribute('data-theme', theme);
+                    debugLog(`🎨 URL theme detected: ${theme}`);
+                    return;
+                }
+                
+                // Method 3: Use browser preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = prefersDark ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', theme);
+                debugLog(`🎨 Browser theme detected: ${theme}`);
+                
+            } catch (error) {
+                debugLog('⚠️ Theme detection failed, using browser default', error);
+                // Browser CSS media query will handle it
             }
         }
 
