@@ -588,21 +588,46 @@ Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
                 results: currentGameData.guess_results
             });
             
-            currentGameData.guesses.forEach((guess, guessIndex) => {
-                const result = currentGameData.guess_results[guessIndex] || [];
+            currentGameData.guesses.forEach((guessString, guessIndex) => {
+                // Extract actual word from "1. ROPES" -> "ROPES"
+                let actualWord = guessString;
+                if (typeof guessString === 'string' && guessString.includes('.')) {
+                    const parts = guessString.split('.');
+                    if (parts.length > 1) {
+                        actualWord = parts[1].trim(); // Get everything after the "1. "
+                    }
+                }
                 
-                debugLog(`📍 Processing guess ${guessIndex}: "${guess}" with result:`, result);
+                const resultString = currentGameData.guess_results[guessIndex] || '';
                 
-                for (let i = 0; i < guess.length && i < currentWordLength; i++) {
+                debugLog(`📍 FIXED: Processing guess ${guessIndex}: "${guessString}" -> extracted: "${actualWord}"`);
+                debugLog(`📍 FIXED: Result string: "${resultString}"`);
+                
+                for (let i = 0; i < actualWord.length && i < currentWordLength; i++) {
                     if (gameGrid[guessIndex] && gameGrid[guessIndex][i]) {
                         const tile = gameGrid[guessIndex][i];
-                        tile.textContent = guess[i];
+                        tile.textContent = actualWord[i];
                         tile.classList.add('filled');
                         
-                        if (result[i]) {
-                            tile.classList.add(result[i]);
-                            debugLog(`🎨 Tile [${guessIndex},${i}]: "${guess[i]}" -> ${result[i]}`);
+                        // Parse "R⬜ O🟥 P⬜ E⬜ S⬜" format
+                        if (typeof resultString === 'string' && resultString.includes('⬜')) {
+                            const letterPairs = resultString.split(' ');
+                            const letterResult = letterPairs[i];
+                            if (letterResult) {
+                                if (letterResult.includes('🟦')) {
+                                    tile.classList.add('correct');
+                                    debugLog(`🟦 CORRECT: ${actualWord[i]}`);
+                                } else if (letterResult.includes('🟥')) {
+                                    tile.classList.add('partial');
+                                    debugLog(`🟥 PARTIAL: ${actualWord[i]}`);
+                                } else if (letterResult.includes('⬜')) {
+                                    tile.classList.add('absent');
+                                    debugLog(`⬜ ABSENT: ${actualWord[i]}`);
+                                }
+                            }
                         }
+                        
+                        debugLog(`🎨 FIXED TILE [${guessIndex},${i}]: "${actualWord[i]}"`);
                     }
                 }
             });
