@@ -450,10 +450,24 @@
             setupEventSource();
         }
 
-        // Test basic REST API connectivity
+        // Test basic REST API connectivity with authentication
         async function testConnection() {
             try {
-                const response = await fetch('/api/states/sensor.ha_wordplay_game_state');
+                const token = getAccessToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add auth header if token available
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch('/api/states/sensor.ha_wordplay_game_state', {
+                    method: 'GET',
+                    headers: headers
+                });
+                
                 if (response.ok) {
                     updateConnectionStatus('connected', '✅ Connected to Home Assistant');
                     console.log('🎮 WordPlay: REST API connected successfully');
@@ -532,25 +546,44 @@
             }
         }
 
-        // Refresh game state via REST API
+        // Refresh game state via REST API with authentication
         async function refreshGameState() {
             try {
+                const token = getAccessToken();
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add auth header if token available
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
                 // Get game state sensor
-                const gameStateResponse = await fetch('/api/states/sensor.ha_wordplay_game_state');
+                const gameStateResponse = await fetch('/api/states/sensor.ha_wordplay_game_state', {
+                    method: 'GET',
+                    headers: headers
+                });
                 if (gameStateResponse.ok) {
                     const gameStateData = await gameStateResponse.json();
                     updateGameStateFromEntity(gameStateData);
                 }
                 
                 // Get input state
-                const inputResponse = await fetch('/api/states/text.ha_wordplay_guess_input');
+                const inputResponse = await fetch('/api/states/text.ha_wordplay_guess_input', {
+                    method: 'GET',
+                    headers: headers
+                });
                 if (inputResponse.ok) {
                     const inputData = await inputResponse.json();
                     updateInputFromEntity(inputData.state);
                 }
                 
                 // Get word length selector
-                const lengthResponse = await fetch('/api/states/select.ha_wordplay_word_length');
+                const lengthResponse = await fetch('/api/states/select.ha_wordplay_word_length', {
+                    method: 'GET',
+                    headers: headers
+                });
                 if (lengthResponse.ok) {
                     const lengthData = await lengthResponse.json();
                     updateWordLengthFromEntity(parseInt(lengthData.state));
@@ -569,14 +602,22 @@
             statusEl.className = `connection-status ${status}`;
         }
 
-        // Call Home Assistant service via REST API
+        // Call Home Assistant service via REST API with authentication
         async function callService(domain, service, serviceData = {}) {
             try {
+                const token = getAccessToken();
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                
+                // Add auth header if token available
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
                 const response = await fetch('/api/services/' + domain + '/' + service, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: headers,
                     body: JSON.stringify(serviceData)
                 });
                 
