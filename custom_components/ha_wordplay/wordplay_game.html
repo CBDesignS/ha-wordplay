@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>H.A WordPlay - Game Interface</title>
+    <title>H.A WordPlay - DIAGNOSTIC VERSION</title>
     <style>
-        /* Home Assistant inspired variables */
+        /* Same CSS as before - keeping it identical for consistency */
         :root {
             --primary-color: #03a9f4;
             --primary-background-color: #fafafa;
@@ -15,23 +15,19 @@
             --divider-color: #e0e0e0;
             --accent-color: #ff9800;
             
-            /* Game colors */
-            --tile-correct: #4caf50;     /* Green - correct */
-            --tile-partial: #ff9800;     /* Orange - partial */
-            --tile-absent: #9e9e9e;      /* Gray - absent */
-            --tile-empty: #ffffff;       /* White - empty */
-            --tile-border: #d1d5db;      /* Light gray border */
-            --tile-current: #e3f2fd;     /* Light blue - current input preview */
+            --tile-correct: #4caf50;
+            --tile-partial: #ff9800;
+            --tile-absent: #9e9e9e;
+            --tile-empty: #ffffff;
+            --tile-border: #d1d5db;
+            --tile-current: #e3f2fd;
             
-            /* Card spacing */
             --card-margin: 16px;
             --tile-gap: 4px;
             --tile-size: 60px;
         }
 
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
         body {
             font-family: Roboto, sans-serif;
@@ -60,15 +56,9 @@
             transition: all 0.3s ease;
         }
 
-        .connection-status.disconnected {
-            background: #f44336;
-        }
+        .connection-status.disconnected { background: #f44336; }
+        .connection-status.connecting { background: #ff9800; }
 
-        .connection-status.connecting {
-            background: #ff9800;
-        }
-
-        /* WordPlay Card */
         .wordplay-card {
             padding: var(--card-margin);
             min-height: 400px;
@@ -78,10 +68,7 @@
             gap: 16px;
         }
 
-        .game-header {
-            text-align: center;
-            margin-bottom: 8px;
-        }
+        .game-header { text-align: center; margin-bottom: 8px; }
 
         .game-title {
             font-size: 24px;
@@ -98,22 +85,10 @@
             transition: all 0.3s ease;
         }
 
-        .game-status.loading {
-            color: var(--primary-color);
-            font-weight: bold;
-        }
+        .game-status.loading { color: var(--primary-color); font-weight: bold; }
+        .game-status.success { color: #4caf50; font-weight: bold; }
+        .game-status.error { color: #f44336; font-weight: bold; }
 
-        .game-status.success {
-            color: #4caf50;
-            font-weight: bold;
-        }
-
-        .game-status.error {
-            color: #f44336;
-            font-weight: bold;
-        }
-
-        /* Dynamic Game Grid */
         .game-grid {
             display: grid;
             gap: var(--tile-gap);
@@ -137,78 +112,13 @@
             transition: all 0.3s ease;
         }
 
-        .game-tile:hover {
-            transform: scale(1.02);
-        }
+        .game-tile.filled { background: var(--secondary-background-color); border-color: var(--text-secondary-color); }
+        .game-tile.correct { background: var(--tile-correct); color: white; border-color: var(--tile-correct); }
+        .game-tile.partial { background: var(--tile-partial); color: white; border-color: var(--tile-partial); }
+        .game-tile.absent { background: var(--tile-absent); color: white; border-color: var(--tile-absent); }
 
-        .game-tile.current-input {
-            background: var(--tile-current);
-            border-color: var(--primary-color);
-            transform: scale(1.05);
-        }
-
-        .game-tile.filled {
-            background: var(--secondary-background-color);
-            border-color: var(--text-secondary-color);
-        }
-
-        .game-tile.correct {
-            background: var(--tile-correct);
-            color: white;
-            border-color: var(--tile-correct);
-            animation: flip 0.6s ease;
-        }
-
-        .game-tile.partial {
-            background: var(--tile-partial);
-            color: white;
-            border-color: var(--tile-partial);
-            animation: flip 0.6s ease;
-        }
-
-        .game-tile.absent {
-            background: var(--tile-absent);
-            color: white;
-            border-color: var(--tile-absent);
-            animation: flip 0.6s ease;
-        }
-
-        @keyframes flip {
-            0% { transform: rotateY(0deg); }
-            50% { transform: rotateY(90deg); }
-            100% { transform: rotateY(0deg); }
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-
-        @keyframes bounce {
-            0%, 20%, 60%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-10px); }
-            80% { transform: translateY(-5px); }
-        }
-
-        .game-tile.invalid {
-            animation: shake 0.5s ease;
-            border-color: #f44336;
-        }
-
-        .game-tile.success {
-            animation: bounce 0.6s ease;
-        }
-
-        /* Word Length Selector */
-        .word-length-controls {
-            margin-bottom: 16px;
-            text-align: center;
-        }
-
-        .word-length-selector {
-            margin: 8px;
-        }
+        .word-length-controls { margin-bottom: 16px; text-align: center; }
+        .word-length-selector { margin: 8px; }
 
         .word-length-selector button {
             margin: 0 4px;
@@ -221,28 +131,10 @@
             transition: all 0.2s;
         }
 
-        .word-length-selector button.active {
-            background: var(--primary-color);
-            color: white;
-        }
+        .word-length-selector button.active { background: var(--primary-color); color: white; }
+        .word-length-selector button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .word-length-selector button:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .word-length-selector button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Input Section */
-        .game-input {
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
+        .game-input { width: 100%; max-width: 400px; text-align: center; }
 
         .input-field {
             width: 100%;
@@ -263,18 +155,7 @@
             box-shadow: 0 0 0 2px rgba(3, 169, 244, 0.2);
         }
 
-        .input-field.processing {
-            background: #f0f0f0;
-            border-color: var(--accent-color);
-        }
-
-        /* Action Buttons */
-        .action-buttons {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
+        .action-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 
         .action-button {
             padding: 10px 20px;
@@ -284,56 +165,12 @@
             cursor: pointer;
             transition: all 0.2s;
             min-width: 100px;
-            position: relative;
         }
 
-        .action-button.primary {
-            background: var(--primary-color);
-            color: white;
-        }
+        .action-button.primary { background: var(--primary-color); color: white; }
+        .action-button.secondary { background: var(--secondary-background-color); color: var(--text-primary-color); }
+        .action-button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .action-button.secondary {
-            background: var(--secondary-background-color);
-            color: var(--text-primary-color);
-        }
-
-        .action-button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-
-        .action-button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .action-button.loading {
-            background: var(--accent-color) !important;
-            color: white;
-        }
-
-        .action-button.loading::after {
-            content: "";
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            margin: auto;
-            border: 2px solid transparent;
-            border-top-color: #ffffff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        @keyframes spin {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        /* Game Info */
         .game-info {
             text-align: center;
             margin-top: 16px;
@@ -343,40 +180,7 @@
             max-width: 400px;
         }
 
-        .hint-text {
-            font-style: italic;
-            color: var(--text-secondary-color);
-            margin: 8px 0;
-            transition: all 0.3s ease;
-        }
-
-        .hint-text.updated {
-            color: var(--primary-color);
-            font-weight: bold;
-        }
-
-        .message-text {
-            margin: 8px 0;
-            padding: 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .message-text.success {
-            background: #e8f5e8;
-            color: #2e7d32;
-        }
-
-        .message-text.error {
-            background: #ffebee;
-            color: #c62828;
-        }
-
-        .message-text.info {
-            background: #e3f2fd;
-            color: #1565c0;
-        }
+        .hint-text { font-style: italic; color: var(--text-secondary-color); margin: 8px 0; }
 
         .debug-info {
             margin-top: 16px;
@@ -387,112 +191,52 @@
             color: #666;
             text-align: left;
             max-width: 400px;
-            transition: all 0.3s ease;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
-        .debug-info.error {
-            background: #ffebee;
-            color: #c62828;
+        .debug-info.error { background: #ffebee; color: #c62828; }
+        .debug-info.success { background: #e8f5e8; color: #2e7d32; }
+
+        /* DIAGNOSTIC STYLES */
+        .diagnostic-panel {
+            margin-top: 16px;
+            padding: 12px;
+            background: #1e1e1e;
+            color: #00ff00;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
         }
 
-        .debug-info.success {
-            background: #e8f5e8;
-            color: #2e7d32;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            :root {
-                --tile-size: 45px;
-                --tile-gap: 3px;
-            }
-            
-            body {
-                padding: 10px;
-            }
-            
-            .wordplay-card {
-                padding: 12px;
-            }
-            
-            .game-title {
-                font-size: 20px;
-            }
-            
-            .input-field {
-                font-size: 16px;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .action-button {
-                width: 100%;
-                max-width: 200px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            :root {
-                --tile-size: 35px;
-                --tile-gap: 2px;
-            }
-            
-            .wordplay-container {
-                margin: 5px;
-                border-radius: 4px;
-            }
-        }
-
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --primary-background-color: #121212;
-                --secondary-background-color: #1e1e1e;
-                --text-primary-color: #ffffff;
-                --text-secondary-color: #b3b3b3;
-                --divider-color: #333333;
-                --tile-empty: #2c2c2c;
-                --tile-border: #444444;
-                --tile-current: #1a237e;
-            }
-            
-            body {
-                background: var(--primary-background-color);
-            }
-            
-            .wordplay-container {
-                background: #1e1e1e;
-            }
-            
-            .input-field {
-                background: var(--tile-empty);
-                color: var(--text-primary-color);
-            }
-        }
+        .diagnostic-panel h4 { color: #ffff00; margin: 0 0 8px 0; }
+        .diagnostic-panel .error { color: #ff6666; }
+        .diagnostic-panel .success { color: #66ff66; }
+        .diagnostic-panel .warning { color: #ffaa00; }
     </style>
 </head>
 <body>
     <div class="wordplay-container">
         <div class="connection-status" id="connectionStatus">
-            🔗 Connecting to Home Assistant...
+            🔗 DIAGNOSTIC MODE - Connecting...
         </div>
 
         <div class="wordplay-card">
             <div class="game-header">
-                <h1 class="game-title">🎮 H.A WordPlay</h1>
-                <p class="game-status" id="gameStatus">Ready to play • Select word length</p>
+                <h1 class="game-title">🔧 H.A WordPlay - DIAGNOSTIC</h1>
+                <p class="game-status" id="gameStatus">DIAGNOSTIC MODE - Analyzing...</p>
             </div>
 
             <div class="word-length-controls">
                 <div class="word-length-selector">
                     <span>Word Length:</span>
-                    <button id="length5" class="active" onclick="changeWordLength(5)">5</button>
-                    <button id="length6" onclick="changeWordLength(6)">6</button>
-                    <button id="length7" onclick="changeWordLength(7)">7</button>
-                    <button id="length8" onclick="changeWordLength(8)">8</button>
+                    <button id="length5" class="active" onclick="diagnosticAction('changeLength', 5)">5</button>
+                    <button id="length6" onclick="diagnosticAction('changeLength', 6)">6</button>
+                    <button id="length7" onclick="diagnosticAction('changeLength', 7)">7</button>
+                    <button id="length8" onclick="diagnosticAction('changeLength', 8)">8</button>
                 </div>
             </div>
 
@@ -501,60 +245,43 @@
             </div>
 
             <div class="game-input">
-                <input type="text" class="input-field" placeholder="Enter your guess..." 
-                       maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)"
-                       onfocus="handleInputFocus()" onblur="handleInputBlur()">
+                <input type="text" class="input-field" placeholder="DIAGNOSTIC INPUT..." 
+                       maxlength="5" id="guessInput" oninput="diagnosticInput()" onkeypress="diagnosticKeyPress(event)">
                 
                 <div class="action-buttons">
-                    <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
-                    <button class="action-button secondary" id="hintBtn" onclick="getHint()">Get Hint</button>
-                    <button class="action-button secondary" id="newGameBtn" onclick="newGame()">New Game</button>
+                    <button class="action-button primary" id="submitBtn" onclick="diagnosticAction('submit')">DIAG SUBMIT</button>
+                    <button class="action-button secondary" id="hintBtn" onclick="diagnosticAction('hint')">DIAG HINT</button>
+                    <button class="action-button secondary" id="newGameBtn" onclick="diagnosticAction('newGame')">DIAG NEW GAME</button>
                 </div>
             </div>
 
-            <div class="game-info" id="gameInfo">
-                <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
-                <div class="message-text" id="messageText" style="display: none;"></div>
-                <p><strong>How to play:</strong> 🟢 Correct • 🟠 Wrong position • ⚪ Not in word</p>
+            <div class="game-info">
+                <div class="hint-text" id="hintText">🔧 DIAGNOSTIC MODE ACTIVE</div>
+                <p><strong>Diagnostic Version:</strong> Logging all actions and data</p>
                 
                 <div class="debug-info" id="debugInfo">
-                    Auth Status: Checking...<br>
-                    Last Action: None<br>
-                    Connection: Initializing...<br>
-                    Input Focus: Not focused
+                    DIAGNOSTIC LOADING...
+                </div>
+
+                <div class="diagnostic-panel" id="diagnosticPanel">
+                    <h4>🔍 REAL-TIME DIAGNOSTIC LOG</h4>
+                    <div id="diagnosticLog">Starting diagnostic mode...</div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Global variables
+        // DIAGNOSTIC VARIABLES
+        let diagnosticLog = [];
         let currentWordLength = 5;
         let gameGrid = [];
-        let gameState = 'idle';
-        let updateInterval = null;
-        let authMethod = 'unknown';
         let accessToken = null;
-        let apiCallCount = 0;
-        let lastAction = 'none';
-        let connectionRetries = 0;
-        const MAX_RETRIES = 3;
-        
-        // 🔧 INPUT CONTROL VARIABLES - FIXED LOGIC
-        let isInputFocused = false;
-        let lastKnownInputValue = '';
-        let preventInputSync = false;
-        let inputSyncTimeout = null;
-        
-        // 🚀 ACTION DEBOUNCING - PREVENT SPAM CLICKS
-        let actionCooldowns = {
-            newGame: false,
-            submitGuess: false,
-            getHint: false,
-            changeLength: false
-        };
-        
-        // Game data
+        let authMethod = 'unknown';
+        let lastEntityData = {};
+        let actionCount = 0;
+
+        // Current game data
         let currentGameData = {
             word_length: 5,
             game_state: 'idle',
@@ -562,412 +289,211 @@
             guess_results: [],
             hint: '',
             last_message: '',
-            message_type: '',
-            current_input: ''
+            message_type: ''
         };
 
-        // 🔧 AUTH DISCOVERY SYSTEM
+        // 🔍 DIAGNOSTIC LOGGING SYSTEM
+        function diagLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            
+            diagnosticLog.push(logEntry);
+            
+            // Keep only last 50 entries
+            if (diagnosticLog.length > 50) {
+                diagnosticLog = diagnosticLog.slice(-50);
+            }
+            
+            updateDiagnosticDisplay();
+            console.log(`🔧 DIAG: ${logEntry}`);
+        }
+
+        function updateDiagnosticDisplay() {
+            const logEl = document.getElementById('diagnosticLog');
+            if (logEl) {
+                logEl.innerHTML = diagnosticLog.map(entry => {
+                    let className = '';
+                    if (entry.includes('ERROR:')) className = 'error';
+                    else if (entry.includes('SUCCESS:')) className = 'success';
+                    else if (entry.includes('WARNING:')) className = 'warning';
+                    
+                    return `<div class="${className}">${entry}</div>`;
+                }).join('');
+                
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+        }
+
+        // 🔧 AUTH DISCOVERY
         function getAccessToken() {
+            diagLog('Starting auth discovery...');
+            
             try {
-                // Method 1: HA tokens in localStorage
                 const haTokens = localStorage.getItem('hassTokens');
                 if (haTokens) {
                     const tokens = JSON.parse(haTokens);
                     if (tokens.access_token) {
                         authMethod = 'localStorage-hassTokens';
+                        diagLog(`Auth found: ${authMethod}`, 'success');
                         return tokens.access_token;
                     }
                 }
             } catch (e) {
-                console.debug('🎮 WordPlay: No hassTokens in localStorage');
+                diagLog(`Auth method 1 failed: ${e.message}`, 'warning');
             }
 
             try {
-                // Method 2: Session auth
                 const sessionAuth = sessionStorage.getItem('hass_auth');
                 if (sessionAuth) {
                     const auth = JSON.parse(sessionAuth);
                     if (auth.access_token) {
                         authMethod = 'sessionStorage-hass_auth';
+                        diagLog(`Auth found: ${authMethod}`, 'success');
                         return auth.access_token;
                     }
                 }
             } catch (e) {
-                console.debug('🎮 WordPlay: No hass_auth in sessionStorage');
+                diagLog(`Auth method 2 failed: ${e.message}`, 'warning');
             }
 
-            try {
-                // Method 3: Parent frame (iframe)
-                if (window.parent && window.parent !== window) {
-                    const parentAuth = window.parent.localStorage?.getItem('hassTokens');
-                    if (parentAuth) {
-                        const tokens = JSON.parse(parentAuth);
-                        if (tokens.access_token) {
-                            authMethod = 'parent-iframe-tokens';
-                            return tokens.access_token;
-                        }
-                    }
-                }
-            } catch (e) {
-                console.debug('🎮 WordPlay: Cannot access parent frame auth (CORS)');
-            }
-
-            authMethod = 'no-auth-attempt';
+            authMethod = 'no-auth-found';
+            diagLog('No auth token found - attempting without auth', 'warning');
             return null;
         }
 
-        // 🚀 ENHANCED UI FEEDBACK SYSTEM
-        function updateDebugInfo(message, type = 'info') {
-            const debugEl = document.getElementById('debugInfo');
-            if (debugEl) {
-                debugEl.className = `debug-info ${type}`;
-                debugEl.innerHTML = `
-                    Auth Status: ${authMethod}<br>
-                    Last Action: ${lastAction}<br>
-                    Connection: ${message}<br>
-                    API Calls: ${apiCallCount}<br>
-                    Retries: ${connectionRetries}/${MAX_RETRIES}<br>
-                    Input Focus: ${isInputFocused ? 'Focused (protected)' : 'Not focused'}
-                `;
-            }
-        }
-
-        function updateConnectionStatus(status, message) {
-            const statusEl = document.getElementById('connectionStatus');
-            statusEl.textContent = message;
-            statusEl.className = `connection-status ${status}`;
-        }
-
-        function updateGameStatus(message, type = 'info') {
-            const statusEl = document.getElementById('gameStatus');
-            statusEl.textContent = message;
-            statusEl.className = `game-status ${type}`;
-        }
-
-        function showMessage(message, type = 'info', duration = 5000) {
-            const messageEl = document.getElementById('messageText');
-            messageEl.textContent = message;
-            messageEl.className = `message-text ${type}`;
-            messageEl.style.display = 'block';
+        // 🔍 DIAGNOSTIC API CALLS
+        async function diagnosticApiCall(url, options = {}) {
+            diagLog(`API CALL: ${url}`);
             
-            if (duration > 0) {
-                setTimeout(() => {
-                    messageEl.style.display = 'none';
-                }, duration);
-            }
-        }
-
-        // 🔧 DEBOUNCING SYSTEM - PREVENT SPAM ACTIONS
-        function isActionAllowed(action) {
-            if (actionCooldowns[action]) {
-                console.debug(`🎮 WordPlay: Action ${action} blocked - cooldown active`);
-                return false;
-            }
-            return true;
-        }
-
-        function setActionCooldown(action, duration = 2000) {
-            actionCooldowns[action] = true;
-            setTimeout(() => {
-                actionCooldowns[action] = false;
-                console.debug(`🎮 WordPlay: Action ${action} cooldown cleared`);
-            }, duration);
-        }
-
-        function setButtonLoading(buttonId, loading = true) {
-            const button = document.getElementById(buttonId);
-            if (button) {
-                button.disabled = loading;
-                if (loading) {
-                    button.classList.add('loading');
-                    button.textContent = '';
-                } else {
-                    button.classList.remove('loading');
-                    // Restore button text
-                    if (buttonId === 'submitBtn') button.textContent = 'Submit Guess';
-                    if (buttonId === 'newGameBtn') button.textContent = 'New Game';
-                    if (buttonId === 'hintBtn') button.textContent = 'Get Hint';
-                }
-            }
-        }
-
-        // Enhanced connection initialization
-        function initConnection() {
-            updateConnectionStatus('connecting', '🔄 Connecting to Home Assistant...');
-            updateDebugInfo('Starting connection attempt...', 'info');
-            
-            accessToken = getAccessToken();
-            testConnection();
-            startPolling();
-        }
-
-        async function testConnection() {
             try {
                 const headers = {'Content-Type': 'application/json'};
                 
                 if (accessToken) {
                     headers['Authorization'] = `Bearer ${accessToken}`;
-                    updateDebugInfo('Testing connection with auth token...', 'info');
+                    diagLog('Using auth token for API call');
                 } else {
-                    updateDebugInfo('Testing connection without auth token...', 'info');
+                    diagLog('No auth token - attempting without auth', 'warning');
                 }
                 
-                const response = await fetch('/api/states/sensor.ha_wordplay_game_state', {
-                    method: 'GET',
-                    headers: headers
-                });
-                
-                apiCallCount++;
-                lastAction = `Connection test: ${response.status}`;
-                
-                if (response.ok) {
-                    updateConnectionStatus('connected', '✅ Connected to Home Assistant');
-                    updateDebugInfo('✅ Connection successful!', 'success');
-                    connectionRetries = 0;
-                    console.log('🎮 WordPlay: REST API connected successfully');
-                    
-                    await refreshGameState();
-                    return true;
-                } else if (response.status === 401) {
-                    throw new Error(`Authentication failed (401) - Token invalid or missing`);
-                } else if (response.status === 403) {
-                    throw new Error(`Access forbidden (403) - Check permissions`);
-                } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-            } catch (error) {
-                connectionRetries++;
-                console.error('🎮 WordPlay: Connection test failed:', error);
-                updateConnectionStatus('disconnected', `❌ Connection failed: ${error.message}`);
-                updateDebugInfo(`❌ Connection failed: ${error.message}`, 'error');
-                
-                if (connectionRetries >= MAX_RETRIES) {
-                    updateConnectionStatus('disconnected', '❌ Max retries reached - Manual refresh needed');
-                    updateDebugInfo('❌ Max retries reached - Try refreshing page', 'error');
-                }
-                
-                return false;
-            }
-        }
-
-        function startPolling() {
-            if (updateInterval) clearInterval(updateInterval);
-            
-            // Conservative 10-second polling (reduced frequency for stability)
-            updateInterval = setInterval(async () => {
-                if (connectionRetries < MAX_RETRIES) { 
-                    await refreshGameState(false); // Silent refresh
-                }
-            }, 10000);
-        }
-
-        // 🚀 ENHANCED STATE REFRESH WITH IMMEDIATE UPDATES
-        async function refreshGameState(forceUpdate = true) {
-            try {
-                const headers = {'Content-Type': 'application/json'};
-                
-                if (accessToken) {
-                    headers['Authorization'] = `Bearer ${accessToken}`;
-                }
-                
-                // Get game state sensor
-                const gameStateResponse = await fetch('/api/states/sensor.ha_wordplay_game_state', {
-                    method: 'GET',
-                    headers: headers
-                });
-                
-                if (!forceUpdate) apiCallCount++; // Only count non-forced updates
-                if (!forceUpdate) lastAction = `State refresh: ${gameStateResponse.status}`;
-                
-                if (gameStateResponse.ok) {
-                    const gameStateData = await gameStateResponse.json();
-                    updateGameStateFromEntity(gameStateData);
-                } else {
-                    console.warn('🎮 WordPlay: Game state fetch failed:', gameStateResponse.status);
-                }
-                
-                // 🔧 PROTECTED INPUT SYNC - Only sync if input not focused
-                if (!isInputFocused && !preventInputSync) {
-                    const inputResponse = await fetch('/api/states/text.ha_wordplay_guess_input', {
-                        method: 'GET',
-                        headers: headers
-                    });
-                    if (inputResponse.ok) {
-                        const inputData = await inputResponse.json();
-                        updateInputFromEntity(inputData.state);
-                    }
-                }
-                
-                // Get word length selector
-                const lengthResponse = await fetch('/api/states/select.ha_wordplay_word_length', {
-                    method: 'GET',
-                    headers: headers
-                });
-                if (lengthResponse.ok) {
-                    const lengthData = await lengthResponse.json();
-                    updateWordLengthFromEntity(parseInt(lengthData.state));
-                }
-                
-                if (forceUpdate) updateDebugInfo('State refresh successful', 'success');
-                return true;
-                
-            } catch (error) {
-                console.error('🎮 WordPlay: Error refreshing game state:', error);
-                updateConnectionStatus('disconnected', `❌ Refresh error: ${error.message}`);
-                updateDebugInfo(`❌ Refresh failed: ${error.message}`, 'error');
-                return false;
-            }
-        }
-
-        // Enhanced service calls with immediate UI feedback
-        async function callService(domain, service, serviceData = {}, actionType = 'unknown') {
-            try {
-                lastAction = `${actionType} - Starting...`;
-                updateDebugInfo(`${actionType} - Calling service...`, 'info');
-                
-                const headers = {'Content-Type': 'application/json'};
-                
-                if (accessToken) {
-                    headers['Authorization'] = `Bearer ${accessToken}`;
-                }
-                
-                const response = await fetch(`/api/services/${domain}/${service}`, {
-                    method: 'POST',
+                const response = await fetch(url, {
+                    method: options.method || 'GET',
                     headers: headers,
-                    body: JSON.stringify(serviceData)
+                    body: options.body ? JSON.stringify(options.body) : undefined
                 });
                 
-                apiCallCount++;
-                lastAction = `${actionType} - ${response.status}`;
+                diagLog(`API Response: ${response.status} ${response.statusText}`);
                 
                 if (!response.ok) {
-                    if (response.status === 401) {
-                        throw new Error(`Authentication failed for service call`);
-                    } else if (response.status === 404) {
-                        throw new Error(`Service ${domain}.${service} not found`);
-                    } else {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                console.log(`🎮 WordPlay: Service call successful: ${domain}.${service}`);
-                updateDebugInfo(`${actionType} - Success!`, 'success');
+                const data = await response.json();
+                diagLog(`API Data received: ${JSON.stringify(data).substring(0, 100)}...`);
                 
-                // 🚀 IMMEDIATE STATE REFRESH after service call
-                setTimeout(() => refreshGameState(true), 500);
-                
-                return await response.json();
+                return data;
                 
             } catch (error) {
-                console.error(`🎮 WordPlay: Service call failed: ${domain}.${service}`, error);
-                showMessage(`${actionType} failed: ${error.message}`, 'error');
-                updateDebugInfo(`❌ ${actionType} failed: ${error.message}`, 'error');
+                diagLog(`API ERROR: ${error.message}`, 'error');
                 throw error;
             }
         }
 
-        // Update game state from entity data
-        function updateGameStateFromEntity(entityData) {
-            const attributes = entityData.attributes || {};
+        // 🔍 DIAGNOSTIC GAME STATE REFRESH
+        async function diagnosticRefreshGameState() {
+            diagLog('=== REFRESHING GAME STATE ===');
             
-            currentGameData = {
-                word_length: attributes.word_length || 5,
-                game_state: entityData.state || 'idle',
-                guesses: attributes.guess_history || [],
-                guess_results: attributes.guess_results || [],
-                hint: attributes.hint || '',
-                last_message: attributes.last_message || '',
-                message_type: attributes.message_type || 'info',
-                current_input: attributes.current_input || ''
-            };
-            
-            updateUI();
+            try {
+                // Get game state sensor
+                const gameStateData = await diagnosticApiCall('/api/states/sensor.ha_wordplay_game_state');
+                diagLog(`Game State Entity: ${JSON.stringify(gameStateData, null, 2)}`);
+                lastEntityData.gameState = gameStateData;
+                
+                // Get input entity
+                const inputData = await diagnosticApiCall('/api/states/text.ha_wordplay_guess_input');
+                diagLog(`Input Entity: ${JSON.stringify(inputData, null, 2)}`);
+                lastEntityData.input = inputData;
+                
+                // Get word length entity
+                const lengthData = await diagnosticApiCall('/api/states/select.ha_wordplay_word_length');
+                diagLog(`Length Entity: ${JSON.stringify(lengthData, null, 2)}`);
+                lastEntityData.length = lengthData;
+                
+                // Parse game state
+                if (gameStateData && gameStateData.attributes) {
+                    const attrs = gameStateData.attributes;
+                    
+                    currentGameData = {
+                        word_length: attrs.word_length || 5,
+                        game_state: gameStateData.state || 'idle',
+                        guesses: attrs.guess_history || [],
+                        guess_results: attrs.guess_results || [],
+                        hint: attrs.hint || '',
+                        last_message: attrs.last_message || '',
+                        message_type: attrs.message_type || 'info'
+                    };
+                    
+                    diagLog(`Parsed Game Data: ${JSON.stringify(currentGameData, null, 2)}`, 'success');
+                    
+                    // Update UI
+                    diagnosticUpdateUI();
+                } else {
+                    diagLog('No game state attributes found!', 'error');
+                }
+                
+                return true;
+                
+            } catch (error) {
+                diagLog(`Game state refresh failed: ${error.message}`, 'error');
+                return false;
+            }
         }
 
-        // 🚀 ENHANCED UI UPDATE SYSTEM
-        function updateUI() {
-            // Update game status with visual feedback
-            const statusEl = document.getElementById('gameStatus');
-            if (currentGameData.game_state === 'playing') {
-                const remaining = currentGameData.word_length - currentGameData.guesses.length;
-                updateGameStatus(`Playing • ${currentGameData.word_length} letters • ${remaining} guesses remaining`, 'success');
-            } else if (currentGameData.game_state === 'won') {
-                updateGameStatus(`🎉 You won! • ${currentGameData.guesses.length} guesses`, 'success');
-            } else if (currentGameData.game_state === 'lost') {
-                updateGameStatus(`😞 Game over • Better luck next time!`, 'error');
-            } else {
-                updateGameStatus(`Ready to play • Select word length`, 'info');
-            }
+        // 🔍 DIAGNOSTIC UI UPDATE
+        function diagnosticUpdateUI() {
+            diagLog('=== UPDATING UI ===');
             
-            // Update word length selector
-            updateWordLengthButtons(currentGameData.word_length);
+            // Update status
+            const statusEl = document.getElementById('gameStatus');
+            const statusText = `${currentGameData.game_state} | ${currentGameData.word_length} letters | ${currentGameData.guesses.length} guesses`;
+            statusEl.textContent = statusText;
+            diagLog(`Status updated: ${statusText}`);
             
             // Update grid
-            createGrid(currentGameData.word_length);
-            populateGrid();
+            diagnosticUpdateGrid();
             
-            // Update hint with animation
+            // Update hint
             const hintEl = document.getElementById('hintText');
-            const newHint = currentGameData.hint || '💡 Click "Get Hint" for a clue!';
-            if (hintEl.textContent !== newHint) {
-                hintEl.classList.add('updated');
-                hintEl.textContent = newHint;
-                setTimeout(() => hintEl.classList.remove('updated'), 2000);
-            }
+            hintEl.textContent = currentGameData.hint || '🔧 No hint available';
+            diagLog(`Hint updated: ${currentGameData.hint}`);
             
-            // Update message
-            if (currentGameData.last_message) {
-                showMessage(currentGameData.last_message, currentGameData.message_type, 4000);
-            }
-            
-            // Update input max length
-            document.getElementById('guessInput').maxLength = currentGameData.word_length;
-            
-            // Update button states
-            updateButtonStates();
+            // Update debug info
+            updateDebugInfo();
         }
 
-        // Create game grid
-        function createGrid(wordLength) {
-            if (wordLength === currentWordLength && gameGrid.length > 0) {
-                return; // Grid already exists for this word length
-            }
+        // 🔍 DIAGNOSTIC GRID UPDATE
+        function diagnosticUpdateGrid() {
+            diagLog(`=== UPDATING GRID ===`);
+            diagLog(`Grid update - Guesses: ${JSON.stringify(currentGameData.guesses)}`);
+            diagLog(`Grid update - Results: ${JSON.stringify(currentGameData.guess_results)}`);
             
-            currentWordLength = wordLength;
-            const grid = document.getElementById('gameGrid');
-            grid.innerHTML = '';
+            // Ensure grid exists
+            diagnosticCreateGrid(currentGameData.word_length);
             
-            // Set CSS grid template
-            grid.style.gridTemplateColumns = `repeat(${wordLength}, 1fr)`;
-            grid.style.gridTemplateRows = `repeat(${wordLength}, 1fr)`;
-            
-            // Create tiles
-            gameGrid = [];
-            for (let row = 0; row < wordLength; row++) {
-                gameGrid[row] = [];
-                for (let col = 0; col < wordLength; col++) {
-                    const tile = document.createElement('div');
-                    tile.className = 'game-tile';
-                    tile.dataset.row = row;
-                    tile.dataset.col = col;
-                    grid.appendChild(tile);
-                    gameGrid[row][col] = tile;
-                }
-            }
-        }
-
-        // 🎯 FIXED GRID LOGIC - NO TYPING PREVIEW, ONLY SUBMITTED GUESSES
-        function populateGrid() {
-            // Clear all tiles first
+            // Clear all tiles
+            let tileCount = 0;
             gameGrid.forEach(row => {
                 row.forEach(tile => {
                     tile.textContent = '';
                     tile.className = 'game-tile';
+                    tileCount++;
                 });
             });
-
-            // ✅ ONLY show completed/submitted guesses in grid
+            diagLog(`Cleared ${tileCount} tiles`);
+            
+            // Populate with guesses
+            let populatedTiles = 0;
             currentGameData.guesses.forEach((guess, guessIndex) => {
+                diagLog(`Processing guess ${guessIndex}: "${guess}"`);
                 const result = currentGameData.guess_results[guessIndex] || [];
                 
                 for (let i = 0; i < guess.length; i++) {
@@ -978,350 +504,194 @@
                         
                         if (result[i]) {
                             tile.classList.add(result[i]);
-                            // Add success animation for new guesses
-                            if (guessIndex === currentGameData.guesses.length - 1) {
-                                setTimeout(() => tile.classList.add('success'), i * 100);
-                            }
+                            diagLog(`Tile [${guessIndex}][${i}]: "${guess[i]}" -> ${result[i]}`);
                         }
+                        populatedTiles++;
                     }
                 }
             });
-
-            // 🚫 NO CURRENT INPUT PREVIEW IN GRID - typing stays in input field only
-            // Grid only shows submitted guesses with results
+            
+            diagLog(`Populated ${populatedTiles} tiles with guess data`, 'success');
         }
 
-        // 🔧 INPUT FOCUS HANDLERS - PROTECT TYPING
-        function handleInputFocus() {
-            isInputFocused = true;
-            preventInputSync = true;
-            updateDebugInfo('Input focused - sync protection ON', 'info');
-            
-            if (inputSyncTimeout) {
-                clearTimeout(inputSyncTimeout);
-                inputSyncTimeout = null;
+        // 🔍 DIAGNOSTIC GRID CREATION
+        function diagnosticCreateGrid(wordLength) {
+            if (wordLength === currentWordLength && gameGrid.length > 0) {
+                diagLog(`Grid already exists for length ${wordLength}`);
+                return;
             }
-        }
-
-        function handleInputBlur() {
-            isInputFocused = false;
-            updateDebugInfo('Input blurred - sync protection OFF', 'info');
             
-            inputSyncTimeout = setTimeout(() => {
-                preventInputSync = false;
-                updateDebugInfo('Input sync re-enabled', 'info');
-            }, 2000);
-        }
-
-        // 🚀 ENHANCED WORD LENGTH CHANGE - WITH FEEDBACK
-        async function changeWordLength(length) {
-            if (!isActionAllowed('changeLength')) return;
+            diagLog(`Creating new ${wordLength}x${wordLength} grid`);
+            currentWordLength = wordLength;
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = '';
             
-            if (currentGameData.game_state === 'playing') {
-                if (!confirm('This will end the current game. Continue?')) {
-                    return;
+            grid.style.gridTemplateColumns = `repeat(${wordLength}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${wordLength}, 1fr)`;
+            
+            gameGrid = [];
+            let totalTiles = 0;
+            for (let row = 0; row < wordLength; row++) {
+                gameGrid[row] = [];
+                for (let col = 0; col < wordLength; col++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'game-tile';
+                    tile.dataset.row = row;
+                    tile.dataset.col = col;
+                    grid.appendChild(tile);
+                    gameGrid[row][col] = tile;
+                    totalTiles++;
                 }
             }
             
+            diagLog(`Grid created: ${totalTiles} tiles`, 'success');
+        }
+
+        // 🔍 DIAGNOSTIC ACTION HANDLER
+        async function diagnosticAction(action, param = null) {
+            actionCount++;
+            diagLog(`=== ACTION ${actionCount}: ${action.toUpperCase()} ===`);
+            
             try {
-                setActionCooldown('changeLength', 1500);
-                
-                // Disable all length buttons
-                [5, 6, 7, 8].forEach(len => {
-                    const btn = document.getElementById(`length${len}`);
-                    if (btn) btn.disabled = true;
-                });
-                
-                updateGameStatus(`Changing to ${length} letters...`, 'loading');
-                
-                await callService('select', 'select_option', {
-                    entity_id: 'select.ha_wordplay_word_length',
-                    option: length.toString()
-                }, `Change length to ${length}`);
-                
-                currentWordLength = length;
-                
-                // Re-enable buttons
-                setTimeout(() => {
-                    [5, 6, 7, 8].forEach(len => {
-                        const btn = document.getElementById(`length${len}`);
-                        if (btn) btn.disabled = false;
+                if (action === 'newGame') {
+                    diagLog('Calling ha_wordplay.new_game service...');
+                    await diagnosticApiCall('/api/services/ha_wordplay/new_game', {
+                        method: 'POST',
+                        body: { word_length: currentWordLength }
                     });
+                    diagLog('New game service call successful', 'success');
+                    
+                } else if (action === 'submit') {
+                    const input = document.getElementById('guessInput');
+                    const guess = input.value.trim().toUpperCase();
+                    diagLog(`Submit action - guess: "${guess}"`);
+                    
+                    if (guess.length !== currentWordLength) {
+                        diagLog(`Invalid guess length: ${guess.length} (expected ${currentWordLength})`, 'error');
+                        return;
+                    }
+                    
+                    // Two-step submit
+                    diagLog('Step 1: Setting input entity...');
+                    await diagnosticApiCall('/api/services/text/set_value', {
+                        method: 'POST',
+                        body: {
+                            entity_id: 'text.ha_wordplay_guess_input',
+                            value: guess
+                        }
+                    });
+                    
+                    diagLog('Step 2: Calling submit_guess service...');
+                    await diagnosticApiCall('/api/services/ha_wordplay/submit_guess', {
+                        method: 'POST',
+                        body: {}
+                    });
+                    
+                    diagLog('Submit action completed', 'success');
+                    input.value = '';
+                    
+                } else if (action === 'hint') {
+                    diagLog('Calling ha_wordplay.get_hint service...');
+                    await diagnosticApiCall('/api/services/ha_wordplay/get_hint', {
+                        method: 'POST',
+                        body: {}
+                    });
+                    diagLog('Get hint service call successful', 'success');
+                    
+                } else if (action === 'changeLength') {
+                    diagLog(`Changing word length to ${param}...`);
+                    await diagnosticApiCall('/api/services/select/select_option', {
+                        method: 'POST',
+                        body: {
+                            entity_id: 'select.ha_wordplay_word_length',
+                            option: param.toString()
+                        }
+                    });
+                    diagLog(`Word length changed to ${param}`, 'success');
+                }
+                
+                // Refresh state after action
+                setTimeout(async () => {
+                    diagLog('Post-action state refresh...');
+                    await diagnosticRefreshGameState();
                 }, 1000);
                 
             } catch (error) {
-                console.error('🎮 WordPlay: Failed to change word length:', error);
-                updateGameStatus('Failed to change word length', 'error');
+                diagLog(`Action ${action} failed: ${error.message}`, 'error');
             }
         }
 
-        function updateWordLengthFromEntity(length) {
-            updateWordLengthButtons(length);
-            if (length !== currentWordLength) {
-                currentWordLength = length;
-                createGrid(length);
-            }
-        }
-
-        function updateWordLengthButtons(activeLength) {
-            [5, 6, 7, 8].forEach(length => {
-                const btn = document.getElementById(`length${length}`);
-                if (btn) {
-                    btn.classList.toggle('active', length === activeLength);
-                }
-            });
-        }
-
-        // 🎯 SIMPLE INPUT HANDLING - NO GRID PREVIEW
-        function updateInput() {
+        // 🔍 DIAGNOSTIC INPUT HANDLERS
+        function diagnosticInput() {
             const input = document.getElementById('guessInput');
-            let value = input.value.toUpperCase();
-            
-            // Store the value locally to prevent loss
-            lastKnownInputValue = value;
-            
-            // ✅ NO GRID PREVIEW - just update button state
-            updateButtonStates();
+            diagLog(`Input changed: "${input.value}"`);
         }
 
-        // 🔧 SAFE INPUT SYNC
-        function updateInputFromEntity(value) {
-            if (isInputFocused || preventInputSync) {
-                console.debug('🎮 WordPlay: Input sync blocked - user is typing');
-                return;
-            }
-            
-            const input = document.getElementById('guessInput');
-            const currentInput = input.value;
-            
-            if (currentInput !== (value || '') && Math.abs(currentInput.length - (value || '').length) > 1) {
-                input.value = value || '';
-                lastKnownInputValue = value || '';
-                updateInput();
-                console.debug('🎮 WordPlay: Input synced from HA entity');
-            }
-        }
-
-        function handleKeyPress(event) {
+        function diagnosticKeyPress(event) {
             if (event.key === 'Enter') {
+                diagLog('Enter key pressed - triggering submit');
                 event.preventDefault();
-                submitGuess();
+                diagnosticAction('submit');
             }
         }
 
-        // 🚀 ENHANCED NEW GAME - WITH IMMEDIATE FEEDBACK
-        async function newGame() {
-            if (!isActionAllowed('newGame')) return;
+        // 🔍 UPDATE DEBUG INFO
+        function updateDebugInfo() {
+            const debugEl = document.getElementById('debugInfo');
+            debugEl.innerHTML = `
+                Auth: ${authMethod}<br>
+                Actions: ${actionCount}<br>
+                Game State: ${currentGameData.game_state}<br>
+                Word Length: ${currentGameData.word_length}<br>
+                Guesses: ${currentGameData.guesses.length}<br>
+                Last Entity Check: ${new Date().toLocaleTimeString()}
+            `;
+        }
+
+        // 🔍 INITIALIZE DIAGNOSTIC MODE
+        async function initDiagnostic() {
+            diagLog('=== INITIALIZING DIAGNOSTIC MODE ===');
             
+            accessToken = getAccessToken();
+            
+            // Create initial grid
+            diagnosticCreateGrid(5);
+            
+            // Test connection
             try {
-                setActionCooldown('newGame', 3000); // 3 second cooldown
-                setButtonLoading('newGameBtn', true);
-                
-                // Immediate UI feedback
-                updateGameStatus('🎮 Starting new game...', 'loading');
-                showMessage('Generating new word...', 'info', 0);
-                
-                // Clear input field immediately
-                const input = document.getElementById('guessInput');
-                input.value = '';
-                lastKnownInputValue = '';
-                
-                // Clear grid immediately
-                gameGrid.forEach(row => {
-                    row.forEach(tile => {
-                        tile.textContent = '';
-                        tile.className = 'game-tile';
-                    });
-                });
-                
-                await callService('ha_wordplay', 'new_game', {
-                    word_length: currentWordLength
-                }, 'New Game');
-                
-                // Success feedback
-                updateGameStatus('🎉 New game started!', 'success');
-                showMessage(`New ${currentWordLength}-letter game ready!`, 'success', 3000);
-                
+                await diagnosticRefreshGameState();
+                document.getElementById('connectionStatus').textContent = '✅ DIAGNOSTIC - Connected';
+                document.getElementById('connectionStatus').className = 'connection-status';
             } catch (error) {
-                console.error('🎮 WordPlay: Failed to start new game:', error);
-                updateGameStatus('Failed to start new game', 'error');
-            } finally {
-                setButtonLoading('newGameBtn', false);
-            }
-        }
-
-        // 🚀 ENHANCED SUBMIT GUESS - WITH IMMEDIATE FEEDBACK
-        async function submitGuess() {
-            if (!isActionAllowed('submitGuess')) return;
-            
-            const input = document.getElementById('guessInput');
-            const guess = input.value.trim().toUpperCase();
-            
-            if (guess.length !== currentWordLength) {
-                showInvalidGuess();
-                return;
+                document.getElementById('connectionStatus').textContent = '❌ DIAGNOSTIC - Connection Failed';
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
             }
             
-            try {
-                setActionCooldown('submitGuess', 2000);
-                setButtonLoading('submitBtn', true);
-                input.classList.add('processing');
-                
-                // Immediate UI feedback
-                updateGameStatus('🔍 Processing guess...', 'loading');
-                showMessage(`Checking "${guess}"...`, 'info', 0);
-                
-                // Two-step submit process
-                await callService('text', 'set_value', {
-                    entity_id: 'text.ha_wordplay_guess_input',
-                    value: guess
-                }, 'Set Input');
-                
-                await new Promise(resolve => setTimeout(resolve, 300));
-                
-                await callService('ha_wordplay', 'submit_guess', {}, 'Submit Guess');
-                
-                // Clear input after successful submission
-                input.value = '';
-                lastKnownInputValue = '';
-                input.classList.remove('processing');
-                
-                // Success feedback
-                showMessage('Guess submitted!', 'success', 2000);
-                
-            } catch (error) {
-                console.error('🎮 WordPlay: Failed to submit guess:', error);
-                showMessage('Failed to submit guess - please try again', 'error');
-                input.classList.remove('processing');
-            } finally {
-                setButtonLoading('submitBtn', false);
-            }
+            // Start polling
+            setInterval(async () => {
+                diagLog('Auto-refresh triggered...');
+                await diagnosticRefreshGameState();
+            }, 5000);
+            
+            diagLog('Diagnostic mode initialization complete', 'success');
         }
 
-        // 🚀 ENHANCED GET HINT - WITH IMMEDIATE FEEDBACK
-        async function getHint() {
-            if (!isActionAllowed('getHint')) return;
-            
-            try {
-                setActionCooldown('getHint', 2000);
-                setButtonLoading('hintBtn', true);
-                
-                updateGameStatus('💡 Getting hint...', 'loading');
-                
-                await callService('ha_wordplay', 'get_hint', {}, 'Get Hint');
-                
-                showMessage('Hint updated!', 'success', 2000);
-                
-            } catch (error) {
-                console.error('🎮 WordPlay: Failed to get hint:', error);
-            } finally {
-                setButtonLoading('hintBtn', false);
-            }
-        }
-
-        // UI helper functions
-        function showInvalidGuess() {
-            const currentRow = currentGameData.guesses.length;
-            
-            // Animate input field for invalid guess
-            const input = document.getElementById('guessInput');
-            input.style.animation = 'shake 0.5s ease';
-            setTimeout(() => input.style.animation = '', 500);
-            
-            showMessage(`Guess must be ${currentWordLength} letters`, 'error', 3000);
-        }
-
-        function updateButtonStates() {
-            const submitBtn = document.getElementById('submitBtn');
-            const isPlaying = currentGameData.game_state === 'playing';
-            const hasValidInput = document.getElementById('guessInput').value.length === currentWordLength;
-            
-            submitBtn.disabled = !isPlaying || !hasValidInput || actionCooldowns.submitGuess;
-            
-            // Update hint button
-            const hintBtn = document.getElementById('hintBtn');
-            hintBtn.disabled = !isPlaying || actionCooldowns.getHint;
-            
-            // Update new game button
-            const newGameBtn = document.getElementById('newGameBtn');
-            newGameBtn.disabled = actionCooldowns.newGame;
-        }
-
-        // Manual refresh function
-        function manualRefresh() {
-            updateDebugInfo('Manual refresh triggered...', 'info');
-            refreshGameState(true);
-        }
-
-        // Cleanup function
-        function cleanup() {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-                updateInterval = null;
-            }
-            if (inputSyncTimeout) {
-                clearTimeout(inputSyncTimeout);
-                inputSyncTimeout = null;
-            }
-        }
-
-        // Initialize everything
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎮 WordPlay: Initializing UI-FIXED version with proper feedback');
-            createGrid(5);
-            updateDebugInfo('DOM loaded, starting connection...', 'info');
-            initConnection();
-            
-            // Enhanced input event listeners
-            const inputField = document.getElementById('guessInput');
-            inputField.addEventListener('input', updateInput);
-            inputField.addEventListener('focus', handleInputFocus);
-            inputField.addEventListener('blur', handleInputBlur);
-            
-            inputField.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleKeyPress(e);
-                }
-            });
-            
-            // Debug keyboard shortcuts
-            document.addEventListener('keydown', function(e) {
-                if (e.ctrlKey && e.key === 'r') {
-                    e.preventDefault();
-                    manualRefresh();
-                }
-            });
-            
-            window.addEventListener('beforeunload', cleanup);
-            
-            console.log('🎮 WordPlay: UI-FIXED version initialized with immediate feedback!');
+            console.log('🔧 WordPlay DIAGNOSTIC MODE starting...');
+            initDiagnostic();
         });
 
         // Debug interface
-        window.wordplayDebug = {
-            manualRefresh,
-            getAccessToken,
-            testConnection,
-            refreshGameState: () => refreshGameState(true),
-            callService: (domain, service, data) => callService(domain, service, data, 'Debug'),
-            getInputStatus: () => ({
-                focused: isInputFocused,
-                protected: preventInputSync,
-                value: document.getElementById('guessInput').value,
-                lastKnown: lastKnownInputValue
-            }),
-            forceInputSync: () => {
-                preventInputSync = false;
-                isInputFocused = false;
-                refreshGameState(true);
+        window.diagnosticDebug = {
+            refreshState: diagnosticRefreshGameState,
+            getLastEntityData: () => lastEntityData,
+            getCurrentGameData: () => currentGameData,
+            clearLog: () => {
+                diagnosticLog = [];
+                updateDiagnosticDisplay();
             },
-            getCooldowns: () => actionCooldowns,
-            clearCooldowns: () => {
-                Object.keys(actionCooldowns).forEach(key => {
-                    actionCooldowns[key] = false;
-                });
-            }
+            testAction: (action, param) => diagnosticAction(action, param)
         };
     </script>
 </body>
