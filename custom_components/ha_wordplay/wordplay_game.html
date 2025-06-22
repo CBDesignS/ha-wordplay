@@ -410,7 +410,8 @@
 
             <div class="game-input">
                 <input type="text" class="input-field" placeholder="Enter your guess..." 
-                       maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)">
+                       maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)"
+                       onfocus="handleInputFocus()" onblur="handleInputBlur()">
                 
                 <div class="action-buttons">
                     <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
@@ -427,7 +428,8 @@
                 <div class="debug-info" id="debugInfo">
                     Auth Status: Checking...<br>
                     Last API Call: None<br>
-                    Connection Method: Initializing...
+                    Connection Method: Initializing...<br>
+                    Input Focus: Not focused
                 </div>
             </div>
         </div>
@@ -439,13 +441,18 @@
         let gameGrid = [];
         let gameState = 'idle';
         let updateInterval = null;
-        let eventSource = null;
         let authMethod = 'unknown';
         let accessToken = null;
         let apiCallCount = 0;
         let lastApiCall = 'none';
         let connectionRetries = 0;
         const MAX_RETRIES = 3;
+        
+        // 🔧 INPUT SYNC CONTROL VARIABLES
+        let isInputFocused = false;
+        let lastKnownInputValue = '';
+        let preventInputSync = false;
+        let inputSyncTimeout = null;
         
         // Game data
         let currentGameData = {
@@ -512,19 +519,7 @@
                 console.debug('🎮 WordPlay: Cannot access parent frame auth (CORS)');
             }
 
-            // Method 4: Check for any HA-related auth cookies
-            try {
-                const cookies = document.cookie.split(';');
-                for (let cookie of cookies) {
-                    if (cookie.includes('hass') || cookie.includes('auth')) {
-                        console.debug('🎮 WordPlay: Found HA-related cookie, but cannot extract token');
-                    }
-                }
-            } catch (e) {
-                console.debug('🎮 WordPlay: No auth cookies found');
-            }
-
-            // Method 5: Return null for no-auth attempt
+            // Method 4: Return null for no-auth attempt
             authMethod = 'no-auth-attempt';
             updateDebugInfo(`Auth: No token found, trying no-auth`);
             return null;
@@ -539,12 +534,13 @@
                     Last API Call: ${lastApiCall}<br>
                     Connection Method: ${message}<br>
                     API Calls Made: ${apiCallCount}<br>
-                    Retries: ${connectionRetries}/${MAX_RETRIES}
+                    Retries: ${connectionRetries}/${MAX_RETRIES}<br>
+                    Input Focus: ${isInputFocused ? 'Focused (protected)' : 'Not focused'}
                 `;
             }
         }
 
-        // Enhanced connection initialization with better error handling
+        // Enhanced connection initialization - REMOVED EventSource
         function initConnection() {
             updateConnectionStatus('connecting', '🔄 Connecting to Home Assistant...');
             updateDebugInfo('Starting connection attempt...');
@@ -555,11 +551,8 @@
             // Try to establish initial connection
             testConnection();
             
-            // Start conservative polling (increased to 5 seconds, was 2)
+            // Start conservative polling only (NO EventSource)
             startPolling();
-            
-            // Try to use Server-Sent Events for real-time updates
-            setupEventSource();
         }
 
         // Enhanced connection test with better auth handling
@@ -617,58 +610,15 @@
             }
         }
 
-        // Enhanced Server-Sent Events setup with better error handling
-        function setupEventSource() {
-            // Only try EventSource if we have some form of auth or if initial test succeeded
-            if (!accessToken && connectionRetries > 0) {
-                console.debug('🎮 WordPlay: Skipping EventSource - no auth and connection issues');
-                return;
-            }
-            
-            try {
-                eventSource = new EventSource('/api/stream');
-                
-                eventSource.onopen = function() {
-                    console.log('🎮 WordPlay: EventSource opened');
-                    updateDebugInfo('EventSource connected');
-                };
-                
-                eventSource.onmessage = function(event) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (data.event_type === 'state_changed') {
-                            handleStateChange(data.data);
-                        }
-                    } catch (e) {
-                        console.debug('🎮 WordPlay: Non-JSON event data:', event.data);
-                    }
-                };
-                
-                eventSource.onerror = function(error) {
-                    console.debug('🎮 WordPlay: EventSource error, falling back to polling only');
-                    updateDebugInfo('EventSource failed, using polling only');
-                    if (eventSource) {
-                        eventSource.close();
-                        eventSource = null;
-                    }
-                };
-                
-                console.log('🎮 WordPlay: EventSource established for real-time updates');
-            } catch (error) {
-                console.debug('🎮 WordPlay: EventSource not available, using polling only');
-                updateDebugInfo('EventSource not available, polling only');
-            }
-        }
-
-        // Conservative polling with exponential backoff
+        // Conservative polling with exponential backoff (NO EventSource)
         function startPolling() {
             if (updateInterval) clearInterval(updateInterval);
             
-            // Start with 5 second intervals (was 2 seconds)
-            let pollInterval = 5000;
+            // Start with 8 second intervals (increased from 5)
+            let pollInterval = 8000;
             
             updateInterval = setInterval(async () => {
-                if (!eventSource && connectionRetries < MAX_RETRIES) { 
+                if (connectionRetries < MAX_RETRIES) { 
                     const success = await refreshGameState();
                     
                     // If polling fails, increase interval (backoff)
@@ -679,40 +629,18 @@
                         updateDebugInfo(`Polling slowed to ${pollInterval/1000}s due to errors`);
                     } else {
                         // Reset to normal interval on success
-                        if (pollInterval > 5000) {
-                            pollInterval = 5000;
+                        if (pollInterval > 8000) {
+                            pollInterval = 8000;
                             clearInterval(updateInterval);
                             updateInterval = setInterval(arguments.callee, pollInterval);
-                            updateDebugInfo('Polling restored to 5s intervals');
+                            updateDebugInfo('Polling restored to 8s intervals');
                         }
                     }
                 }
             }, pollInterval);
         }
 
-        // Handle state changes from EventSource
-        function handleStateChange(data) {
-            const entityId = data.entity_id;
-            const newState = data.new_state;
-            
-            if (!newState) return;
-            
-            switch (entityId) {
-                case 'sensor.ha_wordplay_game_state':
-                    updateGameStateFromEntity(newState);
-                    break;
-                    
-                case 'text.ha_wordplay_guess_input':
-                    updateInputFromEntity(newState.state);
-                    break;
-                    
-                case 'select.ha_wordplay_word_length':
-                    updateWordLengthFromEntity(parseInt(newState.state));
-                    break;
-            }
-        }
-
-        // Enhanced state refresh with better error handling
+        // Enhanced state refresh with INPUT PROTECTION
         async function refreshGameState() {
             try {
                 const headers = {
@@ -740,14 +668,16 @@
                     console.warn('🎮 WordPlay: Game state fetch failed:', gameStateResponse.status);
                 }
                 
-                // Get input state
-                const inputResponse = await fetch('/api/states/text.ha_wordplay_guess_input', {
-                    method: 'GET',
-                    headers: headers
-                });
-                if (inputResponse.ok) {
-                    const inputData = await inputResponse.json();
-                    updateInputFromEntity(inputData.state);
+                // 🔧 PROTECTED INPUT SYNC - Only sync if input not focused
+                if (!isInputFocused && !preventInputSync) {
+                    const inputResponse = await fetch('/api/states/text.ha_wordplay_guess_input', {
+                        method: 'GET',
+                        headers: headers
+                    });
+                    if (inputResponse.ok) {
+                        const inputData = await inputResponse.json();
+                        updateInputFromEntity(inputData.state);
+                    }
                 }
                 
                 // Get word length selector
@@ -813,7 +743,7 @@
                 console.log(`🎮 WordPlay: Service call successful: ${domain}.${service}`);
                 
                 // Refresh state after service call (with delay)
-                setTimeout(() => refreshGameState(), 500);
+                setTimeout(() => refreshGameState(), 1000);
                 
                 return await response.json();
                 
@@ -937,7 +867,7 @@
                 }
             });
 
-            // Show current input on next row
+            // Show current input on next row - PROTECTED INPUT PREVIEW
             if (currentGameData.game_state === 'playing') {
                 const currentRow = currentGameData.guesses.length;
                 const currentInput = document.getElementById('guessInput').value.toUpperCase();
@@ -955,6 +885,30 @@
                     }
                 }
             }
+        }
+
+        // 🔧 INPUT FOCUS HANDLERS - PROTECT TYPING
+        function handleInputFocus() {
+            isInputFocused = true;
+            preventInputSync = true; // Block all input syncing while focused
+            updateDebugInfo('Input focused - sync protection ON');
+            
+            // Clear any pending sync timeout
+            if (inputSyncTimeout) {
+                clearTimeout(inputSyncTimeout);
+                inputSyncTimeout = null;
+            }
+        }
+
+        function handleInputBlur() {
+            isInputFocused = false;
+            updateDebugInfo('Input blurred - sync protection OFF');
+            
+            // Re-enable input sync after a delay (let user finish their action)
+            inputSyncTimeout = setTimeout(() => {
+                preventInputSync = false;
+                updateDebugInfo('Input sync re-enabled');
+            }, 2000); // 2 second delay before re-enabling
         }
 
         // Word length functions
@@ -994,12 +948,15 @@
             });
         }
 
-        // Input handling
+        // 🔧 ENHANCED INPUT HANDLING - PREVENTS TEXT VANISHING
         function updateInput() {
             const input = document.getElementById('guessInput');
-            const value = input.value.toUpperCase();
+            let value = input.value.toUpperCase();
             
-            // Update current row preview
+            // Store the value locally to prevent loss
+            lastKnownInputValue = value;
+            
+            // Update current row preview ONLY (don't sync to HA yet)
             if (currentGameData.game_state === 'playing') {
                 const currentRow = currentGameData.guesses.length;
                 if (gameGrid[currentRow]) {
@@ -1015,13 +972,28 @@
                     }
                 }
             }
+            
+            // Update button state
+            updateButtonStates();
         }
 
+        // 🔧 SAFE INPUT SYNC - Only when NOT focused and NOT protected
         function updateInputFromEntity(value) {
-            const currentInput = document.getElementById('guessInput').value;
-            if (currentInput !== (value || '')) {
-                document.getElementById('guessInput').value = value || '';
+            // PROTECTION: Never overwrite input while user is typing
+            if (isInputFocused || preventInputSync) {
+                console.debug('🎮 WordPlay: Input sync blocked - user is typing');
+                return;
+            }
+            
+            const input = document.getElementById('guessInput');
+            const currentInput = input.value;
+            
+            // Only update if significantly different (avoid constant overwrites)
+            if (currentInput !== (value || '') && Math.abs(currentInput.length - (value || '').length) > 1) {
+                input.value = value || '';
+                lastKnownInputValue = value || '';
                 updateInput();
+                console.debug('🎮 WordPlay: Input synced from HA entity');
             }
         }
 
@@ -1031,20 +1003,29 @@
             }
         }
 
-        // Game action functions
+        // 🔧 ENHANCED GAME ACTION FUNCTIONS
         async function newGame() {
             try {
                 updateDebugInfo('Starting new game...');
+                
+                // Clear input field immediately
+                const input = document.getElementById('guessInput');
+                input.value = '';
+                lastKnownInputValue = '';
+                
                 await callService('ha_wordplay', 'new_game', {
                     word_length: currentWordLength
                 });
+                
+                updateDebugInfo('New game started successfully');
             } catch (error) {
                 console.error('🎮 WordPlay: Failed to start new game:', error);
             }
         }
 
         async function submitGuess() {
-            const guess = document.getElementById('guessInput').value.trim();
+            const input = document.getElementById('guessInput');
+            const guess = input.value.trim().toUpperCase();
             
             if (guess.length !== currentWordLength) {
                 showInvalidGuess();
@@ -1053,9 +1034,28 @@
             
             try {
                 updateDebugInfo(`Submitting guess: ${guess}`);
+                
+                // 🔧 FIRST: Update HA text entity with our guess
+                await callService('text', 'set_value', {
+                    entity_id: 'text.ha_wordplay_guess_input',
+                    value: guess
+                });
+                
+                // Small delay to ensure HA has the value
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // 🔧 THEN: Submit the guess
                 await callService('ha_wordplay', 'submit_guess');
+                
+                // Clear input after successful submission
+                input.value = '';
+                lastKnownInputValue = '';
+                updateInput();
+                
+                updateDebugInfo('Guess submitted successfully');
             } catch (error) {
                 console.error('🎮 WordPlay: Failed to submit guess:', error);
+                showMessage('Failed to submit guess - please try again', 'error');
             }
         }
 
@@ -1112,21 +1112,32 @@
                 clearInterval(updateInterval);
                 updateInterval = null;
             }
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
+            if (inputSyncTimeout) {
+                clearTimeout(inputSyncTimeout);
+                inputSyncTimeout = null;
             }
         }
 
         // Initialize everything
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🎮 WordPlay: Initializing AUTH-FIXED REST API interface');
+            console.log('🎮 WordPlay: Initializing INPUT-FIXED REST API interface');
             createGrid(5);
             updateDebugInfo('DOM loaded, starting connection...');
             initConnection();
             
-            // Update button states on input
-            document.getElementById('guessInput').addEventListener('input', updateButtonStates);
+            // Enhanced input event listeners
+            const inputField = document.getElementById('guessInput');
+            inputField.addEventListener('input', updateInput);
+            inputField.addEventListener('focus', handleInputFocus);
+            inputField.addEventListener('blur', handleInputBlur);
+            
+            // Prevent form submission on Enter (let our handler manage it)
+            inputField.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleKeyPress(e);
+                }
+            });
             
             // Add manual refresh capability (for debugging)
             document.addEventListener('keydown', function(e) {
@@ -1139,7 +1150,7 @@
             // Cleanup on page unload
             window.addEventListener('beforeunload', cleanup);
             
-            console.log('🎮 WordPlay: AUTH-FIXED version initialized');
+            console.log('🎮 WordPlay: INPUT-FIXED version initialized - No more vanishing text!');
         });
 
         // Add to window for debugging
@@ -1148,7 +1159,19 @@
             getAccessToken,
             testConnection,
             refreshGameState,
-            callService: (domain, service, data) => callService(domain, service, data)
+            callService: (domain, service, data) => callService(domain, service, data),
+            // Input debugging
+            getInputStatus: () => ({
+                focused: isInputFocused,
+                protected: preventInputSync,
+                value: document.getElementById('guessInput').value,
+                lastKnown: lastKnownInputValue
+            }),
+            forceInputSync: () => {
+                preventInputSync = false;
+                isInputFocused = false;
+                refreshGameState();
+            }
         };
     </script>
 </body>
