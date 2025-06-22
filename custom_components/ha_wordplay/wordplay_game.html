@@ -226,32 +226,6 @@
 
         .hint-text { font-style: italic; color: var(--text-secondary-color); margin: 8px 0; }
 
-        .debug-panel {
-            margin-top: 16px;
-            padding: 12px;
-            background: #f0f8ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #333;
-            text-align: left;
-            font-family: monospace;
-            white-space: pre-wrap;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .debug-toggle {
-            margin-top: 10px;
-            padding: 5px 10px;
-            background: #007acc;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 11px;
-        }
-
         @media (max-width: 768px) {
             :root { --tile-size: 45px; --tile-gap: 3px; }
             body { padding: 10px; }
@@ -308,12 +282,6 @@
             <div class="game-info" id="gameInfo">
                 <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
                 <p><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
-                
-                <button class="debug-toggle" onclick="toggleDebugPanel()">Toggle Debug Panel</button>
-                <div class="debug-panel" id="debugPanel" style="display: block;">
-                    <strong>🔍 FRONTEND DEBUG PANEL</strong>
-                    <div id="debugContent">Initializing debug panel...</div>
-                </div>
             </div>
         </div>
     </div>
@@ -342,57 +310,11 @@
             message_type: ''
         };
 
-        // Debug logging
+        // Debug logging (console only for v1.0.0)
         function debugLog(message, data = null) {
             const timestamp = new Date().toLocaleTimeString();
             const logEntry = `[${timestamp}] ${message}`;
             console.log(logEntry, data);
-            
-            const debugContent = document.getElementById('debugContent');
-            if (debugContent) {
-                debugContent.textContent += `\n${logEntry}`;
-                if (data) {
-                    debugContent.textContent += `\nData: ${JSON.stringify(data, null, 2)}`;
-                }
-                debugContent.scrollTop = debugContent.scrollHeight;
-            }
-        }
-
-        function toggleDebugPanel() {
-            debugVisible = !debugVisible;
-            const panel = document.getElementById('debugPanel');
-            panel.style.display = debugVisible ? 'block' : 'none';
-            if (debugVisible) {
-                updateDebugPanel();
-            }
-        }
-
-        function updateDebugPanel() {
-            if (!debugVisible) return;
-            
-            const debugContent = document.getElementById('debugContent');
-            debugContent.textContent = `🔍 FRONTEND DEBUG PANEL - ${new Date().toLocaleTimeString()}
-
-=== RAW BUTTON ENTITY DATA ===
-${rawButtonData ? JSON.stringify(rawButtonData, null, 2) : 'No data loaded yet'}
-
-=== PARSED GAME DATA ===
-Word Length: ${currentGameData.word_length}
-Game State: ${currentGameData.game_state}
-Guesses Made: ${currentGameData.guesses.length}
-Guesses: ${JSON.stringify(currentGameData.guesses)}
-Guess Results: ${JSON.stringify(currentGameData.guess_results)}
-Hint: ${currentGameData.hint}
-Last Message: ${currentGameData.last_message}
-
-=== FRONTEND STATE ===
-Current Word Length: ${currentWordLength}
-Access Token: ${accessToken ? 'Present' : 'Missing'}
-Last Update: ${lastUpdate}
-
-=== GRID DEBUG ===
-Grid Rows: ${gameGrid.length}
-Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
         }
 
         // Action cooldowns to prevent spam
@@ -527,7 +449,6 @@ Grid Expected Size: ${currentWordLength}x${currentWordLength}`;
                     
                     lastUpdate = new Date().toLocaleTimeString();
                     updateUI();
-                    updateDebugPanel();
                     updateConnectionStatus('connected', '✅ Connected to Home Assistant');
                     return true;
                 }
