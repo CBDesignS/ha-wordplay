@@ -148,7 +148,7 @@
 
         .game-tile.filled { background: var(--secondary-background-color); border-color: var(--text-secondary-color); color: var(--text-primary-color); }
         .game-tile.correct { background: #03a9f4; color: white; border-color: #03a9f4; }
-        .game-tile.partial { background: #ff9800; color: white; border-color: #ff9800; }
+        .game-tile.partial { background: #f44336; color: white; border-color: #f44336; }
         .game-tile.absent { background: var(--tile-absent); color: white; border-color: var(--tile-absent); }
 
         .word-length-controls { margin-bottom: 16px; text-align: center; }
@@ -295,7 +295,7 @@
 
             <div class="game-info" id="gameInfo">
                 <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
-                <p><strong>How to play:</strong> 🟢 Correct • 🟠 Wrong position • ⚪ Not in word</p>
+                <p><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
                 
                 <button class="debug-toggle" onclick="toggleDebugPanel()">Toggle Debug Panel</button>
                 <div class="debug-panel" id="debugPanel" style="display: block;">
