@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>H.A WordPlay - DIAGNOSTIC VERSION</title>
+    <title>H.A WordPlay - Game Interface</title>
     <style>
-        /* Same CSS as before - keeping it identical for consistency */
         :root {
             --primary-color: #03a9f4;
             --primary-background-color: #fafafa;
@@ -20,7 +19,6 @@
             --tile-absent: #9e9e9e;
             --tile-empty: #ffffff;
             --tile-border: #d1d5db;
-            --tile-current: #e3f2fd;
             
             --card-margin: 16px;
             --tile-gap: 4px;
@@ -53,7 +51,6 @@
             text-align: center;
             font-size: 14px;
             font-weight: bold;
-            transition: all 0.3s ease;
         }
 
         .connection-status.disconnected { background: #f44336; }
@@ -82,7 +79,6 @@
             color: var(--text-secondary-color);
             margin: 4px 0 0 0;
             min-height: 20px;
-            transition: all 0.3s ease;
         }
 
         .game-status.loading { color: var(--primary-color); font-weight: bold; }
@@ -94,7 +90,6 @@
             gap: var(--tile-gap);
             justify-content: center;
             margin: 16px 0;
-            transition: all 0.3s ease;
         }
 
         .game-tile {
@@ -128,7 +123,6 @@
             color: var(--primary-color);
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.2s;
         }
 
         .word-length-selector button.active { background: var(--primary-color); color: white; }
@@ -146,7 +140,6 @@
             border-radius: 4px;
             margin-bottom: 12px;
             background: white;
-            transition: all 0.3s ease;
         }
 
         .input-field:focus {
@@ -163,7 +156,6 @@
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
             min-width: 100px;
         }
 
@@ -190,53 +182,43 @@
             font-size: 12px;
             color: #666;
             text-align: left;
-            max-width: 400px;
-            max-height: 200px;
-            overflow-y: auto;
         }
 
-        .debug-info.error { background: #ffebee; color: #c62828; }
-        .debug-info.success { background: #e8f5e8; color: #2e7d32; }
-
-        /* DIAGNOSTIC STYLES */
-        .diagnostic-panel {
-            margin-top: 16px;
-            padding: 12px;
-            background: #1e1e1e;
-            color: #00ff00;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            max-height: 300px;
-            overflow-y: auto;
-            text-align: left;
+        @media (max-width: 768px) {
+            :root { --tile-size: 45px; --tile-gap: 3px; }
+            body { padding: 10px; }
+            .wordplay-card { padding: 12px; }
+            .game-title { font-size: 20px; }
+            .input-field { font-size: 16px; }
+            .action-buttons { flex-direction: column; align-items: center; }
+            .action-button { width: 100%; max-width: 200px; }
         }
 
-        .diagnostic-panel h4 { color: #ffff00; margin: 0 0 8px 0; }
-        .diagnostic-panel .error { color: #ff6666; }
-        .diagnostic-panel .success { color: #66ff66; }
-        .diagnostic-panel .warning { color: #ffaa00; }
+        @media (max-width: 480px) {
+            :root { --tile-size: 35px; --tile-gap: 2px; }
+            .wordplay-container { margin: 5px; border-radius: 4px; }
+        }
     </style>
 </head>
 <body>
     <div class="wordplay-container">
         <div class="connection-status" id="connectionStatus">
-            🔗 DIAGNOSTIC MODE - Connecting...
+            🔗 Connecting to Home Assistant...
         </div>
 
         <div class="wordplay-card">
             <div class="game-header">
-                <h1 class="game-title">🔧 H.A WordPlay - DIAGNOSTIC</h1>
-                <p class="game-status" id="gameStatus">DIAGNOSTIC MODE - Analyzing...</p>
+                <h1 class="game-title">🎮 H.A WordPlay</h1>
+                <p class="game-status" id="gameStatus">Ready to play • Select word length</p>
             </div>
 
             <div class="word-length-controls">
                 <div class="word-length-selector">
                     <span>Word Length:</span>
-                    <button id="length5" class="active" onclick="diagnosticAction('changeLength', 5)">5</button>
-                    <button id="length6" onclick="diagnosticAction('changeLength', 6)">6</button>
-                    <button id="length7" onclick="diagnosticAction('changeLength', 7)">7</button>
-                    <button id="length8" onclick="diagnosticAction('changeLength', 8)">8</button>
+                    <button id="length5" class="active" onclick="changeWordLength(5)">5</button>
+                    <button id="length6" onclick="changeWordLength(6)">6</button>
+                    <button id="length7" onclick="changeWordLength(7)">7</button>
+                    <button id="length8" onclick="changeWordLength(8)">8</button>
                 </div>
             </div>
 
@@ -245,43 +227,38 @@
             </div>
 
             <div class="game-input">
-                <input type="text" class="input-field" placeholder="DIAGNOSTIC INPUT..." 
-                       maxlength="5" id="guessInput" oninput="diagnosticInput()" onkeypress="diagnosticKeyPress(event)">
+                <input type="text" class="input-field" placeholder="Enter your guess..." 
+                       maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)">
                 
                 <div class="action-buttons">
-                    <button class="action-button primary" id="submitBtn" onclick="diagnosticAction('submit')">DIAG SUBMIT</button>
-                    <button class="action-button secondary" id="hintBtn" onclick="diagnosticAction('hint')">DIAG HINT</button>
-                    <button class="action-button secondary" id="newGameBtn" onclick="diagnosticAction('newGame')">DIAG NEW GAME</button>
+                    <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
+                    <button class="action-button secondary" id="hintBtn" onclick="getHint()">Get Hint</button>
+                    <button class="action-button secondary" id="newGameBtn" onclick="newGame()">New Game</button>
                 </div>
             </div>
 
-            <div class="game-info">
-                <div class="hint-text" id="hintText">🔧 DIAGNOSTIC MODE ACTIVE</div>
-                <p><strong>Diagnostic Version:</strong> Logging all actions and data</p>
+            <div class="game-info" id="gameInfo">
+                <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
+                <p><strong>How to play:</strong> 🟢 Correct • 🟠 Wrong position • ⚪ Not in word</p>
                 
                 <div class="debug-info" id="debugInfo">
-                    DIAGNOSTIC LOADING...
-                </div>
-
-                <div class="diagnostic-panel" id="diagnosticPanel">
-                    <h4>🔍 REAL-TIME DIAGNOSTIC LOG</h4>
-                    <div id="diagnosticLog">Starting diagnostic mode...</div>
+                    Connection: Initializing...<br>
+                    Game State: Checking...<br>
+                    Last Update: Never
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // DIAGNOSTIC VARIABLES
-        let diagnosticLog = [];
+        // Global variables
         let currentWordLength = 5;
         let gameGrid = [];
         let accessToken = null;
-        let authMethod = 'unknown';
-        let lastEntityData = {};
-        let actionCount = 0;
-
-        // Current game data
+        let updateInterval = null;
+        let lastUpdate = 'Never';
+        
+        // Game data from your button entity
         let currentGameData = {
             word_length: 5,
             game_state: 'idle',
@@ -292,139 +269,124 @@
             message_type: ''
         };
 
-        // 🔍 DIAGNOSTIC LOGGING SYSTEM
-        function diagLog(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
-            
-            diagnosticLog.push(logEntry);
-            
-            // Keep only last 50 entries
-            if (diagnosticLog.length > 50) {
-                diagnosticLog = diagnosticLog.slice(-50);
-            }
-            
-            updateDiagnosticDisplay();
-            console.log(`🔧 DIAG: ${logEntry}`);
-        }
+        // Action cooldowns to prevent spam
+        let cooldowns = {
+            newGame: false,
+            submitGuess: false,
+            getHint: false
+        };
 
-        function updateDiagnosticDisplay() {
-            const logEl = document.getElementById('diagnosticLog');
-            if (logEl) {
-                logEl.innerHTML = diagnosticLog.map(entry => {
-                    let className = '';
-                    if (entry.includes('ERROR:')) className = 'error';
-                    else if (entry.includes('SUCCESS:')) className = 'success';
-                    else if (entry.includes('WARNING:')) className = 'warning';
-                    
-                    return `<div class="${className}">${entry}</div>`;
-                }).join('');
-                
-                logEl.scrollTop = logEl.scrollHeight;
-            }
-        }
-
-        // 🔧 AUTH DISCOVERY
+        // Get auth token
         function getAccessToken() {
-            diagLog('Starting auth discovery...');
-            
             try {
                 const haTokens = localStorage.getItem('hassTokens');
                 if (haTokens) {
                     const tokens = JSON.parse(haTokens);
                     if (tokens.access_token) {
-                        authMethod = 'localStorage-hassTokens';
-                        diagLog(`Auth found: ${authMethod}`, 'success');
                         return tokens.access_token;
                     }
                 }
-            } catch (e) {
-                diagLog(`Auth method 1 failed: ${e.message}`, 'warning');
-            }
+            } catch (e) {}
 
             try {
                 const sessionAuth = sessionStorage.getItem('hass_auth');
                 if (sessionAuth) {
                     const auth = JSON.parse(sessionAuth);
                     if (auth.access_token) {
-                        authMethod = 'sessionStorage-hass_auth';
-                        diagLog(`Auth found: ${authMethod}`, 'success');
                         return auth.access_token;
                     }
                 }
-            } catch (e) {
-                diagLog(`Auth method 2 failed: ${e.message}`, 'warning');
-            }
+            } catch (e) {}
 
-            authMethod = 'no-auth-found';
-            diagLog('No auth token found - attempting without auth', 'warning');
             return null;
         }
 
-        // 🔍 DIAGNOSTIC API CALLS
-        async function diagnosticApiCall(url, options = {}) {
-            diagLog(`API CALL: ${url}`);
-            
-            try {
-                const headers = {'Content-Type': 'application/json'};
-                
-                if (accessToken) {
-                    headers['Authorization'] = `Bearer ${accessToken}`;
-                    diagLog('Using auth token for API call');
-                } else {
-                    diagLog('No auth token - attempting without auth', 'warning');
-                }
-                
-                const response = await fetch(url, {
-                    method: options.method || 'GET',
-                    headers: headers,
-                    body: options.body ? JSON.stringify(options.body) : undefined
-                });
-                
-                diagLog(`API Response: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
-                diagLog(`API Data received: ${JSON.stringify(data).substring(0, 100)}...`);
-                
-                return data;
-                
-            } catch (error) {
-                diagLog(`API ERROR: ${error.message}`, 'error');
-                throw error;
-            }
+        // Update UI elements
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = message;
+            statusEl.className = `connection-status ${status}`;
         }
 
-        // 🔍 DIAGNOSTIC GAME STATE REFRESH
-        async function diagnosticRefreshGameState() {
-            diagLog('=== REFRESHING GAME STATE ===');
-            
+        function updateGameStatus(message, type = 'info') {
+            const statusEl = document.getElementById('gameStatus');
+            statusEl.textContent = message;
+            statusEl.className = `game-status ${type}`;
+        }
+
+        function updateDebugInfo() {
+            const debugEl = document.getElementById('debugInfo');
+            debugEl.innerHTML = `
+                Connection: ${accessToken ? 'Authenticated' : 'No Auth'}<br>
+                Game State: ${currentGameData.game_state}<br>
+                Guesses: ${currentGameData.guesses.length}/${currentGameData.word_length}<br>
+                Last Update: ${lastUpdate}
+            `;
+        }
+
+        // Cooldown system
+        function isActionAllowed(action) {
+            return !cooldowns[action];
+        }
+
+        function setActionCooldown(action, duration = 2000) {
+            cooldowns[action] = true;
+            setTimeout(() => {
+                cooldowns[action] = false;
+            }, duration);
+        }
+
+        // API calls to Home Assistant
+        async function callHAService(domain, service, data = {}) {
+            const headers = {'Content-Type': 'application/json'};
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
+            const response = await fetch(`/api/services/${domain}/${service}`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Service call failed: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        async function getEntityState(entityId) {
+            const headers = {'Content-Type': 'application/json'};
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+
+            const response = await fetch(`/api/states/${entityId}`, {
+                method: 'GET',
+                headers: headers
+            });
+
+            if (!response.ok) {
+                throw new Error(`Entity fetch failed: ${response.status}`);
+            }
+
+            return response.json();
+        }
+
+        // Refresh game state from YOUR button entity
+        async function refreshGameState() {
             try {
-                // Get game state sensor
-                const gameStateData = await diagnosticApiCall('/api/states/sensor.ha_wordplay_game_state');
-                diagLog(`Game State Entity: ${JSON.stringify(gameStateData, null, 2)}`);
-                lastEntityData.gameState = gameStateData;
+                // Get game data from YOUR button entity (where the data actually lives)
+                const buttonEntity = await getEntityState('button.ha_wordplay_game');
                 
-                // Get input entity
-                const inputData = await diagnosticApiCall('/api/states/text.ha_wordplay_guess_input');
-                diagLog(`Input Entity: ${JSON.stringify(inputData, null, 2)}`);
-                lastEntityData.input = inputData;
-                
-                // Get word length entity
-                const lengthData = await diagnosticApiCall('/api/states/select.ha_wordplay_word_length');
-                diagLog(`Length Entity: ${JSON.stringify(lengthData, null, 2)}`);
-                lastEntityData.length = lengthData;
-                
-                // Parse game state
-                if (gameStateData && gameStateData.attributes) {
-                    const attrs = gameStateData.attributes;
+                if (buttonEntity && buttonEntity.attributes) {
+                    const attrs = buttonEntity.attributes;
                     
+                    // Parse the game data from YOUR button entity structure
                     currentGameData = {
                         word_length: attrs.word_length || 5,
-                        game_state: gameStateData.state || 'idle',
+                        game_state: attrs.game_status || 'idle',
                         guesses: attrs.guess_history || [],
                         guess_results: attrs.guess_results || [],
                         hint: attrs.hint || '',
@@ -432,96 +394,61 @@
                         message_type: attrs.message_type || 'info'
                     };
                     
-                    diagLog(`Parsed Game Data: ${JSON.stringify(currentGameData, null, 2)}`, 'success');
-                    
-                    // Update UI
-                    diagnosticUpdateUI();
-                } else {
-                    diagLog('No game state attributes found!', 'error');
+                    lastUpdate = new Date().toLocaleTimeString();
+                    updateUI();
+                    updateDebugInfo();
+                    return true;
                 }
                 
-                return true;
+                // Also get word length from select entity
+                const lengthEntity = await getEntityState('select.ha_wordplay_word_length');
+                if (lengthEntity && lengthEntity.state) {
+                    currentWordLength = parseInt(lengthEntity.state);
+                    updateWordLengthButtons();
+                }
                 
             } catch (error) {
-                diagLog(`Game state refresh failed: ${error.message}`, 'error');
+                console.error('Failed to refresh game state:', error);
+                updateConnectionStatus('disconnected', '❌ Connection failed');
                 return false;
             }
         }
 
-        // 🔍 DIAGNOSTIC UI UPDATE
-        function diagnosticUpdateUI() {
-            diagLog('=== UPDATING UI ===');
-            
-            // Update status
-            const statusEl = document.getElementById('gameStatus');
-            const statusText = `${currentGameData.game_state} | ${currentGameData.word_length} letters | ${currentGameData.guesses.length} guesses`;
-            statusEl.textContent = statusText;
-            diagLog(`Status updated: ${statusText}`);
+        // Update the UI based on current game data
+        function updateUI() {
+            // Update game status
+            if (currentGameData.game_state === 'playing') {
+                const remaining = currentGameData.word_length - currentGameData.guesses.length;
+                updateGameStatus(`Playing • ${currentGameData.word_length} letters • ${remaining} guesses remaining`, 'success');
+            } else if (currentGameData.game_state === 'won') {
+                updateGameStatus(`🎉 You won! • ${currentGameData.guesses.length} guesses`, 'success');
+            } else if (currentGameData.game_state === 'lost') {
+                updateGameStatus(`😞 Game over • Better luck next time!`, 'error');
+            } else {
+                updateGameStatus(`Ready to play • Select word length`, 'info');
+            }
             
             // Update grid
-            diagnosticUpdateGrid();
+            createGrid(currentGameData.word_length);
+            populateGrid();
             
             // Update hint
             const hintEl = document.getElementById('hintText');
-            hintEl.textContent = currentGameData.hint || '🔧 No hint available';
-            diagLog(`Hint updated: ${currentGameData.hint}`);
+            hintEl.textContent = currentGameData.hint || '💡 Click "Get Hint" for a clue!';
             
-            // Update debug info
-            updateDebugInfo();
+            // Update input max length
+            document.getElementById('guessInput').maxLength = currentGameData.word_length;
+            
+            // Update button states
+            updateButtonStates();
         }
 
-        // 🔍 DIAGNOSTIC GRID UPDATE
-        function diagnosticUpdateGrid() {
-            diagLog(`=== UPDATING GRID ===`);
-            diagLog(`Grid update - Guesses: ${JSON.stringify(currentGameData.guesses)}`);
-            diagLog(`Grid update - Results: ${JSON.stringify(currentGameData.guess_results)}`);
-            
-            // Ensure grid exists
-            diagnosticCreateGrid(currentGameData.word_length);
-            
-            // Clear all tiles
-            let tileCount = 0;
-            gameGrid.forEach(row => {
-                row.forEach(tile => {
-                    tile.textContent = '';
-                    tile.className = 'game-tile';
-                    tileCount++;
-                });
-            });
-            diagLog(`Cleared ${tileCount} tiles`);
-            
-            // Populate with guesses
-            let populatedTiles = 0;
-            currentGameData.guesses.forEach((guess, guessIndex) => {
-                diagLog(`Processing guess ${guessIndex}: "${guess}"`);
-                const result = currentGameData.guess_results[guessIndex] || [];
-                
-                for (let i = 0; i < guess.length; i++) {
-                    if (gameGrid[guessIndex] && gameGrid[guessIndex][i]) {
-                        const tile = gameGrid[guessIndex][i];
-                        tile.textContent = guess[i];
-                        tile.classList.add('filled');
-                        
-                        if (result[i]) {
-                            tile.classList.add(result[i]);
-                            diagLog(`Tile [${guessIndex}][${i}]: "${guess[i]}" -> ${result[i]}`);
-                        }
-                        populatedTiles++;
-                    }
-                }
-            });
-            
-            diagLog(`Populated ${populatedTiles} tiles with guess data`, 'success');
-        }
-
-        // 🔍 DIAGNOSTIC GRID CREATION
-        function diagnosticCreateGrid(wordLength) {
+        // Create game grid
+        function createGrid(wordLength) {
             if (wordLength === currentWordLength && gameGrid.length > 0) {
-                diagLog(`Grid already exists for length ${wordLength}`);
                 return;
             }
             
-            diagLog(`Creating new ${wordLength}x${wordLength} grid`);
             currentWordLength = wordLength;
             const grid = document.getElementById('gameGrid');
             grid.innerHTML = '';
@@ -530,169 +457,202 @@
             grid.style.gridTemplateRows = `repeat(${wordLength}, 1fr)`;
             
             gameGrid = [];
-            let totalTiles = 0;
             for (let row = 0; row < wordLength; row++) {
                 gameGrid[row] = [];
                 for (let col = 0; col < wordLength; col++) {
                     const tile = document.createElement('div');
                     tile.className = 'game-tile';
-                    tile.dataset.row = row;
-                    tile.dataset.col = col;
                     grid.appendChild(tile);
                     gameGrid[row][col] = tile;
-                    totalTiles++;
                 }
             }
-            
-            diagLog(`Grid created: ${totalTiles} tiles`, 'success');
         }
 
-        // 🔍 DIAGNOSTIC ACTION HANDLER
-        async function diagnosticAction(action, param = null) {
-            actionCount++;
-            diagLog(`=== ACTION ${actionCount}: ${action.toUpperCase()} ===`);
+        // Populate grid with guesses (ONLY submitted guesses, not typing)
+        function populateGrid() {
+            // Clear all tiles
+            gameGrid.forEach(row => {
+                row.forEach(tile => {
+                    tile.textContent = '';
+                    tile.className = 'game-tile';
+                });
+            });
+
+            // Show completed guesses only
+            currentGameData.guesses.forEach((guess, guessIndex) => {
+                const result = currentGameData.guess_results[guessIndex] || [];
+                
+                for (let i = 0; i < guess.length && i < currentWordLength; i++) {
+                    if (gameGrid[guessIndex] && gameGrid[guessIndex][i]) {
+                        const tile = gameGrid[guessIndex][i];
+                        tile.textContent = guess[i];
+                        tile.classList.add('filled');
+                        
+                        if (result[i]) {
+                            tile.classList.add(result[i]);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update word length buttons
+        function updateWordLengthButtons() {
+            [5, 6, 7, 8].forEach(length => {
+                const btn = document.getElementById(`length${length}`);
+                if (btn) {
+                    btn.classList.toggle('active', length === currentWordLength);
+                }
+            });
+        }
+
+        // Input handling (no grid preview while typing)
+        function updateInput() {
+            updateButtonStates();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                submitGuess();
+            }
+        }
+
+        // Update button states
+        function updateButtonStates() {
+            const submitBtn = document.getElementById('submitBtn');
+            const isPlaying = currentGameData.game_state === 'playing';
+            const hasValidInput = document.getElementById('guessInput').value.length === currentWordLength;
+            
+            submitBtn.disabled = !isPlaying || !hasValidInput || cooldowns.submitGuess;
+            
+            document.getElementById('hintBtn').disabled = !isPlaying || cooldowns.getHint;
+            document.getElementById('newGameBtn').disabled = cooldowns.newGame;
+        }
+
+        // Game actions using YOUR existing services
+        async function newGame() {
+            if (!isActionAllowed('newGame')) return;
             
             try {
-                if (action === 'newGame') {
-                    diagLog('Calling ha_wordplay.new_game service...');
-                    await diagnosticApiCall('/api/services/ha_wordplay/new_game', {
-                        method: 'POST',
-                        body: { word_length: currentWordLength }
-                    });
-                    diagLog('New game service call successful', 'success');
-                    
-                } else if (action === 'submit') {
-                    const input = document.getElementById('guessInput');
-                    const guess = input.value.trim().toUpperCase();
-                    diagLog(`Submit action - guess: "${guess}"`);
-                    
-                    if (guess.length !== currentWordLength) {
-                        diagLog(`Invalid guess length: ${guess.length} (expected ${currentWordLength})`, 'error');
-                        return;
-                    }
-                    
-                    // Two-step submit
-                    diagLog('Step 1: Setting input entity...');
-                    await diagnosticApiCall('/api/services/text/set_value', {
-                        method: 'POST',
-                        body: {
-                            entity_id: 'text.ha_wordplay_guess_input',
-                            value: guess
-                        }
-                    });
-                    
-                    diagLog('Step 2: Calling submit_guess service...');
-                    await diagnosticApiCall('/api/services/ha_wordplay/submit_guess', {
-                        method: 'POST',
-                        body: {}
-                    });
-                    
-                    diagLog('Submit action completed', 'success');
-                    input.value = '';
-                    
-                } else if (action === 'hint') {
-                    diagLog('Calling ha_wordplay.get_hint service...');
-                    await diagnosticApiCall('/api/services/ha_wordplay/get_hint', {
-                        method: 'POST',
-                        body: {}
-                    });
-                    diagLog('Get hint service call successful', 'success');
-                    
-                } else if (action === 'changeLength') {
-                    diagLog(`Changing word length to ${param}...`);
-                    await diagnosticApiCall('/api/services/select/select_option', {
-                        method: 'POST',
-                        body: {
-                            entity_id: 'select.ha_wordplay_word_length',
-                            option: param.toString()
-                        }
-                    });
-                    diagLog(`Word length changed to ${param}`, 'success');
-                }
+                setActionCooldown('newGame', 3000);
+                updateGameStatus('🎮 Starting new game...', 'loading');
                 
-                // Refresh state after action
-                setTimeout(async () => {
-                    diagLog('Post-action state refresh...');
-                    await diagnosticRefreshGameState();
-                }, 1000);
+                await callHAService('ha_wordplay', 'new_game', {
+                    word_length: currentWordLength
+                });
+                
+                // Clear input
+                document.getElementById('guessInput').value = '';
+                
+                // Refresh state
+                setTimeout(() => refreshGameState(), 1000);
                 
             } catch (error) {
-                diagLog(`Action ${action} failed: ${error.message}`, 'error');
+                console.error('New game failed:', error);
+                updateGameStatus('Failed to start new game', 'error');
             }
         }
 
-        // 🔍 DIAGNOSTIC INPUT HANDLERS
-        function diagnosticInput() {
+        async function submitGuess() {
+            if (!isActionAllowed('submitGuess')) return;
+            
             const input = document.getElementById('guessInput');
-            diagLog(`Input changed: "${input.value}"`);
-        }
-
-        function diagnosticKeyPress(event) {
-            if (event.key === 'Enter') {
-                diagLog('Enter key pressed - triggering submit');
-                event.preventDefault();
-                diagnosticAction('submit');
+            const guess = input.value.trim().toUpperCase();
+            
+            if (guess.length !== currentWordLength) {
+                return;
+            }
+            
+            try {
+                setActionCooldown('submitGuess', 2000);
+                updateGameStatus('🔍 Processing guess...', 'loading');
+                
+                // Use YOUR two-step submit process
+                await callHAService('text', 'set_value', {
+                    entity_id: 'text.ha_wordplay_guess_input',
+                    value: guess
+                });
+                
+                await callHAService('ha_wordplay', 'submit_guess');
+                
+                // Clear input
+                input.value = '';
+                
+                // Refresh state
+                setTimeout(() => refreshGameState(), 1000);
+                
+            } catch (error) {
+                console.error('Submit guess failed:', error);
+                updateGameStatus('Failed to submit guess', 'error');
             }
         }
 
-        // 🔍 UPDATE DEBUG INFO
-        function updateDebugInfo() {
-            const debugEl = document.getElementById('debugInfo');
-            debugEl.innerHTML = `
-                Auth: ${authMethod}<br>
-                Actions: ${actionCount}<br>
-                Game State: ${currentGameData.game_state}<br>
-                Word Length: ${currentGameData.word_length}<br>
-                Guesses: ${currentGameData.guesses.length}<br>
-                Last Entity Check: ${new Date().toLocaleTimeString()}
-            `;
+        async function getHint() {
+            if (!isActionAllowed('getHint')) return;
+            
+            try {
+                setActionCooldown('getHint', 2000);
+                updateGameStatus('💡 Getting hint...', 'loading');
+                
+                await callHAService('ha_wordplay', 'get_hint');
+                
+                // Refresh state
+                setTimeout(() => refreshGameState(), 1000);
+                
+            } catch (error) {
+                console.error('Get hint failed:', error);
+                updateGameStatus('Failed to get hint', 'error');
+            }
         }
 
-        // 🔍 INITIALIZE DIAGNOSTIC MODE
-        async function initDiagnostic() {
-            diagLog('=== INITIALIZING DIAGNOSTIC MODE ===');
+        async function changeWordLength(length) {
+            try {
+                await callHAService('select', 'select_option', {
+                    entity_id: 'select.ha_wordplay_word_length',
+                    option: length.toString()
+                });
+                
+                currentWordLength = length;
+                updateWordLengthButtons();
+                
+                setTimeout(() => refreshGameState(), 500);
+                
+            } catch (error) {
+                console.error('Change word length failed:', error);
+            }
+        }
+
+        // Initialize
+        async function initWordPlay() {
+            console.log('🎮 WordPlay: Initializing with YOUR backend structure');
             
             accessToken = getAccessToken();
             
             // Create initial grid
-            diagnosticCreateGrid(5);
+            createGrid(5);
             
-            // Test connection
+            // Test connection and get initial state
             try {
-                await diagnosticRefreshGameState();
-                document.getElementById('connectionStatus').textContent = '✅ DIAGNOSTIC - Connected';
-                document.getElementById('connectionStatus').className = 'connection-status';
+                await refreshGameState();
+                updateConnectionStatus('connected', '✅ Connected to Home Assistant');
+                
+                // Start polling every 5 seconds
+                updateInterval = setInterval(refreshGameState, 5000);
+                
             } catch (error) {
-                document.getElementById('connectionStatus').textContent = '❌ DIAGNOSTIC - Connection Failed';
-                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                updateConnectionStatus('disconnected', '❌ Connection failed');
+                console.error('Connection failed:', error);
             }
-            
-            // Start polling
-            setInterval(async () => {
-                diagLog('Auto-refresh triggered...');
-                await diagnosticRefreshGameState();
-            }, 5000);
-            
-            diagLog('Diagnostic mode initialization complete', 'success');
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🔧 WordPlay DIAGNOSTIC MODE starting...');
-            initDiagnostic();
-        });
+        // Start when page loads
+        document.addEventListener('DOMContentLoaded', initWordPlay);
 
-        // Debug interface
-        window.diagnosticDebug = {
-            refreshState: diagnosticRefreshGameState,
-            getLastEntityData: () => lastEntityData,
-            getCurrentGameData: () => currentGameData,
-            clearLog: () => {
-                diagnosticLog = [];
-                updateDiagnosticDisplay();
-            },
-            testAction: (action, param) => diagnosticAction(action, param)
-        };
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) clearInterval(updateInterval);
+        });
     </script>
 </body>
 </html>
