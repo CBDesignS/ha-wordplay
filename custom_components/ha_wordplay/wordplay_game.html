@@ -929,7 +929,8 @@
                     const tile = tiles[tileIndex];
                     
                     if (tile) {
-                        tile.textContent = guess[colIndex];
+                        const cleanGuess = guess.replace(/^\d+\.\s*/, ''); // Strip "1. " prefix
+                        tile.textContent = cleanGuess[colIndex];
                         
                         // Add result class if available
                         if (results[colIndex]) {
