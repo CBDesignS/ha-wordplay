@@ -1,4 +1,4 @@
-"""H.A WordPlay integration for Home Assistant - HTML Panel Version."""
+"""H.A WordPlay integration for Home Assistant - Config Entry Version."""
 import logging
 import asyncio
 import os
@@ -11,6 +11,7 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers import discovery
 from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.const import CONF_ACCESS_TOKEN
 
 from .const import (
     DOMAIN,
@@ -23,37 +24,68 @@ from .const import (
 from .game_logic import WordPlayGame
 from .api_config import get_supported_languages
 
+# Config flow constants
+CONF_DIFFICULTY = "difficulty"
+CONF_WORD_LENGTHS = "word_lengths"
+DIFFICULTY_EASY = "easy"
+DIFFICULTY_NORMAL = "normal" 
+DIFFICULTY_HARD = "hard"
+
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up H.A WordPlay integration - HTML Panel Version."""
-    _LOGGER.info("Setting up H.A WordPlay integration - HTML Panel Version")
+    """Set up H.A WordPlay integration from YAML (legacy support)."""
+    # This is kept for backward compatibility but the main setup is now via config entry
+    _LOGGER.info("WordPlay YAML setup detected - please migrate to config entry via UI")
+    return True
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Set up H.A WordPlay from a config entry."""
+    _LOGGER.info("Setting up H.A WordPlay integration from config entry")
+    
+    # Get configuration from entry
+    config_data = entry.data
+    access_token = config_data.get(CONF_ACCESS_TOKEN)
+    difficulty = config_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
+    word_lengths = config_data.get(CONF_WORD_LENGTHS, [5, 6, 7, 8])
+    
+    if not access_token:
+        _LOGGER.error("No access token found in config entry")
+        return False
+    
+    _LOGGER.info(f"WordPlay config: difficulty={difficulty}, word_lengths={word_lengths}")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
     
-    # Initialize the game instance
+    # Initialize the game instance with config
     game = WordPlayGame(hass)
+    game.set_difficulty(difficulty)
+    game.set_word_lengths(word_lengths)
     
     # Store game and configuration data
     hass.data[DOMAIN] = {
         "game": game,
         "entities": {},
+        "config_entry": entry,
+        "access_token": access_token,
+        "difficulty": difficulty,
+        "word_lengths": word_lengths,
         "tts_config": tts_config,
         "supported_languages": get_supported_languages(),
     }
     
     # Load entity platforms using discovery
-    await discovery.async_load_platform(hass, "button", DOMAIN, {}, config)
-    await discovery.async_load_platform(hass, "text", DOMAIN, {}, config)
-    await discovery.async_load_platform(hass, "select", DOMAIN, {}, config)
-    await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config)
+    await discovery.async_load_platform(hass, "button", DOMAIN, {}, {})
+    await discovery.async_load_platform(hass, "text", DOMAIN, {}, {})
+    await discovery.async_load_platform(hass, "select", DOMAIN, {}, {})
+    await discovery.async_load_platform(hass, "sensor", DOMAIN, {}, {})
     
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
     
-    # Register the WordPlay HTML panel
-    await _register_wordplay_html_panel(hass)
+    # Register the WordPlay HTML panel with secure token passing
+    await _register_wordplay_html_panel(hass, access_token)
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
@@ -77,12 +109,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     # Register services
     await _register_services(hass, game)
     
-    _LOGGER.info("H.A WordPlay integration setup complete - HTML Panel Ready!")
-    _LOGGER.info(f"Supported languages: {get_supported_languages()}")
+    # Listen for options updates
+    entry.async_on_unload(entry.add_update_listener(async_update_listener))
+    
+    _LOGGER.info("H.A WordPlay integration setup complete - Config Entry Ready!")
+    _LOGGER.info(f"Difficulty: {difficulty}, Word lengths: {word_lengths}")
     return True
 
-async def _register_wordplay_html_panel(hass: HomeAssistant) -> None:
-    """Register the WordPlay HTML panel with static file serving."""
+async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update listener for config entry changes."""
+    _LOGGER.info("WordPlay configuration updated, reloading...")
+    await hass.config_entries.async_reload(entry.entry_id)
+
+async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) -> None:
+    """Register the WordPlay HTML panel with secure token passing."""
     try:
         # Get the integration directory path
         integration_dir = os.path.dirname(__file__)
@@ -96,7 +136,11 @@ async def _register_wordplay_html_panel(hass: HomeAssistant) -> None:
             )
         ])
         
-        # Register iframe panel (more reliable than HTML panel)
+        # Create the panel URL with the access token as a parameter
+        # This is secure because it's only accessible to authenticated users
+        panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?access_token={access_token}"
+        
+        # Register iframe panel with secure token URL
         async_register_built_in_panel(
             hass,
             component_name="iframe",
@@ -104,14 +148,14 @@ async def _register_wordplay_html_panel(hass: HomeAssistant) -> None:
             sidebar_icon="mdi:gamepad-variant",
             frontend_url_path="wordplay",
             config={
-                "url": "/hacsfiles/ha_wordplay/wordplay_game.html",
+                "url": panel_url,
                 "title": "🎮 H.A WordPlay",
             },
             require_admin=False,
         )
         
-        _LOGGER.info("WordPlay iframe panel registered successfully - Available in sidebar!")
-        _LOGGER.info("Panel iframe URL: /hacsfiles/ha_wordplay/wordplay_game.html")
+        _LOGGER.info("WordPlay iframe panel registered successfully with secure token!")
+        _LOGGER.info("Panel will use dedicated long-lived access token")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
@@ -127,7 +171,7 @@ async def _update_button_attributes(hass: HomeAssistant) -> None:
         _LOGGER.debug(f"Could not update button attributes: {e}")
 
 async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
-    """Register all game services - enhanced for international support."""
+    """Register all game services - enhanced for config entry support."""
     _LOGGER.info("Registering H.A WordPlay services...")
     
     async def handle_new_game(call: ServiceCall) -> None:
@@ -144,6 +188,13 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
                         word_length = int(select_state.state)
                     except (ValueError, TypeError):
                         word_length = DEFAULT_WORD_LENGTH
+            
+            # Check if word length is allowed by config
+            domain_data = hass.data.get(DOMAIN, {})
+            allowed_lengths = domain_data.get("word_lengths", [5, 6, 7, 8])
+            if word_length not in allowed_lengths:
+                _LOGGER.warning(f"Word length {word_length} not allowed by config, using default")
+                word_length = allowed_lengths[0] if allowed_lengths else 5
             
             success = await game.start_new_game(int(word_length), language)
             

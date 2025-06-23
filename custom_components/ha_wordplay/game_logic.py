@@ -1,4 +1,4 @@
-"""Game logic for H.A WordPlay - Enhanced Multi-API Integration."""
+"""Game logic for H.A WordPlay - Enhanced with Difficulty Support."""
 import logging
 import aiohttp
 import asyncio
@@ -19,6 +19,9 @@ from .const import (
     MIN_WORD_LENGTH,
     MAX_WORD_LENGTH,
     DEFAULT_WORD_LENGTH,
+    DIFFICULTY_EASY,
+    DIFFICULTY_NORMAL,
+    DIFFICULTY_HARD,
 )
 from .api_config import (
     get_language_config,
@@ -33,7 +36,7 @@ from .api_config import (
 _LOGGER = logging.getLogger(__name__)
 
 class WordPlayGame:
-    """Main game logic class - Enhanced Multi-API integration."""
+    """Main game logic class - Enhanced with Difficulty Support."""
     
     def __init__(self, hass: HomeAssistant):
         """Initialize the game."""
@@ -50,15 +53,65 @@ class WordPlayGame:
         self.message_type = ""  # Type of message: success, error, info
         self.language = DEFAULT_LANGUAGE  # Current language
         
-    async def start_new_game(self, word_length: int = DEFAULT_WORD_LENGTH, language: str = DEFAULT_LANGUAGE) -> bool:
+        # NEW: Difficulty settings
+        self.difficulty = DIFFICULTY_NORMAL
+        self.allowed_word_lengths = [5, 6, 7, 8]
+        self.hint_mode = "on_request"  # "immediate", "on_request", "disabled"
+        
+    def set_difficulty(self, difficulty: str) -> None:
+        """Set game difficulty and update hint behavior."""
+        self.difficulty = difficulty
+        
+        if difficulty == DIFFICULTY_EASY:
+            self.hint_mode = "immediate"  # Show hint immediately when game starts
+            _LOGGER.info("Difficulty set to EASY - hints shown immediately")
+        elif difficulty == DIFFICULTY_NORMAL:
+            self.hint_mode = "on_request"  # Show hints when requested
+            _LOGGER.info("Difficulty set to NORMAL - hints available on request")
+        elif difficulty == DIFFICULTY_HARD:
+            self.hint_mode = "disabled"  # No hints available
+            _LOGGER.info("Difficulty set to HARD - no hints available")
+        else:
+            _LOGGER.warning(f"Unknown difficulty: {difficulty}, defaulting to NORMAL")
+            self.difficulty = DIFFICULTY_NORMAL
+            self.hint_mode = "on_request"
+    
+    def set_word_lengths(self, word_lengths: List[int]) -> None:
+        """Set allowed word lengths."""
+        # Validate word lengths
+        valid_lengths = [length for length in word_lengths 
+                        if MIN_WORD_LENGTH <= length <= MAX_WORD_LENGTH]
+        
+        if not valid_lengths:
+            _LOGGER.warning("No valid word lengths provided, using defaults")
+            valid_lengths = [5, 6, 7, 8]
+        
+        self.allowed_word_lengths = valid_lengths
+        _LOGGER.info(f"Allowed word lengths set to: {valid_lengths}")
+        
+        # If current word length is not allowed, change to first allowed
+        if self.word_length not in valid_lengths:
+            self.word_length = valid_lengths[0]
+            _LOGGER.info(f"Current word length changed to: {self.word_length}")
+        
+    async def start_new_game(self, word_length: int = None, language: str = DEFAULT_LANGUAGE) -> bool:
         """Start a new game with specified word length and language."""
         try:
-            # Validate word length
+            # Use provided word length or current setting
+            if word_length is None:
+                word_length = self.word_length
+            
+            # Validate word length against allowed lengths
+            if word_length not in self.allowed_word_lengths:
+                _LOGGER.warning(f"Word length {word_length} not allowed, using {self.allowed_word_lengths[0]}")
+                word_length = self.allowed_word_lengths[0]
+            
+            # Validate word length bounds
             if word_length < MIN_WORD_LENGTH or word_length > MAX_WORD_LENGTH:
                 _LOGGER.error("Invalid word length: %d", word_length)
                 return False
                 
-            _LOGGER.info(f"Starting new game: {word_length} letters, language: {language}")
+            _LOGGER.info(f"Starting new game: {word_length} letters, language: {language}, difficulty: {self.difficulty}")
             
             # Reset game state
             self.word_length = word_length
@@ -69,7 +122,15 @@ class WordPlayGame:
             self.hint = ""
             self.current_guess_input = ""
             self.game_state = STATE_PLAYING
-            self.last_message = f"New {word_length} letter game started!"
+            
+            # Set initial message based on difficulty
+            if self.difficulty == DIFFICULTY_EASY:
+                self.last_message = f"New {word_length} letter game started! Hint coming right up..."
+            elif self.difficulty == DIFFICULTY_HARD:
+                self.last_message = f"New {word_length} letter game started! No hints in hard mode - good luck!"
+            else:
+                self.last_message = f"New {word_length} letter game started!"
+            
             self.message_type = "success"
             
             # Clear the input field
@@ -84,8 +145,14 @@ class WordPlayGame:
             self.current_word = word.upper()
             _LOGGER.info(f"New game started with word: [HIDDEN] (length: {len(word)})")
             
-            # Get definition for hint
-            await self._get_word_definition()
+            # Get definition for hint based on difficulty
+            if self.hint_mode != "disabled":
+                await self._get_word_definition()
+                
+                # For easy mode, show hint immediately
+                if self.hint_mode == "immediate" and self.hint:
+                    self.last_message = f"New {word_length} letter game! Hint: {self.hint}"
+                    self.message_type = "info"
             
             # Update button attributes
             await self._update_button_attributes()
@@ -169,11 +236,15 @@ class WordPlayGame:
             if guess == self.current_word:
                 self.game_state = STATE_WON
                 win_message = f"Congratulations! You guessed {self.current_word} in {len(self.guesses)} tries!"
+                if self.difficulty == DIFFICULTY_HARD:
+                    win_message += " Impressive work in hard mode!"
                 self._set_message(win_message, "success")
                 _LOGGER.info(f"Game won in {len(self.guesses)} guesses!")
             elif len(self.guesses) >= self.word_length:
                 self.game_state = STATE_LOST
                 loss_message = f"Game over! The word was {self.current_word}"
+                if self.difficulty == DIFFICULTY_HARD:
+                    loss_message += " Hard mode is tough - try again!"
                 self._set_message(loss_message, "info")
                 _LOGGER.info(f"Game lost. Word was {self.current_word}")
             else:
@@ -200,12 +271,26 @@ class WordPlayGame:
             return {"error": str(e)}
     
     async def get_hint(self) -> str:
-        """Get hint for current word."""
+        """Get hint for current word - respects difficulty settings."""
         if self.game_state != STATE_PLAYING:
             return "No game in progress"
         
+        # Check if hints are disabled in hard mode
+        if self.hint_mode == "disabled":
+            hint_message = "No hints available in hard mode! You're on your own."
+            self._set_message(hint_message, "info")
+            await self._update_button_attributes()
+            return hint_message
+        
+        # Get hint if we don't have one
         if not self.hint:
             await self._get_word_definition()
+        
+        # Set message about hint
+        if self.hint:
+            self._set_message(f"Hint: {self.hint}", "info")
+        else:
+            self._set_message("Sorry, no hint available for this word", "info")
         
         await self._update_button_attributes()
         return self.hint or "No hint available"
@@ -318,13 +403,22 @@ class WordPlayGame:
         except Exception as e:
             _LOGGER.debug(f"Error getting word definition: {e}")
         
-        # Fallback hints based on word length
-        fallback_hints = {
-            5: "A common 5-letter English word",
-            6: "A 6-letter word you might use daily",
-            7: "A 7-letter word with good letter variety", 
-            8: "An 8-letter word - think carefully!"
-        }
+        # Fallback hints based on word length and difficulty
+        if self.difficulty == DIFFICULTY_EASY:
+            fallback_hints = {
+                5: "A common 5-letter English word you use often",
+                6: "A 6-letter word you might encounter daily",
+                7: "A 7-letter word with interesting letter patterns", 
+                8: "An 8-letter word - think of longer, descriptive words"
+            }
+        else:
+            fallback_hints = {
+                5: "A common 5-letter English word",
+                6: "A 6-letter word you might use daily",
+                7: "A 7-letter word with good letter variety", 
+                8: "An 8-letter word - think carefully!"
+            }
+        
         self.hint = fallback_hints.get(self.word_length, "A word you need to guess!")
     
     def _simplify_definition(self, definition: str) -> str:
@@ -346,9 +440,10 @@ class WordPlayGame:
         
         hint = ' '.join(filtered_words)
         
-        # Limit length
-        if len(hint) > 80:
-            hint = hint[:77] + "..."
+        # Limit length based on difficulty
+        max_length = 80 if self.difficulty == DIFFICULTY_EASY else 60
+        if len(hint) > max_length:
+            hint = hint[:max_length-3] + "..."
         
         return hint.capitalize() if hint else "A word you need to guess!"
     

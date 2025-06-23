@@ -1,4 +1,4 @@
-"""Constants for H.A WordPlay integration."""
+"""Constants for H.A WordPlay integration - Config Flow Version."""
 
 DOMAIN = "ha_wordplay"
 
@@ -36,3 +36,16 @@ API_TIMEOUT = 10
 
 # UI Configuration
 DEFAULT_WORD_LENGTH = 5
+
+# Config Flow Constants (NEW)
+CONF_DIFFICULTY = "difficulty"
+CONF_WORD_LENGTHS = "word_lengths"
+
+# Difficulty Levels
+DIFFICULTY_EASY = "easy"      # Hint shown before guessing
+DIFFICULTY_NORMAL = "normal"  # Hints available on request
+DIFFICULTY_HARD = "hard"      # No hints available
+
+# Default Config Values
+DEFAULT_DIFFICULTY = DIFFICULTY_NORMAL
+DEFAULT_WORD_LENGTHS = [5, 6, 7, 8]
