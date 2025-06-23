@@ -932,9 +932,11 @@
                         const cleanGuess = guess.replace(/^\d+\.\s*/, ''); // Strip "1. " prefix
                         tile.textContent = cleanGuess[colIndex];
                         
-                        // Add result class if available
-                        if (results[colIndex]) {
-                            tile.classList.add(results[colIndex]);
+                        // Add result class if available - adjust index for stripped prefix
+                        const prefixLength = guess.length - cleanGuess.length;
+                        const adjustedIndex = colIndex + prefixLength;
+                        if (results[adjustedIndex]) {
+                            tile.classList.add(results[adjustedIndex]);
                         }
                     }
                 }
