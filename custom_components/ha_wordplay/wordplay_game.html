@@ -912,32 +912,36 @@
             const container = document.getElementById('gameGrid');
             const tiles = container.querySelectorAll('.game-tile');
             
-            // Clear all tiles first
+            // Clear all tiles first - reset to empty state
             tiles.forEach(tile => {
                 tile.textContent = '';
-                tile.className = 'game-tile';
+                tile.className = 'game-tile'; // Reset to base class only
             });
             
-            // Fill in guesses and results
+            // Fill in guesses and results - FIXED LOGIC
             currentGameData.guesses.forEach((guess, rowIndex) => {
-                if (rowIndex >= currentWordLength) return;
+                if (rowIndex >= currentWordLength) return; // Safety check
                 
                 const results = currentGameData.guess_results[rowIndex] || [];
                 
+                // For each letter in the guess
                 for (let colIndex = 0; colIndex < guess.length && colIndex < currentWordLength; colIndex++) {
                     const tileIndex = rowIndex * currentWordLength + colIndex;
                     const tile = tiles[tileIndex];
                     
                     if (tile) {
+                        // Set the letter
                         tile.textContent = guess[colIndex];
                         
-                        // Add result class if available
+                        // Apply the correct color class based on result
                         if (results[colIndex]) {
-                            tile.classList.add(results[colIndex]);
+                            tile.classList.add(results[colIndex]); // Add 'correct', 'partial', or 'absent'
                         }
                     }
                 }
             });
+            
+            debugLog(`🎨 Grid updated: ${currentGameData.guesses.length} guesses displayed`);
         }
 
         // Word length controls
