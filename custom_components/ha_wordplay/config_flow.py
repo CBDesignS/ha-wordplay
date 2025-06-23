@@ -19,7 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 
 # Configuration constants
 CONF_DIFFICULTY = "difficulty"
-CONF_WORD_LENGTHS = "word_lengths"
 
 # Difficulty options
 DIFFICULTY_EASY = "easy"
@@ -32,19 +31,10 @@ DIFFICULTY_OPTIONS = {
     DIFFICULTY_HARD: "Hard (No hints available)"
 }
 
-# Default word lengths to enable
-DEFAULT_WORD_LENGTHS = [5, 6, 7, 8]
-
-# Config schema
+# FIXED: Config schema - ONLY token and difficulty
 CONFIG_SCHEMA = vol.Schema({
     vol.Required(CONF_ACCESS_TOKEN): cv.string,
-    vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS),
-    vol.Optional(CONF_WORD_LENGTHS, default=DEFAULT_WORD_LENGTHS): cv.multi_select({
-        5: "5 letters",
-        6: "6 letters", 
-        7: "7 letters",
-        8: "8 letters"
-    })
+    vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS)
 })
 
 
@@ -57,7 +47,6 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._token = None
         self._difficulty = DIFFICULTY_NORMAL
-        self._word_lengths = DEFAULT_WORD_LENGTHS
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None
@@ -69,7 +58,6 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Validate the token
             token = user_input[CONF_ACCESS_TOKEN].strip()
             difficulty = user_input[CONF_DIFFICULTY]
-            word_lengths = user_input.get(CONF_WORD_LENGTHS, DEFAULT_WORD_LENGTHS)
 
             # Test the token
             is_valid, error_message = await self._test_token(token)
@@ -82,8 +70,8 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     title=title,
                     data={
                         CONF_ACCESS_TOKEN: token,
-                        CONF_DIFFICULTY: difficulty,
-                        CONF_WORD_LENGTHS: word_lengths
+                        CONF_DIFFICULTY: difficulty
+                        # REMOVED: word_lengths - controlled in game interface
                     }
                 )
             else:
@@ -209,7 +197,7 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
                 
                 return self.async_create_entry(title="", data={})
 
-        # Build the options schema with current values
+        # Build the options schema with current values - FIXED: only difficulty
         current_data = self.config_entry.data
         
         options_schema = vol.Schema({
@@ -220,16 +208,8 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Required(
                 CONF_DIFFICULTY, 
                 default=current_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
-            ): vol.In(DIFFICULTY_OPTIONS),
-            vol.Optional(
-                CONF_WORD_LENGTHS,
-                default=current_data.get(CONF_WORD_LENGTHS, DEFAULT_WORD_LENGTHS)
-            ): cv.multi_select({
-                5: "5 letters",
-                6: "6 letters",
-                7: "7 letters", 
-                8: "8 letters"
-            })
+            ): vol.In(DIFFICULTY_OPTIONS)
+            # REMOVED: word_lengths option - controlled in game interface
         })
 
         return self.async_show_form(
