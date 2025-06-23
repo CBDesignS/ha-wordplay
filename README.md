@@ -1,6 +1,6 @@
 # H.A WordPlay
 
-![H.A WordPlay Game Interface](assets/images/game-panel.png)
+<img src="assets/images/game-panel.png" alt="H.A WordPlay Game Interface" width="600">
 
 🎮 **The Ultimate Wordle-style Integration for Home Assistant** 🎮
 
@@ -230,6 +230,7 @@ MIT License - See LICENSE file for details.
 ---
 
 **🎮 Ready to play? Install now and check your Home Assistant sidebar for the WordPlay panel!** 
+
 
 *Note: This integration is not affiliated with the original Wordle game or The New York Times.* 
 ** It is My take upon a word guessing game, My code, My icon, My Hard Work.. ** 
