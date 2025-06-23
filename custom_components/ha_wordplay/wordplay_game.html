@@ -612,85 +612,24 @@
             statusEl.className = `game-status ${type || ''}`;
         }
 
-        // BULLETPROOF Authentication Detection - handles ALL deployment modes
+        // FIXED: Simple authentication - just get token from URL (backend provides securely)
         function getAccessToken() {
-            let token = null;
-            
-            // Method 1: URL parameters (normal browser access)
             try {
                 const urlParams = new URLSearchParams(window.location.search);
-                token = urlParams.get('access_token');
-                if (token) {
-                    debugLog('🔑 Auth: Found token in URL parameters');
+                const token = urlParams.get('access_token');
+                if (token && token.length > 10) {
+                    debugLog('🔑 Auth: Found token in URL parameter');
                     return token;
                 }
+                debugLog('❌ Auth: No valid token in URL parameter');
+                return null;
             } catch (e) {
-                debugLog('⚠️ Auth: URL parameter check failed', e);
+                debugLog('❌ Auth: URL parameter check failed', e);
+                return null;
             }
-            
-            // Method 2: Parent window Home Assistant instance (PWA/iframe mode)
-            try {
-                if (window.parent && window.parent !== window) {
-                    const parentHass = window.parent.document.querySelector('home-assistant');
-                    if (parentHass && parentHass.hass) {
-                        // Try different auth token locations
-                        token = parentHass.hass.auth?.accessToken || 
-                               parentHass.hass.connection?.accessToken ||
-                               parentHass.hass._token;
-                        if (token) {
-                            debugLog('🔑 Auth: Found token from parent HA window');
-                            return token;
-                        }
-                    }
-                }
-            } catch (e) {
-                debugLog('⚠️ Auth: Parent window check failed (cross-origin blocked)', e);
-            }
-            
-            // Method 3: Local storage (if HA stored it)
-            try {
-                token = localStorage.getItem('hassTokens') || 
-                       localStorage.getItem('ha_auth_token') ||
-                       sessionStorage.getItem('access_token');
-                if (token) {
-                    // Parse if it's JSON
-                    try {
-                        const parsed = JSON.parse(token);
-                        token = parsed.access_token || parsed.accessToken || token;
-                    } catch (e) {
-                        // Token is probably plain text, use as-is
-                    }
-                    if (token && token.length > 10) {
-                        debugLog('🔑 Auth: Found token in browser storage');
-                        return token;
-                    }
-                }
-            } catch (e) {
-                debugLog('⚠️ Auth: Storage check failed', e);
-            }
-            
-            // Method 4: Check if we're in a same-origin iframe
-            try {
-                if (window.top !== window.self) {
-                    const topDoc = window.top.document;
-                    const haElement = topDoc.querySelector('home-assistant, ha-panel-config, [data-hass]');
-                    if (haElement && haElement.hass) {
-                        token = haElement.hass.auth?.accessToken;
-                        if (token) {
-                            debugLog('🔑 Auth: Found token from top window');
-                            return token;
-                        }
-                    }
-                }
-            } catch (e) {
-                debugLog('⚠️ Auth: Top window check failed (cross-origin)', e);
-            }
-            
-            debugLog('❌ Auth: No valid token found in any location');
-            return null;
         }
         
-        // SAFE API wrapper - NEVER calls API without auth (prevents bans)
+        // FIXED: Safe API wrapper - NEVER calls API without auth (prevents bans)
         async function safeCallHAService(domain, service, data = {}) {
             if (!accessToken) {
                 const error = 'No authentication token available - API call blocked to prevent IP ban';
@@ -703,7 +642,7 @@
             return await callHAService(domain, service, data);
         }
         
-        // SAFE entity state getter
+        // FIXED: Safe entity state getter
         async function safeGetEntityState(entityId) {
             if (!accessToken) {
                 const error = 'No authentication token available - entity fetch blocked to prevent IP ban';
@@ -714,8 +653,13 @@
             return await getEntityState(entityId);
         }
         
-        // Connection test before any API calls
+        // FIXED: Connection test before any API calls
         async function testConnection() {
+            if (!accessToken) {
+                debugLog('🚫 Connection test skipped - no authentication');
+                return false;
+            }
+            
             try {
                 debugLog('🔍 Testing connection to Home Assistant...');
                 
@@ -1175,6 +1119,44 @@
             }
         }
 
+        // Auto-detect Home Assistant theme
+        function detectHATheme() {
+            try {
+                // Method 1: Check parent frame theme
+                if (window.parent && window.parent !== window) {
+                    const parentDoc = window.parent.document;
+                    if (parentDoc) {
+                        const haMain = parentDoc.querySelector('home-assistant');
+                        if (haMain && haMain.hass && haMain.hass.themes) {
+                            const currentTheme = haMain.hass.themes.darkMode ? 'dark' : 'light';
+                            document.body.setAttribute('data-theme', currentTheme);
+                            debugLog(`🎨 HA theme detected: ${currentTheme}`);
+                            return;
+                        }
+                    }
+                }
+                
+                // Method 2: Check URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('theme')) {
+                    const theme = urlParams.get('theme');
+                    document.body.setAttribute('data-theme', theme);
+                    debugLog(`🎨 URL theme detected: ${theme}`);
+                    return;
+                }
+                
+                // Method 3: Use browser preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = prefersDark ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', theme);
+                debugLog(`🎨 Browser theme detected: ${theme}`);
+                
+            } catch (error) {
+                debugLog('⚠️ Theme detection failed, using browser default', error);
+                // Browser CSS media query will handle it
+            }
+        }
+
         // Initialize the game - BULLETPROOF version with safe auth checking
         async function initWordPlay() {
             debugLog('🚀 WordPlay: Initializing bulletproof frontend with auth protection');
@@ -1182,18 +1164,18 @@
             // Auto-detect HA theme
             detectHATheme();
             
-            // BULLETPROOF auth detection - try all methods
+            // FIXED: Simple auth detection - just get from URL parameter
             accessToken = getAccessToken();
             debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
             
             // Create initial grid
             createGrid(5);
             
-            // SAFE initialization - only proceed if we have auth OR can test safely
+            // SAFE initialization - only proceed if we have auth
             try {
                 updateGameStatus('🔍 Testing connection...', 'loading');
                 
-                // Test connection first - this is safe even without auth
+                // Test connection first - this is safe and checks auth
                 const connectionOk = await testConnection();
                 
                 if (!connectionOk) {
@@ -1233,44 +1215,6 @@
                 updateGameStatus('❌ Failed to initialize - check console for details', 'error');
                 
                 // Don't start polling if initialization failed
-            }
-        }
-
-        // Auto-detect Home Assistant theme
-        function detectHATheme() {
-            try {
-                // Method 1: Check parent frame theme
-                if (window.parent && window.parent !== window) {
-                    const parentDoc = window.parent.document;
-                    if (parentDoc) {
-                        const haMain = parentDoc.querySelector('home-assistant');
-                        if (haMain && haMain.hass && haMain.hass.themes) {
-                            const currentTheme = haMain.hass.themes.darkMode ? 'dark' : 'light';
-                            document.body.setAttribute('data-theme', currentTheme);
-                            debugLog(`🎨 HA theme detected: ${currentTheme}`);
-                            return;
-                        }
-                    }
-                }
-                
-                // Method 2: Check URL parameters
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.has('theme')) {
-                    const theme = urlParams.get('theme');
-                    document.body.setAttribute('data-theme', theme);
-                    debugLog(`🎨 URL theme detected: ${theme}`);
-                    return;
-                }
-                
-                // Method 3: Use browser preference
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const theme = prefersDark ? 'dark' : 'light';
-                document.body.setAttribute('data-theme', theme);
-                debugLog(`🎨 Browser theme detected: ${theme}`);
-                
-            } catch (error) {
-                debugLog('⚠️ Theme detection failed, using browser default', error);
-                // Browser CSS media query will handle it
             }
         }
 
