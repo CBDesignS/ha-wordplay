@@ -326,26 +326,15 @@
 
         // Get auth token
         function getAccessToken() {
-            try {
-                const haTokens = localStorage.getItem('hassTokens');
-                if (haTokens) {
-                    const tokens = JSON.parse(haTokens);
-                    if (tokens.access_token) {
-                        return tokens.access_token;
-                    }
-                }
-            } catch (e) {}
-
-            try {
-                const sessionAuth = sessionStorage.getItem('hass_auth');
-                if (sessionAuth) {
-                    const auth = JSON.parse(sessionAuth);
-                    if (auth.access_token) {
-                        return auth.access_token;
-                    }
-                }
-            } catch (e) {}
-
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('access_token');
+            
+            if (token) {
+                debugLog('🔑 Access token extracted from URL parameter');
+                return token;
+            }
+            
+            debugLog('❌ No access token found in URL parameters');
             return null;
         }
 
