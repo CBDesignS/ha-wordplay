@@ -918,30 +918,29 @@
                 tile.className = 'game-tile';
             });
             
-            // Fill in guesses and results
-            currentGameData.guesses.forEach((guess, rowIndex) => {
-                if (rowIndex >= currentWordLength) return;
+        // Fill in guesses and results
+        currentGameData.guesses.forEach((guess, rowIndex) => {
+            if (rowIndex >= currentWordLength) return;
+            
+            const results = currentGameData.guess_results[rowIndex] || [];
+            const cleanGuess = guess.replace(/^\d+\.\s*/, ''); // Strip "1. " prefix
+            
+            for (let colIndex = 0; colIndex < cleanGuess.length && colIndex < currentWordLength; colIndex++) {
+                const tileIndex = rowIndex * currentWordLength + colIndex;
+                const tile = tiles[tileIndex];
                 
-                const results = currentGameData.guess_results[rowIndex] || [];
-                
-                for (let colIndex = 0; colIndex < guess.length && colIndex < currentWordLength; colIndex++) {
-                    const tileIndex = rowIndex * currentWordLength + colIndex;
-                    const tile = tiles[tileIndex];
+                if (tile) {
+                    tile.textContent = cleanGuess[colIndex];
                     
-                    if (tile) {
-                        const cleanGuess = guess.replace(/^\d+\.\s*/, ''); // Strip "1. " prefix
-                        tile.textContent = cleanGuess[colIndex];
-                        
-                        // Add result class if available - adjust index for stripped prefix
-                        const prefixLength = guess.length - cleanGuess.length;
-                        const adjustedIndex = colIndex + prefixLength;
-                        if (results[adjustedIndex]) {
-                            tile.classList.add(results[adjustedIndex]);
-                        }
+                    // Add result class if available - adjust index for stripped prefix
+                    const prefixLength = guess.length - cleanGuess.length;
+                    const adjustedIndex = colIndex + prefixLength;
+                    if (results[adjustedIndex]) {
+                        tile.classList.add(results[adjustedIndex]);
                     }
                 }
-            });
-        }
+            }
+        });
 
         // Word length controls
         function changeWordLength(length) {
