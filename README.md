@@ -3,9 +3,9 @@
 ![game panel](https://github.com/user-attachments/assets/34b4a7aa-6109-4ae9-831e-d87af7f541c5)
 
 
-🎮 **The Ultimate Wordle-style Integration for Home Assistant** 🎮
+🎮 **The Ultimate Word Guessing -style Game Integration for Home Assistant** 🎮
 
-A revolutionary HTML panel word guessing game that brings the complete Wordle experience directly to your Home Assistant sidebar with zero configuration required!
+A revolutionary HTML panel word guessing game that brings the complete Word guessing experience directly to your Home Assistant sidebar with zero configuration required!
 
 ## 🌟 Key Features
 
