@@ -1,6 +1,7 @@
 # H.A WordPlay
 
-<img src="assets/images/game-panel.png" alt="H.A WordPlay Game Interface" width="600">
+![game panel](https://github.com/user-attachments/assets/34b4a7aa-6109-4ae9-831e-d87af7f541c5)
+
 
 🎮 **The Ultimate Wordle-style Integration for Home Assistant** 🎮
 
