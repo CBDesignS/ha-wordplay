@@ -752,14 +752,30 @@
             try {
                 debugLog(`🔢 Changing word length to: ${length}`);
                 
+                // Update backend first
                 await callHAService('select', 'select_option', {
                     entity_id: 'select.ha_wordplay_word_length',
                     option: length.toString()
                 });
                 
+                // Update frontend immediately
                 currentWordLength = length;
                 updateWordLengthButtons();
                 
+                // FIXED: Update grid and input immediately
+                createGrid(length);
+                
+                // FIXED: Update input field max length
+                const inputField = document.getElementById('guessInput');
+                if (inputField) {
+                    inputField.maxLength = length;
+                    inputField.value = ''; // Clear any existing input
+                }
+                
+                // FIXED: Update button states for new word length
+                updateButtonStates();
+                
+                // Still refresh state for backend sync, but frontend is already updated
                 setTimeout(() => {
                     debugLog('🔄 Refreshing state after word length change');
                     refreshGameState();
