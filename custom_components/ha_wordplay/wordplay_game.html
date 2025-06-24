@@ -358,7 +358,7 @@
             return !cooldowns[action];
         }
 
-        function setActionCooldown(action, duration = 2000) {
+        function setActionCooldown(action, duration = 500) {
             cooldowns[action] = true;
             debugLog(`Action cooldown set: ${action} for ${duration}ms`);
             setTimeout(() => {
@@ -648,7 +648,7 @@
             }
             
             try {
-                setActionCooldown('newGame', 3000);
+                setActionCooldown('newGame', 500);
                 updateGameStatus('🎮 Starting new game...', 'loading');
                 
                 debugLog(`🎮 Starting new game with word length: ${currentWordLength}`);
@@ -689,7 +689,7 @@
             }
             
             try {
-                setActionCooldown('submitGuess', 2000);
+                setActionCooldown('submitGuess', 500);
                 updateGameStatus('🔍 Processing guess...', 'loading');
                 
                 debugLog('🔧 Step 1: Setting text input value');
@@ -713,7 +713,7 @@
                 // Refresh state after delay
                 setTimeout(() => {
                     refreshGameState();
-                }, 1500);
+                }, 300);
                 
             } catch (error) {
                 debugLog('❌ Submit guess failed', error);
@@ -728,7 +728,7 @@
             }
             
             try {
-                setActionCooldown('getHint', 2000);
+                setActionCooldown('getHint', 500);
                 updateGameStatus('💡 Getting hint...', 'loading');
                 
                 debugLog('💡 Calling get_hint service');
@@ -740,7 +740,7 @@
                 // Refresh state after delay
                 setTimeout(() => {
                     refreshGameState();
-                }, 1000);
+                }, 500);
                 
             } catch (error) {
                 debugLog('❌ Get hint failed', error);
@@ -804,7 +804,7 @@
                 await refreshGameState();
                 
                 // Start polling every 3 seconds
-                updateInterval = setInterval(refreshGameState, 3000);
+                updateInterval = setInterval(refreshGameState, 1000);
                 debugLog('⏰ Polling started (3 second intervals)');
                 
             } catch (error) {
