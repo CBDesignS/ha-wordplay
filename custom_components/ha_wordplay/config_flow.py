@@ -92,52 +92,79 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _test_token(self, token: str) -> tuple[bool, Optional[str]]:
         """Test if the provided token works with Home Assistant API."""
         try:
-            # Get the base URL
-            base_url = self.hass.config.internal_url or "http://localhost:8123"
+            # FIXED: Try multiple base URLs - internal first, then external
+            base_urls_to_try = []
             
-            # Test the token by making a simple API call
-            session = async_get_clientsession(self.hass)
-            headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
-            }
+            # Try internal URL first (if it exists)
+            if self.hass.config.internal_url:
+                base_urls_to_try.append(self.hass.config.internal_url)
             
-            # Test 1: Basic API access
-            async with session.get(f"{base_url}/api/", headers=headers) as response:
-                if response.status == 401:
-                    return False, "invalid_token"
-                elif response.status == 403:
-                    return False, "insufficient_permissions"
-                elif not response.ok:
-                    return False, "api_error"
+            # Try external URL as fallback
+            if self.hass.config.external_url:
+                base_urls_to_try.append(self.hass.config.external_url)
             
-            # Test 2: States access (needed for game)
-            async with session.get(f"{base_url}/api/states", headers=headers) as response:
-                if response.status == 401:
-                    return False, "invalid_token"
-                elif response.status == 403:
-                    return False, "states_access_denied"
-                elif not response.ok:
-                    return False, "states_error"
+            # Last resort fallback
+            if not base_urls_to_try:
+                base_urls_to_try.append("http://localhost:8123")
             
-            # Test 3: Services access (needed for game actions)
-            async with session.get(f"{base_url}/api/services", headers=headers) as response:
-                if response.status == 401:
-                    return False, "invalid_token"
-                elif response.status == 403:
-                    return False, "services_access_denied"
-                elif not response.ok:
-                    return False, "services_error"
+            _LOGGER.info(f"Token validation will try URLs: {base_urls_to_try}")
             
-            _LOGGER.info("Token validation successful")
-            return True, None
-            
-        except aiohttp.ClientError as e:
-            _LOGGER.error(f"Network error during token validation: {e}")
+            # Try each URL until one works
+            last_error = None
+            for base_url in base_urls_to_try:
+                _LOGGER.info(f"Testing token validation against: {base_url}")
+                
+                try:
+                    # Test the token by making a simple API call
+                    session = async_get_clientsession(self.hass)
+                    headers = {
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json"
+                    }
+                    
+                    # Test 1: Basic API access
+                    async with session.get(f"{base_url}/api/", headers=headers) as response:
+                        if response.status == 401:
+                            return False, "invalid_token"
+                        elif response.status == 403:
+                            return False, "insufficient_permissions"
+                        elif not response.ok:
+                            _LOGGER.warning(f"API test failed on {base_url}: status {response.status}")
+                            continue  # Try next URL
+                    
+                    # Test 2: States access (needed for game)
+                    async with session.get(f"{base_url}/api/states", headers=headers) as response:
+                        if response.status == 401:
+                            return False, "invalid_token"
+                        elif response.status == 403:
+                            return False, "states_access_denied"
+                        elif not response.ok:
+                            _LOGGER.warning(f"States test failed on {base_url}: status {response.status}")
+                            continue  # Try next URL
+                    
+                    # Test 3: Services access (needed for game actions)
+                    async with session.get(f"{base_url}/api/services", headers=headers) as response:
+                        if response.status == 401:
+                            return False, "invalid_token"
+                        elif response.status == 403:
+                            return False, "services_access_denied"
+                        elif not response.ok:
+                            _LOGGER.warning(f"Services test failed on {base_url}: status {response.status}")
+                            continue  # Try next URL
+                    
+                    # If we get here, all tests passed on this URL
+                    _LOGGER.info(f"Token validation successful using: {base_url}")
+                    return True, None
+                    
+                except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                    _LOGGER.warning(f"Network error testing {base_url}: {e}")
+                    last_error = e
+                    continue  # Try next URL
+                
+            # If we get here, all URLs failed
+            _LOGGER.error(f"Token validation failed on all URLs. Last error: {last_error}")
             return False, "network_error"
-        except asyncio.TimeoutError:
-            _LOGGER.error("Timeout during token validation")
-            return False, "timeout"
+            
         except Exception as e:
             _LOGGER.error(f"Unexpected error during token validation: {e}")
             return False, "unknown_error"
@@ -225,22 +252,37 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
     async def _test_token(self, token: str) -> tuple[bool, Optional[str]]:
         """Test token (same as main config flow)."""
         try:
-            base_url = self.hass.config.internal_url or "http://localhost:8123"
+            # FIXED: Use the same logic as main config flow
+            base_urls_to_try = []
+            
+            if self.hass.config.internal_url:
+                base_urls_to_try.append(self.hass.config.internal_url)
+            
+            if self.hass.config.external_url:
+                base_urls_to_try.append(self.hass.config.external_url)
+            
+            if not base_urls_to_try:
+                base_urls_to_try.append("http://localhost:8123")
+            
             session = async_get_clientsession(self.hass)
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
             }
             
-            async with session.get(f"{base_url}/api/", headers=headers) as response:
-                if response.status == 401:
-                    return False, "invalid_token"
-                elif response.status == 403:
-                    return False, "insufficient_permissions"
-                elif not response.ok:
-                    return False, "api_error"
+            for base_url in base_urls_to_try:
+                try:
+                    async with session.get(f"{base_url}/api/", headers=headers) as response:
+                        if response.status == 401:
+                            return False, "invalid_token"
+                        elif response.status == 403:
+                            return False, "insufficient_permissions"
+                        elif response.ok:
+                            return True, None
+                except (aiohttp.ClientError, asyncio.TimeoutError):
+                    continue
             
-            return True, None
+            return False, "network_error"
             
         except Exception as e:
             _LOGGER.error(f"Token validation error: {e}")
