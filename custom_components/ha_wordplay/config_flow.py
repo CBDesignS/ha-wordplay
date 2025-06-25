@@ -1,4 +1,4 @@
-"""Config flow for H.A WordPlay integration - Long-Lived Token Setup."""
+"""Config flow for H.A WordPlay integration - Long-Lived Token Setup with Audio Config."""
 import logging
 import aiohttp
 import asyncio
@@ -19,6 +19,12 @@ _LOGGER = logging.getLogger(__name__)
 
 # Configuration constants
 CONF_DIFFICULTY = "difficulty"
+CONF_AUDIO_ENABLED = "audio_enabled"
+CONF_AUDIO_VOLUME = "audio_volume"
+CONF_AUDIO_GAME_EVENTS = "audio_game_events"
+CONF_AUDIO_GUESS_EVENTS = "audio_guess_events"
+CONF_AUDIO_UI_EVENTS = "audio_ui_events"
+CONF_AUDIO_ERROR_EVENTS = "audio_error_events"
 
 # Difficulty options
 DIFFICULTY_EASY = "easy"
@@ -31,10 +37,24 @@ DIFFICULTY_OPTIONS = {
     DIFFICULTY_HARD: "Hard (No hints available)"
 }
 
-# FIXED: Config schema - ONLY token and difficulty
+# Audio default values
+DEFAULT_AUDIO_ENABLED = True
+DEFAULT_AUDIO_VOLUME = 30  # Percentage (0-100)
+DEFAULT_AUDIO_GAME_EVENTS = True
+DEFAULT_AUDIO_GUESS_EVENTS = True
+DEFAULT_AUDIO_UI_EVENTS = False
+DEFAULT_AUDIO_ERROR_EVENTS = True
+
+# Config schema with audio options
 CONFIG_SCHEMA = vol.Schema({
     vol.Required(CONF_ACCESS_TOKEN): cv.string,
-    vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS)
+    vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS),
+    vol.Required(CONF_AUDIO_ENABLED, default=DEFAULT_AUDIO_ENABLED): cv.boolean,
+    vol.Required(CONF_AUDIO_VOLUME, default=DEFAULT_AUDIO_VOLUME): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+    vol.Required(CONF_AUDIO_GAME_EVENTS, default=DEFAULT_AUDIO_GAME_EVENTS): cv.boolean,
+    vol.Required(CONF_AUDIO_GUESS_EVENTS, default=DEFAULT_AUDIO_GUESS_EVENTS): cv.boolean,
+    vol.Required(CONF_AUDIO_UI_EVENTS, default=DEFAULT_AUDIO_UI_EVENTS): cv.boolean,
+    vol.Required(CONF_AUDIO_ERROR_EVENTS, default=DEFAULT_AUDIO_ERROR_EVENTS): cv.boolean,
 })
 
 
@@ -63,15 +83,20 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             is_valid, error_message = await self._test_token(token)
             
             if is_valid:
-                # Token works, create the entry
+                # Token works, create the entry with audio config
                 title = f"WordPlay ({difficulty.title()} Mode)"
                 
                 return self.async_create_entry(
                     title=title,
                     data={
                         CONF_ACCESS_TOKEN: token,
-                        CONF_DIFFICULTY: difficulty
-                        # REMOVED: word_lengths - controlled in game interface
+                        CONF_DIFFICULTY: difficulty,
+                        CONF_AUDIO_ENABLED: user_input[CONF_AUDIO_ENABLED],
+                        CONF_AUDIO_VOLUME: user_input[CONF_AUDIO_VOLUME],
+                        CONF_AUDIO_GAME_EVENTS: user_input[CONF_AUDIO_GAME_EVENTS],
+                        CONF_AUDIO_GUESS_EVENTS: user_input[CONF_AUDIO_GUESS_EVENTS],
+                        CONF_AUDIO_UI_EVENTS: user_input[CONF_AUDIO_UI_EVENTS],
+                        CONF_AUDIO_ERROR_EVENTS: user_input[CONF_AUDIO_ERROR_EVENTS],
                     }
                 )
             else:
@@ -92,7 +117,7 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _test_token(self, token: str) -> tuple[bool, Optional[str]]:
         """Test if the provided token works with Home Assistant API."""
         try:
-            # FIXED: Try multiple base URLs - internal first, then external
+            # Try multiple base URLs - internal first, then external
             base_urls_to_try = []
             
             # Try internal URL first (if it exists)
@@ -224,7 +249,7 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
                 
                 return self.async_create_entry(title="", data={})
 
-        # Build the options schema with current values - FIXED: only difficulty
+        # Build the options schema with current values
         current_data = self.config_entry.data
         
         options_schema = vol.Schema({
@@ -235,8 +260,31 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
             vol.Required(
                 CONF_DIFFICULTY, 
                 default=current_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
-            ): vol.In(DIFFICULTY_OPTIONS)
-            # REMOVED: word_lengths option - controlled in game interface
+            ): vol.In(DIFFICULTY_OPTIONS),
+            vol.Required(
+                CONF_AUDIO_ENABLED,
+                default=current_data.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)
+            ): cv.boolean,
+            vol.Required(
+                CONF_AUDIO_VOLUME,
+                default=current_data.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME)
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
+            vol.Required(
+                CONF_AUDIO_GAME_EVENTS,
+                default=current_data.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)
+            ): cv.boolean,
+            vol.Required(
+                CONF_AUDIO_GUESS_EVENTS,
+                default=current_data.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)
+            ): cv.boolean,
+            vol.Required(
+                CONF_AUDIO_UI_EVENTS,
+                default=current_data.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)
+            ): cv.boolean,
+            vol.Required(
+                CONF_AUDIO_ERROR_EVENTS,
+                default=current_data.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)
+            ): cv.boolean,
         })
 
         return self.async_show_form(
@@ -252,7 +300,7 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
     async def _test_token(self, token: str) -> tuple[bool, Optional[str]]:
         """Test token (same as main config flow)."""
         try:
-            # FIXED: Use the same logic as main config flow
+            # Use the same logic as main config flow
             base_urls_to_try = []
             
             if self.hass.config.internal_url:

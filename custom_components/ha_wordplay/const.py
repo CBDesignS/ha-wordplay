@@ -1,4 +1,4 @@
-"""Constants for H.A WordPlay integration - Config Flow Version."""
+"""Constants for H.A WordPlay integration - Config Flow Version with Audio Config."""
 
 DOMAIN = "ha_wordplay"
 
@@ -37,9 +37,16 @@ API_TIMEOUT = 10
 # UI Configuration
 DEFAULT_WORD_LENGTH = 5
 
-# Config Flow Constants (NEW)
+# Config Flow Constants
 CONF_DIFFICULTY = "difficulty"
-# REMOVED: CONF_WORD_LENGTHS - now controlled by frontend
+
+# Audio Configuration Constants
+CONF_AUDIO_ENABLED = "audio_enabled"
+CONF_AUDIO_VOLUME = "audio_volume"
+CONF_AUDIO_GAME_EVENTS = "audio_game_events"
+CONF_AUDIO_GUESS_EVENTS = "audio_guess_events"
+CONF_AUDIO_UI_EVENTS = "audio_ui_events"
+CONF_AUDIO_ERROR_EVENTS = "audio_error_events"
 
 # Difficulty Levels
 DIFFICULTY_EASY = "easy"      # Hint shown before guessing
@@ -48,4 +55,11 @@ DIFFICULTY_HARD = "hard"      # No hints available
 
 # Default Config Values
 DEFAULT_DIFFICULTY = DIFFICULTY_NORMAL
-# REMOVED: DEFAULT_WORD_LENGTHS - now controlled by frontend
+
+# Audio Default Values
+DEFAULT_AUDIO_ENABLED = True
+DEFAULT_AUDIO_VOLUME = 30  # Percentage (0-100)
+DEFAULT_AUDIO_GAME_EVENTS = True
+DEFAULT_AUDIO_GUESS_EVENTS = True
+DEFAULT_AUDIO_UI_EVENTS = False
+DEFAULT_AUDIO_ERROR_EVENTS = True

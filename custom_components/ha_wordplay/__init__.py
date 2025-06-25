@@ -1,8 +1,9 @@
-"""H.A WordPlay integration for Home Assistant - Config Entry Version."""
+"""H.A WordPlay integration for Home Assistant - Config Entry Version with Audio Config."""
 import logging
 import asyncio
 import os
 from typing import Any, Dict
+from urllib.parse import urlencode
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
@@ -20,12 +21,24 @@ from .const import (
     SERVICE_GET_HINT,
     SERVICE_SUBMIT_GUESS,
     DEFAULT_WORD_LENGTH,
+    CONF_DIFFICULTY,
+    CONF_AUDIO_ENABLED,
+    CONF_AUDIO_VOLUME,
+    CONF_AUDIO_GAME_EVENTS,
+    CONF_AUDIO_GUESS_EVENTS,
+    CONF_AUDIO_UI_EVENTS,
+    CONF_AUDIO_ERROR_EVENTS,
+    DEFAULT_AUDIO_ENABLED,
+    DEFAULT_AUDIO_VOLUME,
+    DEFAULT_AUDIO_GAME_EVENTS,
+    DEFAULT_AUDIO_GUESS_EVENTS,
+    DEFAULT_AUDIO_UI_EVENTS,
+    DEFAULT_AUDIO_ERROR_EVENTS,
 )
 from .game_logic import WordPlayGame
 from .api_config import get_supported_languages
 
 # Config flow constants
-CONF_DIFFICULTY = "difficulty"
 DIFFICULTY_EASY = "easy"
 DIFFICULTY_NORMAL = "normal" 
 DIFFICULTY_HARD = "hard"
@@ -47,19 +60,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     access_token = config_data.get(CONF_ACCESS_TOKEN)
     difficulty = config_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
     
+    # Get audio configuration with defaults
+    audio_config = {
+        CONF_AUDIO_ENABLED: config_data.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED),
+        CONF_AUDIO_VOLUME: config_data.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME),
+        CONF_AUDIO_GAME_EVENTS: config_data.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS),
+        CONF_AUDIO_GUESS_EVENTS: config_data.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS),
+        CONF_AUDIO_UI_EVENTS: config_data.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS),
+        CONF_AUDIO_ERROR_EVENTS: config_data.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS),
+    }
+    
     if not access_token:
         _LOGGER.error("No access token found in config entry")
         return False
     
-    _LOGGER.info(f"WordPlay config: difficulty={difficulty}")
+    _LOGGER.info(f"WordPlay config: difficulty={difficulty}, audio_enabled={audio_config[CONF_AUDIO_ENABLED]}")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
     
-    # Initialize the game instance with config (removed word_lengths)
+    # Initialize the game instance with config
     game = WordPlayGame(hass)
     game.set_difficulty(difficulty)
-    # REMOVED: game.set_word_lengths() - now controlled by frontend
     
     # Store game and configuration data
     hass.data[DOMAIN] = {
@@ -68,7 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config_entry": entry,
         "access_token": access_token,
         "difficulty": difficulty,
-        # REMOVED: "word_lengths": word_lengths,
+        "audio_config": audio_config,
         "tts_config": tts_config,
         "supported_languages": get_supported_languages(),
     }
@@ -82,8 +104,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
     
-    # Register the WordPlay HTML panel with secure token passing
-    await _register_wordplay_html_panel(hass, access_token)
+    # Register the WordPlay HTML panel with secure token passing and audio config
+    await _register_wordplay_html_panel(hass, access_token, audio_config)
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
@@ -111,7 +133,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
     
     _LOGGER.info("H.A WordPlay integration setup complete - Config Entry Ready!")
-    _LOGGER.info(f"Difficulty: {difficulty}")
+    _LOGGER.info(f"Difficulty: {difficulty}, Audio: {audio_config}")
     return True
 
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -119,8 +141,8 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     _LOGGER.info("WordPlay configuration updated, reloading...")
     await hass.config_entries.async_reload(entry.entry_id)
 
-async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) -> None:
-    """Register the WordPlay HTML panel with secure token passing."""
+async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str, audio_config: Dict[str, Any]) -> None:
+    """Register the WordPlay HTML panel with secure token passing and audio configuration."""
     try:
         # Get the integration directory path
         integration_dir = os.path.dirname(__file__)
@@ -134,11 +156,21 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
             )
         ])
         
-        # Create the panel URL with the access token as a parameter
-        # This is secure because it's only accessible to authenticated users
-        panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?access_token={access_token}"
+        # Build URL parameters with token and audio config
+        url_params = {
+            'access_token': access_token,
+            'audio_enabled': str(audio_config[CONF_AUDIO_ENABLED]).lower(),
+            'audio_volume': str(audio_config[CONF_AUDIO_VOLUME]),
+            'audio_gameEvents': str(audio_config[CONF_AUDIO_GAME_EVENTS]).lower(),
+            'audio_guessEvents': str(audio_config[CONF_AUDIO_GUESS_EVENTS]).lower(),
+            'audio_uiEvents': str(audio_config[CONF_AUDIO_UI_EVENTS]).lower(),
+            'audio_errorEvents': str(audio_config[CONF_AUDIO_ERROR_EVENTS]).lower(),
+        }
         
-        # Register iframe panel with secure token URL
+        # Create the panel URL with all parameters
+        panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?{urlencode(url_params)}"
+        
+        # Register iframe panel with secure token URL and audio config
         async_register_built_in_panel(
             hass,
             component_name="iframe",
@@ -152,8 +184,8 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
             require_admin=False,
         )
         
-        _LOGGER.info("WordPlay iframe panel registered successfully with secure token!")
-        _LOGGER.info("Panel will use dedicated long-lived access token")
+        _LOGGER.info("WordPlay iframe panel registered successfully with secure token and audio config!")
+        _LOGGER.info(f"Audio config: enabled={audio_config[CONF_AUDIO_ENABLED]}, volume={audio_config[CONF_AUDIO_VOLUME]}%")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
@@ -186,8 +218,6 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
                         word_length = int(select_state.state)
                     except (ValueError, TypeError):
                         word_length = DEFAULT_WORD_LENGTH
-            
-            # REMOVED: word length validation against config - now controlled by frontend
             
             success = await game.start_new_game(int(word_length), language)
             

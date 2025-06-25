@@ -3,11 +3,16 @@
     "step": {
       "user": {
         "title": "H.A WordPlay Setup",
-        "description": "Configure your WordPlay game with a long-lived access token.\n\n**Step 1:** Go to [Profile → Security]({token_url}) in Home Assistant\n**Step 2:** Create a new Long-lived access token\n**Step 3:** Copy and paste the token below\n**Step 4:** Choose your preferred game difficulty",
+        "description": "Configure your WordPlay game with a long-lived access token.\n\n**Step 1:** Go to [Profile → Security]({token_url}) in Home Assistant\n**Step 2:** Create a new Long-lived access token\n**Step 3:** Copy and paste the token below\n**Step 4:** Choose your preferred game difficulty and audio settings",
         "data": {
           "access_token": "Long-lived Access Token",
           "difficulty": "Game Difficulty",
-          "word_lengths": "Available Word Lengths"
+          "audio_enabled": "Enable Audio",
+          "audio_volume": "Audio Volume (%)",
+          "audio_game_events": "Game Event Sounds (new game, win, lose)",
+          "audio_guess_events": "Letter Feedback Sounds",
+          "audio_ui_events": "UI Click Sounds",
+          "audio_error_events": "Error Notification Sounds"
         }
       }
     },
@@ -33,7 +38,12 @@
         "data": {
           "access_token": "New Access Token (leave blank to keep current)",
           "difficulty": "Game Difficulty",
-          "word_lengths": "Available Word Lengths"
+          "audio_enabled": "Enable Audio",
+          "audio_volume": "Audio Volume (%)",
+          "audio_game_events": "Game Event Sounds (new game, win, lose)",
+          "audio_guess_events": "Letter Feedback Sounds",
+          "audio_ui_events": "UI Click Sounds",
+          "audio_error_events": "Error Notification Sounds"
         }
       }
     },
