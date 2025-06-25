@@ -170,6 +170,12 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str, 
         # Create the panel URL with all parameters
         panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?{urlencode(url_params)}"
         
+        # Unregister existing panel first to avoid conflicts
+        try:
+            hass.components.frontend.async_remove_panel("wordplay")
+        except:
+            pass  # Panel might not exist yet
+        
         # Register iframe panel with secure token URL and audio config
         async_register_built_in_panel(
             hass,
