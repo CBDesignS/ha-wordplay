@@ -39,7 +39,7 @@ DEFAULT_WORD_LENGTH = 5
 
 # Config Flow Constants (NEW)
 CONF_DIFFICULTY = "difficulty"
-CONF_WORD_LENGTHS = "word_lengths"
+# REMOVED: CONF_WORD_LENGTHS - now controlled by frontend
 
 # Difficulty Levels
 DIFFICULTY_EASY = "easy"      # Hint shown before guessing
@@ -48,4 +48,4 @@ DIFFICULTY_HARD = "hard"      # No hints available
 
 # Default Config Values
 DEFAULT_DIFFICULTY = DIFFICULTY_NORMAL
-DEFAULT_WORD_LENGTHS = [5, 6, 7, 8]
+# REMOVED: DEFAULT_WORD_LENGTHS - now controlled by frontend

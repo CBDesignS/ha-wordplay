@@ -55,7 +55,6 @@ class WordPlayGame:
         
         # NEW: Difficulty settings
         self.difficulty = DIFFICULTY_NORMAL
-        self.allowed_word_lengths = [5, 6, 7, 8]
         self.hint_mode = "on_request"  # "immediate", "on_request", "disabled"
         
     def set_difficulty(self, difficulty: str) -> None:
@@ -75,24 +74,6 @@ class WordPlayGame:
             _LOGGER.warning(f"Unknown difficulty: {difficulty}, defaulting to NORMAL")
             self.difficulty = DIFFICULTY_NORMAL
             self.hint_mode = "on_request"
-    
-    def set_word_lengths(self, word_lengths: List[int]) -> None:
-        """Set allowed word lengths."""
-        # Validate word lengths
-        valid_lengths = [length for length in word_lengths 
-                        if MIN_WORD_LENGTH <= length <= MAX_WORD_LENGTH]
-        
-        if not valid_lengths:
-            _LOGGER.warning("No valid word lengths provided, using defaults")
-            valid_lengths = [5, 6, 7, 8]
-        
-        self.allowed_word_lengths = valid_lengths
-        _LOGGER.info(f"Allowed word lengths set to: {valid_lengths}")
-        
-        # If current word length is not allowed, change to first allowed
-        if self.word_length not in valid_lengths:
-            self.word_length = valid_lengths[0]
-            _LOGGER.info(f"Current word length changed to: {self.word_length}")
         
     async def start_new_game(self, word_length: int = None, language: str = DEFAULT_LANGUAGE) -> bool:
         """Start a new game with specified word length and language."""
@@ -101,12 +82,7 @@ class WordPlayGame:
             if word_length is None:
                 word_length = self.word_length
             
-            # Validate word length against allowed lengths
-            if word_length not in self.allowed_word_lengths:
-                _LOGGER.warning(f"Word length {word_length} not allowed, using {self.allowed_word_lengths[0]}")
-                word_length = self.allowed_word_lengths[0]
-            
-            # Validate word length bounds
+            # Validate word length bounds only (removed allowed_word_lengths check)
             if word_length < MIN_WORD_LENGTH or word_length > MAX_WORD_LENGTH:
                 _LOGGER.error("Invalid word length: %d", word_length)
                 return False
