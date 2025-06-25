@@ -1,9 +1,10 @@
-"""H.A WordPlay integration for Home Assistant - Config Entry Version with Audio Config."""
+"""H.A WordPlay integration for Home Assistant - Config Entry Version with Audio Config.
+FIXED VERSION v4.1.6.1 - Function signature mismatch corrected by Claude
+"""
 import logging
 import asyncio
 import os
 from typing import Any, Dict
-from urllib.parse import urlencode
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
@@ -160,24 +161,24 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
         domain_data = hass.data.get(DOMAIN, {})
         audio_config = domain_data.get("audio_config", {})
         
-        # Build URL parameters with token and audio config
-        url_params = {
-            'access_token': access_token,
-        }
+        # Create the panel URL with access token (keep original format that works)
+        panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?access_token={access_token}"
         
-        # Add audio parameters if available
+        # Add audio parameters manually (avoiding urlencode issues)
         if audio_config:
-            url_params.update({
-                'audio_enabled': str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower(),
-                'audio_volume': str(audio_config.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME)),
-                'audio_gameEvents': str(audio_config.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)).lower(),
-                'audio_guessEvents': str(audio_config.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)).lower(),
-                'audio_uiEvents': str(audio_config.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)).lower(),
-                'audio_errorEvents': str(audio_config.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)).lower(),
-            })
-        
-        # Create the panel URL with all parameters
-        panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?{urlencode(url_params)}"
+            audio_enabled = str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower()
+            audio_volume = str(audio_config.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME))
+            audio_game_events = str(audio_config.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)).lower()
+            audio_guess_events = str(audio_config.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)).lower()
+            audio_ui_events = str(audio_config.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)).lower()
+            audio_error_events = str(audio_config.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)).lower()
+            
+            panel_url += f"&audio_enabled={audio_enabled}"
+            panel_url += f"&audio_volume={audio_volume}"
+            panel_url += f"&audio_gameEvents={audio_game_events}"
+            panel_url += f"&audio_guessEvents={audio_guess_events}"
+            panel_url += f"&audio_uiEvents={audio_ui_events}"
+            panel_url += f"&audio_errorEvents={audio_error_events}"
         
         # Register iframe panel with secure token URL and audio config
         async_register_built_in_panel(
