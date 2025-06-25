@@ -858,9 +858,14 @@
             accessToken = getAccessToken();
             debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
             
-            // Get audio configuration from URL
-            audioConfig = getAudioConfigFromURL();
-            debugLog('🔊 Audio configuration loaded:', audioConfig);
+            // Get audio configuration from URL (with error handling)
+            try {
+                audioConfig = getAudioConfigFromURL();
+                debugLog('🔊 Audio configuration loaded:', audioConfig);
+            } catch (error) {
+                debugLog('⚠️ Audio config failed, using defaults:', error);
+                // Keep default audioConfig values if URL parsing fails
+            }
             
             // Create initial grid
             createGrid(5);
