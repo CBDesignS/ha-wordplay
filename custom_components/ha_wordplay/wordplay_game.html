@@ -320,6 +320,7 @@
             uiEvents: false,
             errorEvents: true
         };
+
         // Debug logging (console only for v1.0.0)
         function debugLog(message, data = null) {
             const timestamp = new Date().toLocaleTimeString();
@@ -347,6 +348,7 @@
             debugLog('❌ No access token found in URL parameters');
             return null;
         }
+
         function getAudioConfigFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             
@@ -382,6 +384,7 @@
                 setTimeout(applyAudioConfig, 1000);
             }
         }
+
         // Update UI elements
         function updateConnectionStatus(status, message) {
             const statusEl = document.getElementById('connectionStatus');
@@ -819,24 +822,24 @@
                 // FIXED: Update button states for new word length
                 updateButtonStates();
 
-        // AUTO-START NEW GAME: If game is active, start fresh with new word length
-        if (currentGameData.game_state === 'playing') {
-            debugLog('🎮 Auto-starting new game due to word length change during active game');
-            updateGameStatus('🔄 Starting new game with different word length...', 'loading');
-            
-            // Call new game service after a short delay to ensure select entity is updated
-            setTimeout(async () => {
-                try {
-                    await callHAService('ha_wordplay', 'new_game', {
-                        word_length: length
-                    });
-                    debugLog('✅ Auto-started new game with new word length');
-                } catch (error) {
-                    debugLog('❌ Auto-start new game failed', error);
-                    updateGameStatus('Failed to start new game', 'error');
+                // AUTO-START NEW GAME: If game is active, start fresh with new word length
+                if (currentGameData.game_state === 'playing') {
+                    debugLog('🎮 Auto-starting new game due to word length change during active game');
+                    updateGameStatus('🔄 Starting new game with different word length...', 'loading');
+                    
+                    // Call new game service after a short delay to ensure select entity is updated
+                    setTimeout(async () => {
+                        try {
+                            await callHAService('ha_wordplay', 'new_game', {
+                                word_length: length
+                            });
+                            debugLog('✅ Auto-started new game with new word length');
+                        } catch (error) {
+                            debugLog('❌ Auto-start new game failed', error);
+                            updateGameStatus('Failed to start new game', 'error');
+                        }
+                    }, 200);
                 }
-            }, 200);
-        }
                 // Still refresh state for backend sync, but frontend is already updated
                 setTimeout(() => {
                     debugLog('🔄 Refreshing state after word length change');
@@ -847,44 +850,6 @@
                 debugLog('❌ Change word length failed', error);
             }
         }
-
-        // Initialize theme detection
-        async function initWordPlay() {
-            debugLog('🚀 WordPlay: Initializing frontend with backend integration');
-            
-            // Auto-detect HA theme
-            detectHATheme();
-            
-            accessToken = getAccessToken();
-            debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
-            
-            // Get audio configuration from URL (with error handling)
-            try {
-                audioConfig = getAudioConfigFromURL();
-                debugLog('🔊 Audio configuration loaded:', audioConfig);
-            } catch (error) {
-                debugLog('⚠️ Audio config failed, using defaults:', error);
-                // Keep default audioConfig values if URL parsing fails
-            }
-            
-            // Create initial grid
-            createGrid(5);
-            
-            // Test connection and get initial state
-            try {
-                await refreshGameState();
-                
-                // Start polling every 3 seconds
-                updateInterval = setInterval(refreshGameState, 1000);
-                debugLog('⏰ Polling started (3 second intervals)');
-                
-                // Apply audio configuration after a short delay to ensure audio system is loaded
-                setTimeout(applyAudioConfig, 2000);
-                
-            } catch (error) {
-                debugLog('❌ Initialization failed', error);
-                updateConnectionStatus('disconnected', '❌ Connection failed');
-            }
 
         // Auto-detect Home Assistant theme
         function detectHATheme() {
@@ -921,6 +886,45 @@
             } catch (error) {
                 debugLog('⚠️ Theme detection failed, using browser default', error);
                 // Browser CSS media query will handle it
+            }
+        }
+
+        // Initialize theme detection
+        async function initWordPlay() {
+            debugLog('🚀 WordPlay: Initializing frontend with backend integration');
+            
+            // Auto-detect HA theme
+            detectHATheme();
+            
+            accessToken = getAccessToken();
+            debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
+            
+            // Get audio configuration from URL (with error handling)
+            try {
+                audioConfig = getAudioConfigFromURL();
+                debugLog('🔊 Audio configuration loaded:', audioConfig);
+            } catch (error) {
+                debugLog('⚠️ Audio config failed, using defaults:', error);
+                // Keep default audioConfig values if URL parsing fails
+            }
+            
+            // Create initial grid
+            createGrid(5);
+            
+            // Test connection and get initial state
+            try {
+                await refreshGameState();
+                
+                // Start polling every 1 second
+                updateInterval = setInterval(refreshGameState, 1000);
+                debugLog('⏰ Polling started (1 second intervals)');
+                
+                // Apply audio configuration after a short delay to ensure audio system is loaded
+                setTimeout(applyAudioConfig, 2000);
+                
+            } catch (error) {
+                debugLog('❌ Initialization failed', error);
+                updateConnectionStatus('disconnected', '❌ Connection failed');
             }
         }
 
