@@ -26,7 +26,6 @@ from .api_config import get_supported_languages
 
 # Config flow constants
 CONF_DIFFICULTY = "difficulty"
-CONF_WORD_LENGTHS = "word_lengths"
 DIFFICULTY_EASY = "easy"
 DIFFICULTY_NORMAL = "normal" 
 DIFFICULTY_HARD = "hard"
@@ -47,21 +46,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config_data = entry.data
     access_token = config_data.get(CONF_ACCESS_TOKEN)
     difficulty = config_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
-    word_lengths = config_data.get(CONF_WORD_LENGTHS, [5, 6, 7, 8])
     
     if not access_token:
         _LOGGER.error("No access token found in config entry")
         return False
     
-    _LOGGER.info(f"WordPlay config: difficulty={difficulty}, word_lengths={word_lengths}")
+    _LOGGER.info(f"WordPlay config: difficulty={difficulty}")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
     
-    # Initialize the game instance with config
+    # Initialize the game instance with config (removed word_lengths)
     game = WordPlayGame(hass)
     game.set_difficulty(difficulty)
-    game.set_word_lengths(word_lengths)
+    # REMOVED: game.set_word_lengths() - now controlled by frontend
     
     # Store game and configuration data
     hass.data[DOMAIN] = {
@@ -70,7 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "config_entry": entry,
         "access_token": access_token,
         "difficulty": difficulty,
-        "word_lengths": word_lengths,
+        # REMOVED: "word_lengths": word_lengths,
         "tts_config": tts_config,
         "supported_languages": get_supported_languages(),
     }
@@ -113,7 +111,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
     
     _LOGGER.info("H.A WordPlay integration setup complete - Config Entry Ready!")
-    _LOGGER.info(f"Difficulty: {difficulty}, Word lengths: {word_lengths}")
+    _LOGGER.info(f"Difficulty: {difficulty}")
     return True
 
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -189,12 +187,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
                     except (ValueError, TypeError):
                         word_length = DEFAULT_WORD_LENGTH
             
-            # Check if word length is allowed by config
-            domain_data = hass.data.get(DOMAIN, {})
-            allowed_lengths = domain_data.get("word_lengths", [5, 6, 7, 8])
-            if word_length not in allowed_lengths:
-                _LOGGER.warning(f"Word length {word_length} not allowed by config, using default")
-                word_length = allowed_lengths[0] if allowed_lengths else 5
+            # REMOVED: word length validation against config - now controlled by frontend
             
             success = await game.start_new_game(int(word_length), language)
             

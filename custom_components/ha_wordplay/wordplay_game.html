@@ -775,7 +775,25 @@
                 
                 // FIXED: Update button states for new word length
                 updateButtonStates();
-                
+
+        // AUTO-START NEW GAME: If game is active, start fresh with new word length
+        if (currentGameData.game_state === 'playing') {
+            debugLog('🎮 Auto-starting new game due to word length change during active game');
+            updateGameStatus('🔄 Starting new game with different word length...', 'loading');
+            
+            // Call new game service after a short delay to ensure select entity is updated
+            setTimeout(async () => {
+                try {
+                    await callHAService('ha_wordplay', 'new_game', {
+                        word_length: length
+                    });
+                    debugLog('✅ Auto-started new game with new word length');
+                } catch (error) {
+                    debugLog('❌ Auto-start new game failed', error);
+                    updateGameStatus('Failed to start new game', 'error');
+                }
+            }, 200);
+        }
                 // Still refresh state for backend sync, but frontend is already updated
                 setTimeout(() => {
                     debugLog('🔄 Refreshing state after word length change');
