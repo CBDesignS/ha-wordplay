@@ -104,8 +104,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
     
-    # Register the WordPlay HTML panel with secure token passing and audio config
-    await _register_wordplay_html_panel(hass, access_token, audio_config)
+    # Register the WordPlay HTML panel with secure token passing (FIXED: back to original signature)
+    await _register_wordplay_html_panel(hass, access_token)
     
     # Set up state tracking for live input updates
     async def handle_input_change(event):
@@ -141,7 +141,7 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     _LOGGER.info("WordPlay configuration updated, reloading...")
     await hass.config_entries.async_reload(entry.entry_id)
 
-async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str, audio_config: Dict[str, Any]) -> None:
+async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) -> None:
     """Register the WordPlay HTML panel with secure token passing and audio configuration."""
     try:
         # Get the integration directory path
@@ -156,25 +156,28 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str, 
             )
         ])
         
+        # Get audio config from stored data (FIXED: get from hass.data instead of parameter)
+        domain_data = hass.data.get(DOMAIN, {})
+        audio_config = domain_data.get("audio_config", {})
+        
         # Build URL parameters with token and audio config
         url_params = {
             'access_token': access_token,
-            'audio_enabled': str(audio_config[CONF_AUDIO_ENABLED]).lower(),
-            'audio_volume': str(audio_config[CONF_AUDIO_VOLUME]),
-            'audio_gameEvents': str(audio_config[CONF_AUDIO_GAME_EVENTS]).lower(),
-            'audio_guessEvents': str(audio_config[CONF_AUDIO_GUESS_EVENTS]).lower(),
-            'audio_uiEvents': str(audio_config[CONF_AUDIO_UI_EVENTS]).lower(),
-            'audio_errorEvents': str(audio_config[CONF_AUDIO_ERROR_EVENTS]).lower(),
         }
+        
+        # Add audio parameters if available
+        if audio_config:
+            url_params.update({
+                'audio_enabled': str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower(),
+                'audio_volume': str(audio_config.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME)),
+                'audio_gameEvents': str(audio_config.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)).lower(),
+                'audio_guessEvents': str(audio_config.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)).lower(),
+                'audio_uiEvents': str(audio_config.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)).lower(),
+                'audio_errorEvents': str(audio_config.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)).lower(),
+            })
         
         # Create the panel URL with all parameters
         panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?{urlencode(url_params)}"
-        
-        # Unregister existing panel first to avoid conflicts
-        try:
-            hass.components.frontend.async_remove_panel("wordplay")
-        except:
-            pass  # Panel might not exist yet
         
         # Register iframe panel with secure token URL and audio config
         async_register_built_in_panel(
@@ -191,7 +194,8 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str, 
         )
         
         _LOGGER.info("WordPlay iframe panel registered successfully with secure token and audio config!")
-        _LOGGER.info(f"Audio config: enabled={audio_config[CONF_AUDIO_ENABLED]}, volume={audio_config[CONF_AUDIO_VOLUME]}%")
+        if audio_config:
+            _LOGGER.info(f"Audio config: enabled={audio_config.get(CONF_AUDIO_ENABLED)}, volume={audio_config.get(CONF_AUDIO_VOLUME)}%")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
