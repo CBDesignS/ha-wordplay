@@ -310,7 +310,16 @@
             last_message: '',
             message_type: ''
         };
-
+        
+        // Audio configuration from URL parameters
+        let audioConfig = {
+            enabled: true,
+            volume: 30,
+            gameEvents: true,
+            guessEvents: true,
+            uiEvents: false,
+            errorEvents: true
+        };
         // Debug logging (console only for v1.0.0)
         function debugLog(message, data = null) {
             const timestamp = new Date().toLocaleTimeString();
@@ -338,7 +347,41 @@
             debugLog('❌ No access token found in URL parameters');
             return null;
         }
+        function getAudioConfigFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            const config = {
+                enabled: urlParams.get('audio_enabled') === 'true',
+                volume: parseInt(urlParams.get('audio_volume')) || 30,
+                gameEvents: urlParams.get('audio_gameEvents') === 'true',
+                guessEvents: urlParams.get('audio_guessEvents') === 'true',
+                uiEvents: urlParams.get('audio_uiEvents') === 'true',
+                errorEvents: urlParams.get('audio_errorEvents') === 'true'
+            };
+            
+            debugLog('🔊 Audio config extracted from URL:', config);
+            return config;
+        }
 
+        function applyAudioConfig() {
+            if (typeof wordplayAudio !== 'undefined' && wordplayAudio) {
+                const audio = wordplayAudio();
+                if (audio) {
+                    audio.setPreference('enabled', audioConfig.enabled);
+                    audio.setVolume(audioConfig.volume / 100);
+                    audio.setPreference('gameEvents', audioConfig.gameEvents);
+                    audio.setPreference('guessEvents', audioConfig.guessEvents);
+                    audio.setPreference('uiEvents', audioConfig.uiEvents);
+                    audio.setPreference('errorEvents', audioConfig.errorEvents);
+                    
+                    debugLog('✅ Audio configuration applied successfully');
+                } else {
+                    setTimeout(applyAudioConfig, 1000);
+                }
+            } else {
+                setTimeout(applyAudioConfig, 1000);
+            }
+        }
         // Update UI elements
         function updateConnectionStatus(status, message) {
             const statusEl = document.getElementById('connectionStatus');
@@ -815,6 +858,10 @@
             accessToken = getAccessToken();
             debugLog(`🔑 Access token: ${accessToken ? 'Present' : 'Missing'}`);
             
+            // Get audio configuration from URL
+            audioConfig = getAudioConfigFromURL();
+            debugLog('🔊 Audio configuration loaded:', audioConfig);
+            
             // Create initial grid
             createGrid(5);
             
@@ -826,11 +873,13 @@
                 updateInterval = setInterval(refreshGameState, 1000);
                 debugLog('⏰ Polling started (3 second intervals)');
                 
+                // Apply audio configuration after a short delay to ensure audio system is loaded
+                setTimeout(applyAudioConfig, 2000);
+                
             } catch (error) {
                 debugLog('❌ Initialization failed', error);
                 updateConnectionStatus('disconnected', '❌ Connection failed');
             }
-        }
 
         // Auto-detect Home Assistant theme
         function detectHATheme() {
