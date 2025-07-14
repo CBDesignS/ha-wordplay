@@ -5,7 +5,7 @@ DOMAIN = "ha_wordplay"
 # Game Configuration
 MIN_WORD_LENGTH = 5  # Updated: removed 4-letter words
 MAX_WORD_LENGTH = 8  # Updated: added 7&8 letter words
-MAX_GUESSES = 6
+MAX_GUESSES = 8    # updated from 6 to 8 as an 8 letter game requires 8 guesses ?? 
 
 # Service Names
 SERVICE_NEW_GAME = "new_game"
@@ -58,7 +58,7 @@ DEFAULT_DIFFICULTY = DIFFICULTY_NORMAL
 
 # Audio Default Values
 DEFAULT_AUDIO_ENABLED = True
-DEFAULT_AUDIO_VOLUME = 30  # Percentage (0-100)
+DEFAULT_AUDIO_VOLUME = 50  # Percentage (0-100)
 DEFAULT_AUDIO_GAME_EVENTS = True
 DEFAULT_AUDIO_GUESS_EVENTS = True
 DEFAULT_AUDIO_UI_EVENTS = False
