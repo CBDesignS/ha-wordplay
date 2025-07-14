@@ -2,144 +2,133 @@
 
 [← Back to README](README.md)
 
-This guide will walk you through installing and configuring H.A WordPlay in Home Assistant.
+This guide walks you through installing and configuring H.A WordPlay in Home Assistant using the UI and HACS.
 
 ## 📋 Prerequisites
 
-- Home Assistant 2023.1.0 or newer
-- HACS installed (recommended) or manual installation capability
+- Home Assistant 2023.1.0 or newer  
+- [HACS](https://hacs.xyz/) installed and working  
 - Admin access to Home Assistant
 
-## 🚀 Step 1: Install the Integration
+## 🚀 Step 1: Install via HACS
 
-### Via HACS (Recommended)
+1. Open **HACS** in Home Assistant  
+2. Go to **Integrations**  
+3. Click the **⋮ menu** → **Custom repositories**  
+4. Add this repository URL:  
+   **https://github.com/CBDesignS/ha-wordplay**  
+5. Set category to **Integration** and click **Add**  
+6. Find **H.A WordPlay** in the list and click **Install**  
+7. Restart Home Assistant when prompted
 
-1. **Open HACS** in Home Assistant
-2. **Go to Integrations**
-3. **Click the ⋮ menu** → Custom repositories  
-4. **Add Repository**: `https://github.com/CBDesignS/ha-wordplay`
-5. **Category**: Integration
-6. **Click Add**
-7. **Find "H.A WordPlay"** in the integration list
-8. **Click Install**
-9. **Restart Home Assistant**
+## 🔑 Step 2: Generate a Long-Lived Access Token
 
-### Manual Installation
+> ⚠️ This token is required for the integration to connect securely.
 
-1. **Download** the latest release from GitHub
-2. **Extract** the files
-3. **Copy** `custom_components/ha_wordplay/` to your Home Assistant `custom_components` directory
-4. **Restart** Home Assistant
-
-## 🔑 Step 2: Generate Long-Lived Access Token
-
-**⚠️ This step is required for the integration to work securely.**
-
-1. **Go to your Home Assistant Profile**
-   - Click your profile picture in the bottom left
-   - Select "Profile"
-
-2. **Navigate to Security Tab**
-   - Scroll down to "Long-lived access tokens"
-
-3. **Create New Token**
-   - Click "Create Token"
-   - Enter a name like "WordPlay Game"
-   - Click "OK"
-
-4. **Copy the Token**
-   - **⚠️ IMPORTANT**: Copy the token immediately - you won't see it again!
-   - Save it temporarily in a secure location
+1. Go to your **Home Assistant Profile**  
+   (Click your user icon at the bottom left)  
+2. Scroll to the **Security** section  
+3. Click **Create Token** under Long-lived access tokens  
+4. Name it something like `"WordPlay Game"`  
+5. Click **OK**, then **copy the token immediately**  
+   (you won't see it again!)  
+6. Save it temporarily in a safe place
 
 ## ⚙️ Step 3: Add the Integration
 
-1. **Go to Settings** → **Devices & Services**
+1. Go to **Settings** → **Devices & Services**  
+2. Click **+ Add Integration**  
+3. Search for **H.A WordPlay** and click it
 
-2. **Add Integration**
-   - Click "+ Add Integration"
-   - Search for "H.A WordPlay"
-   - Click on it
+### Fill out the setup form:
 
-3. **Configure Integration**
-   - **Paste your access token** in the "Long-lived Access Token" field
-   - **Choose difficulty level**:
-     - **Easy**: Hint shown before guessing
-     - **Normal**: Hints available on request  
-     - **Hard**: No hints available
-   - **Click Submit**
+- **Paste your access token**
+- **Choose your difficulty level**:
+  - **Easy** – Hints shown before guessing  
+  - **Normal** – Hints available on request  
+  - **Hard** – No hints at all
 
-4. **Confirm Setup**
-   - The integration should be added successfully
-   - You'll see "WordPlay (Normal Mode)" or similar in your integrations list
+### Set your audio preferences:
+
+- **Enable Audio** – Turn game sounds on or off  
+- **Audio Volume** – Set how loud the sounds are (0–100)  
+- **Game Sounds** – Sounds for game start, win, and lose  
+- **Guess Sounds** – Sounds when making guesses  
+- **UI Click Sounds** – Optional sounds for clicking buttons  
+- **Error Sounds** – Alerts when something goes wrong
+
+4. Click **Submit** to finish  
+5. You should now see `"WordPlay (Normal Mode)"` (or your chosen mode) in the integrations list
 
 ## 🎮 Step 4: Access the Game
 
-1. **Check the Sidebar**
-   - Look for "🎮 WordPlay" in your Home Assistant sidebar
-   - It should appear automatically after setup
-
-2. **Start Playing**
-   - Click the WordPlay panel
-   - Select your preferred word length (5-8 letters)
-   - Click "New Game" to start
-   - Type your guesses and click "Submit Guess"
+1. Look for **🎮 WordPlay** in the Home Assistant sidebar  
+2. Click it to open the game panel  
+3. Choose a word length (5 to 8 letters)  
+4. Click **New Game** to begin  
+5. Type guesses and click **Submit Guess**
 
 ## 🔧 Step 5: Optional Configuration
 
-### Change Settings Later
+You can change your settings later at any time:
 
-1. **Go to Settings** → **Devices & Services**
-2. **Find H.A WordPlay** in your integrations
-3. **Click Configure** to modify:
-   - Difficulty level
-   - Access token (if needed)
+- Go to **Settings** → **Devices & Services**
+- Find **H.A WordPlay**
+- Click **Configure** to:
+  - Change difficulty
+  - Adjust audio options
+  - Update your access token if needed
 
 ### Advanced Users: Entity Control
 
-The integration creates these entities for automation:
-- `button.ha_wordplay_game` - Main game control
-- `text.ha_wordplay_guess_input` - Text input field
-- `select.ha_wordplay_word_length` - Word length selector
-- `sensor.ha_wordplay_game_state` - Game state information
-- `sensor.ha_wordplay_guesses` - Guess history
+The integration provides these entities for automations:
+
+- `button.ha_wordplay_game` – Game control button  
+- `text.ha_wordplay_guess_input` – Input field for guesses  
+- `select.ha_wordplay_word_length` – Word length selector  
+- `sensor.ha_wordplay_game_state` – Game status info  
+- `sensor.ha_wordplay_guesses` – List of past guesses
 
 ## 🚨 Troubleshooting
 
-### Token Issues
-- **"Invalid token"**: Generate a new long-lived token and try again
-- **"Insufficient permissions"**: Ensure the token has full access (default for long-lived tokens)
+### Token Problems
 
-### Connection Issues
-- **Game won't load**: Check that Home Assistant is accessible on your network
-- **"Connection failed"**: Verify your access token is correct
+- **Invalid token** – Create a new long-lived token  
+- **Insufficient permissions** – Tokens must have full access (default)
 
-### Game Issues
-- **Panel not appearing**: Restart Home Assistant after installation
-- **Game not responding**: Check the integration is properly configured in Devices & Services
+### Game Not Loading?
 
-### Getting Help
-- **Check logs**: Go to Settings → System → Logs for error messages
-- **GitHub Issues**: [Report problems here](https://github.com/CBDesignS/ha-wordplay/issues)
-- **Community Forum**: [Get help from other users](https://community.home-assistant.io/)
+- Make sure Home Assistant is reachable on your network  
+- Double-check your access token  
+- Restart Home Assistant if the panel doesn't show up
+
+### General Issues
+
+- **Panel missing?** – Restart Home Assistant  
+- **Game not responding?** – Recheck configuration under Devices & Services  
+- **Still stuck?** – See the logs:  
+  Go to **Settings** → **System** → **Logs**
+
+### Still need help?
+
+- Open a GitHub issue: [GitHub Issues](https://github.com/CBDesignS/ha-wordplay/issues)  
+- Ask the community: [Home Assistant Forum](https://community.home-assistant.io/)
 
 ## 🔒 Security Notes
 
-- **Token Storage**: Your access token is stored securely in Home Assistant's configuration
-- **Local Operation**: All game data stays within your Home Assistant instance
-- **No External Accounts**: No registration or external services required
-- **API Calls**: Only makes calls to public word APIs for new words (optional - works offline)
+- Your access token is stored securely in Home Assistant  
+- All gameplay happens inside your Home Assistant instance  
+- No external accounts, no tracking  
+- Word lookup uses a public word API (optional – works offline too)
 
 ## 🎯 Next Steps
 
-Once installed and configured:
-
-1. **Explore Difficulty Modes** - Try Easy mode for hints, Hard mode for challenge
-2. **Test Different Word Lengths** - 5-8 letter words for variety
-3. **Check Out Services** - Use `ha_wordplay.*` services for automation
-4. **Customize Experience** - Game adapts to your Home Assistant theme
+- Try different difficulty modes for more challenge  
+- Test 5–8 letter word lengths  
+- Use `ha_wordplay.*` services for automations  
+- Enjoy full integration with your Home Assistant theme
 
 ---
 
-**🎮 Ready to play?** [Back to README](README.md) for gameplay tips and features!
-
-**Having issues?** Check the troubleshooting section above or [open an issue](https://github.com/CBDesignS/ha-wordplay/issues) on GitHub.
+🎮 **Ready to play?** [Back to README](README.md) for gameplay tips and more features  
+💬 **Need help?** Use the troubleshooting section above or [open an issue](https://github.com/CBDesignS/ha-wordplay/issues)
