@@ -1,12 +1,10 @@
-<!-- Diagnostic Alphabet Test Build | ChatGPT Rev -->
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>H.A WordPlay - Game Interface</title>
-<style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H.A WordPlay - Game Interface</title>
+    <style>
         :root {
             --primary-color: #03a9f4;
             --accent-color: #ff9800;
@@ -154,6 +152,107 @@
         .game-tile.partial { background: #f44336; color: white; border-color: #f44336; }
         .game-tile.absent { background: var(--tile-absent); color: white; border-color: var(--tile-absent); }
 
+        /* Alphabet Grid CSS - Styles for letters around the game grid */
+
+        /* Main alphabet container */
+        .alphabet-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 16px 0;
+            position: relative;
+        }
+
+        /* Wrapper that contains both game grid and alphabet letters */
+        .alphabet-wrapper {
+            position: relative;
+            display: inline-block;
+            padding: 32px 48px; /* More horizontal space for left/right letters */
+        }
+
+        /* Individual alphabet letter styling */
+        .alphabet-letter {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--tile-border);
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary-color);
+            text-transform: uppercase;
+            background: var(--tile-empty);
+            transition: all 0.3s ease;
+            cursor: default;
+            user-select: none;
+        }
+
+        /* Alphabet letter states - matching game tile colors */
+        .alphabet-letter.unused {
+            background: var(--tile-empty);
+            border-color: var(--tile-border);
+            color: var(--text-secondary-color);
+        }
+
+        .alphabet-letter.correct {
+            background: #03a9f4;
+            color: white;
+            border-color: #03a9f4;
+        }
+
+        .alphabet-letter.partial {
+            background: #f44336;
+            color: white;
+            border-color: #f44336;
+        }
+
+        .alphabet-letter.absent {
+            background: var(--tile-absent);
+            color: white;
+            border-color: var(--tile-absent);
+        }
+
+        /* Left side alphabet letters (A-I) */
+        .alphabet-left {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column-reverse; /* A at bottom, I at top */
+            justify-content: space-between;
+            align-items: center;
+            width: 24px;
+        }
+
+        /* Top side alphabet letters (J-Q) */
+        .alphabet-top {
+            position: absolute;
+            top: 0;
+            left: 48px;  /* Match increased horizontal padding */
+            right: 48px; /* Match increased horizontal padding */
+            height: 24px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Right side alphabet letters (R-Z) */
+        .alphabet-right {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column; /* R at top, Z at bottom */
+            justify-content: space-between;
+            align-items: center;
+            width: 24px;
+        }
+
         .word-length-controls { margin-bottom: 16px; text-align: center; }
         .word-length-selector { margin: 8px; }
 
@@ -228,6 +327,8 @@
         }
 
         .hint-text { font-style: italic; color: var(--text-secondary-color); margin: 8px 0; word-wrap: break-word; white-space: normal; }
+
+        /* Responsive adjustments for mobile devices */
         @media (max-width: 768px) {
             :root { --tile-size: 45px; --tile-gap: 3px; }
             body { padding: 10px; }
@@ -236,68 +337,457 @@
             .input-field { font-size: 16px; }
             .action-buttons { flex-direction: column; align-items: center; }
             .action-button { width: 100%; max-width: 200px; }
+            
+            .alphabet-wrapper {
+                padding: 28px 40px; /* Maintain proportional spacing on mobile */
+            }
+            
+            .alphabet-letter {
+                width: 20px;
+                height: 20px;
+                font-size: 12px;
+                border-width: 1px;
+            }
+            
+            .alphabet-left,
+            .alphabet-right {
+                width: 20px;
+            }
+            
+            .alphabet-top {
+                height: 20px;
+                left: 40px;  /* Match mobile horizontal padding */
+                right: 40px; /* Match mobile horizontal padding */
+            }
         }
 
         @media (max-width: 480px) {
             :root { --tile-size: 35px; --tile-gap: 2px; }
             .wordplay-container { margin: 5px; border-radius: 4px; }
+            
+            .alphabet-wrapper {
+                padding: 24px 36px; /* Maintain proportional spacing on small mobile */
+            }
+            
+            .alphabet-letter {
+                width: 18px;
+                height: 18px;
+                font-size: 11px;
+                border-width: 1px;
+            }
+            
+            .alphabet-left,
+            .alphabet-right {
+                width: 18px;
+            }
+            
+            .alphabet-top {
+                height: 18px;
+                left: 36px;  /* Match small mobile horizontal padding */
+                right: 36px; /* Match small mobile horizontal padding */
+            }
         }
-    
-.side-letter {
-    width: var(--tile-size);
-    height: var(--tile-size);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 18px;
-    pointer-events: none;
-    z-index: 100;
-    color: black;
-    background: rgba(255,0,0,0.4);
-    outline: 1px solid red;
-    position: absolute;
-}
-</style>
-<script src="wordplay_audio.js"></script>
+
+        /* Dark theme adjustments for alphabet letters */
+        body[data-theme="dark"] .alphabet-letter.unused {
+            background: var(--tile-empty);
+            border-color: var(--tile-border);
+            color: var(--text-secondary-color);
+        }
+
+        /* Ensure alphabet letters don't interfere with game grid */
+        .alphabet-container #gameGrid {
+            position: relative;
+            z-index: 1;
+        }
+
+        .alphabet-side {
+            position: absolute;
+            z-index: 0;
+        }
+
+        /* Animation for letter state changes */
+        .alphabet-letter {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .alphabet-letter.correct,
+        .alphabet-letter.partial,
+        .alphabet-letter.absent {
+            transform: scale(1.05);
+            animation: letterReveal 0.6s ease-out;
+        }
+
+        @keyframes letterReveal {
+            0% {
+                transform: scale(1) rotateX(0deg);
+            }
+            50% {
+                transform: scale(1.1) rotateX(90deg);
+            }
+            100% {
+                transform: scale(1.05) rotateX(0deg);
+            }
+        }
+
+        /* Hover effect for alphabet letters (subtle) */
+        .alphabet-letter:hover {
+            transform: scale(1.1);
+            border-width: 2px;
+        }
+    </style>
+    <script src="wordplay_audio.js"></script>
 </head>
 <body>
-<div class="wordplay-container">
-<div class="connection-status" id="connectionStatus">
+    <div class="wordplay-container">
+        <div class="connection-status" id="connectionStatus">
             🔗 Connecting to Home Assistant...
         </div>
-<div class="wordplay-card">
-<div class="game-header">
-<h1 class="game-title">🎮 H.A WordPlay</h1>
-<p class="game-status" id="gameStatus">Ready to play • Select word length</p>
-</div>
-<div class="word-length-controls">
-<div class="word-length-selector">
-<span>Word Length:</span>
-<button class="active" id="length5" onclick="changeWordLength(5)">5</button>
-<button id="length6" onclick="changeWordLength(6)">6</button>
-<button id="length7" onclick="changeWordLength(7)">7</button>
-<button id="length8" onclick="changeWordLength(8)">8</button>
-</div>
-</div>
-<div class="game-grid" id="gameGrid">
-<!-- Grid tiles will be generated by JavaScript -->
-</div>
-<div class="game-info" id="gameInfo">
-<div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
-<p><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
-</div>
-<div class="game-input">
-<input class="input-field" id="guessInput" maxlength="5" oninput="updateInput()" onkeypress="handleKeyPress(event)" placeholder="Enter your guess..." type="text"/>
-<div class="action-buttons">
-<button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
-<button class="action-button hint" id="hintBtn" onclick="getHint()">Get Hint</button>
-<button class="action-button new-game" id="newGameBtn" onclick="newGame()">New Game</button>
-</div>
-</div>
-</div>
-</div>
-<script>
+
+        <div class="wordplay-card">
+            <div class="game-header">
+                <h1 class="game-title">🎮 H.A WordPlay</h1>
+                <p class="game-status" id="gameStatus">Ready to play • Select word length</p>
+            </div>
+
+            <div class="word-length-controls">
+                <div class="word-length-selector">
+                    <span>Word Length:</span>
+                    <button id="length5" class="active" onclick="changeWordLength(5)">5</button>
+                    <button id="length6" onclick="changeWordLength(6)">6</button>
+                    <button id="length7" onclick="changeWordLength(7)">7</button>
+                    <button id="length8" onclick="changeWordLength(8)">8</button>
+                </div>
+            </div>
+
+            <div class="game-grid" id="gameGrid">
+                <!-- Grid tiles will be generated by JavaScript -->
+            </div>
+
+            <div class="game-info" id="gameInfo">
+                <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
+                <p><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
+            </div>
+            <div class="game-input">
+                <input type="text" class="input-field" placeholder="Enter your guess..." 
+                       maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)">
+                
+                <div class="action-buttons">
+                    <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
+                    <button class="action-button hint" id="hintBtn" onclick="getHint()">Get Hint</button>
+                    <button class="action-button new-game" id="newGameBtn" onclick="newGame()">New Game</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Alphabet Grid System - JavaScript Functions for H.A WordPlay
+        // Adds A-Z letters around the game grid with color feedback
+
+        // Global alphabet state tracking
+        let alphabetGrid = {};
+        let alphabetElements = {};
+
+        // Define alphabet positions around the grid (clockwise from bottom-left)
+        const ALPHABET_POSITIONS = {
+            // Left side (A-I) - bottom to top
+            'A': { side: 'left', position: 0 },   // bottom-left corner
+            'B': { side: 'left', position: 1 },
+            'C': { side: 'left', position: 2 },
+            'D': { side: 'left', position: 3 },
+            'E': { side: 'left', position: 4 },
+            'F': { side: 'left', position: 5 },
+            'G': { side: 'left', position: 6 },
+            'H': { side: 'left', position: 7 },
+            'I': { side: 'left', position: 8 },   // top-left corner
+            
+            // Top side (J-Q) - left to right
+            'J': { side: 'top', position: 0 },    // after I
+            'K': { side: 'top', position: 1 },
+            'L': { side: 'top', position: 2 },
+            'M': { side: 'top', position: 3 },
+            'N': { side: 'top', position: 4 },
+            'O': { side: 'top', position: 5 },
+            'P': { side: 'top', position: 6 },
+            'Q': { side: 'top', position: 7 },    // top-right corner
+            
+            // Right side (R-Z) - top to bottom
+            'R': { side: 'right', position: 0 },  // after Q
+            'S': { side: 'right', position: 1 },
+            'T': { side: 'right', position: 2 },
+            'U': { side: 'right', position: 3 },
+            'V': { side: 'right', position: 4 },
+            'W': { side: 'right', position: 5 },
+            'X': { side: 'right', position: 6 },
+            'Y': { side: 'right', position: 7 },
+            'Z': { side: 'right', position: 8 }   // bottom-right corner
+        };
+
+        /**
+         * Create the alphabet grid around the game grid
+         * @param {number} wordLength - Current word length (5-8)
+         */
+        function createAlphabetGrid(wordLength) {
+            debugLog(`🔤 Creating alphabet grid for word length: ${wordLength}`);
+            
+            // Clear existing alphabet if any
+            clearAlphabetGrid();
+            
+            // Reset alphabet state
+            alphabetGrid = {};
+            alphabetElements = {};
+            
+            // Initialize all letters as unused
+            for (let letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+                alphabetGrid[letter] = 'unused';
+            }
+            
+            // Get the main game container
+            const gameContainer = document.querySelector('.wordplay-card');
+            if (!gameContainer) {
+                debugLog('❌ Game container not found for alphabet grid');
+                return;
+            }
+            
+            // Find the game grid element
+            const gameGrid = document.getElementById('gameGrid');
+            if (!gameGrid) {
+                debugLog('❌ Game grid not found for alphabet grid');
+                return;
+            }
+            
+            // Create alphabet container if it doesn't exist
+            let alphabetContainer = document.getElementById('alphabetContainer');
+            if (!alphabetContainer) {
+                alphabetContainer = document.createElement('div');
+                alphabetContainer.id = 'alphabetContainer';
+                alphabetContainer.className = 'alphabet-container';
+                
+                // Insert alphabet container before the game grid
+                gameGrid.parentNode.insertBefore(alphabetContainer, gameGrid);
+            }
+            
+            // Create alphabet wrapper that will contain both grid and letters
+            let alphabetWrapper = document.getElementById('alphabetWrapper');
+            if (!alphabetWrapper) {
+                alphabetWrapper = document.createElement('div');
+                alphabetWrapper.id = 'alphabetWrapper';
+                alphabetWrapper.className = 'alphabet-wrapper';
+                
+                // Move game grid into wrapper
+                alphabetContainer.appendChild(alphabetWrapper);
+                alphabetWrapper.appendChild(gameGrid);
+            }
+            
+            // Create left side letters (A-I, bottom to top)
+            createAlphabetSide('left', ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'], wordLength);
+            
+            // Create top side letters (J-Q, left to right)  
+            createAlphabetSide('top', ['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q'], wordLength);
+            
+            // Create right side letters (R-Z, top to bottom)
+            createAlphabetSide('right', ['R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'], wordLength);
+            
+            debugLog('✅ Alphabet grid created successfully');
+        }
+
+        /**
+         * Create alphabet letters for one side of the grid
+         * @param {string} side - 'left', 'top', or 'right'
+         * @param {Array} letters - Array of letters for this side
+         * @param {number} wordLength - Current word length
+         */
+        function createAlphabetSide(side, letters, wordLength) {
+            const alphabetWrapper = document.getElementById('alphabetWrapper');
+            
+            // Create or get container for this side
+            let sideContainer = document.getElementById(`alphabet-${side}`);
+            if (sideContainer) {
+                sideContainer.remove(); // Remove existing
+            }
+            
+            sideContainer = document.createElement('div');
+            sideContainer.id = `alphabet-${side}`;
+            sideContainer.className = `alphabet-side alphabet-${side}`;
+            
+            // Create individual letter elements
+            letters.forEach((letter, index) => {
+                const letterEl = document.createElement('div');
+                letterEl.id = `alphabet-letter-${letter}`;
+                letterEl.className = 'alphabet-letter unused';
+                letterEl.textContent = letter;
+                letterEl.setAttribute('data-letter', letter);
+                letterEl.setAttribute('data-side', side);
+                letterEl.setAttribute('data-position', index);
+                
+                // Store reference for quick access
+                alphabetElements[letter] = letterEl;
+                
+                sideContainer.appendChild(letterEl);
+            });
+            
+            alphabetWrapper.appendChild(sideContainer);
+        }
+
+        /**
+         * Clear the existing alphabet grid
+         */
+        function clearAlphabetGrid() {
+            const alphabetContainer = document.getElementById('alphabetContainer');
+            if (alphabetContainer) {
+                // Remove all alphabet side containers
+                ['left', 'top', 'right'].forEach(side => {
+                    const sideEl = document.getElementById(`alphabet-${side}`);
+                    if (sideEl) {
+                        sideEl.remove();
+                    }
+                });
+            }
+            
+            // Clear references
+            alphabetElements = {};
+            alphabetGrid = {};
+        }
+
+        /**
+         * Update alphabet letter colors based on guess results
+         * @param {Array} guesses - Array of guesses made
+         * @param {Array} guessResults - Array of guess results
+         */
+        function updateAlphabetColors(guesses, guessResults) {
+            debugLog('🎨 Updating alphabet colors based on guess results');
+            
+            // Reset all letters to unused first
+            for (let letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+                alphabetGrid[letter] = 'unused';
+                if (alphabetElements[letter]) {
+                    alphabetElements[letter].className = 'alphabet-letter unused';
+                }
+            }
+            
+            // Process each guess and its results
+            guesses.forEach((guessString, guessIndex) => {
+                // Extract actual word from "1. ROPES" -> "ROPES"
+                let actualWord = guessString;
+                if (typeof guessString === 'string' && guessString.includes('.')) {
+                    const parts = guessString.split('.');
+                    if (parts.length > 1) {
+                        actualWord = parts[1].trim();
+                    }
+                }
+                
+                const resultString = guessResults[guessIndex] || '';
+                
+                // Process each letter in the guess
+                for (let i = 0; i < actualWord.length; i++) {
+                    const letter = actualWord[i].toUpperCase();
+                    let letterStatus = 'absent'; // default
+                    
+                    // Parse result string format "R⬜ O🟥 P⬜ E⬜ S⬜"
+                    if (typeof resultString === 'string' && (resultString.includes('⬜') || resultString.includes('🟥') || resultString.includes('🟦'))) {
+                        const letterPairs = resultString.split(' ');
+                        const letterResult = letterPairs[i];
+                        
+                        if (letterResult) {
+                            if (letterResult.includes('🟦')) {
+                                letterStatus = 'correct';
+                            } else if (letterResult.includes('🟥')) {
+                                letterStatus = 'partial';
+                            } else if (letterResult.includes('⬜')) {
+                                letterStatus = 'absent';
+                            }
+                        }
+                    }
+                    
+                    // Update alphabet letter status (prioritize better status)
+                    const currentStatus = alphabetGrid[letter];
+                    if (currentStatus === 'unused' || 
+                        (currentStatus === 'absent' && letterStatus !== 'absent') ||
+                        (currentStatus === 'partial' && letterStatus === 'correct')) {
+                        
+                        alphabetGrid[letter] = letterStatus;
+                        
+                        // Update visual element
+                        if (alphabetElements[letter]) {
+                            alphabetElements[letter].className = `alphabet-letter ${letterStatus}`;
+                        }
+                    }
+                }
+            });
+            
+            debugLog('✅ Alphabet colors updated');
+        }
+
+        /**
+         * Integration hook: modify existing createGrid function to include alphabet
+         * This replaces the original createGrid function
+         */
+        function createGridWithAlphabet(wordLength) {
+            // Call original grid creation logic
+            if (wordLength === currentWordLength && gameGrid.length > 0) {
+                return;
+            }
+            
+            debugLog(`🎯 Creating grid with alphabet: ${wordLength}x${wordLength}`);
+            
+            currentWordLength = wordLength;
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = '';
+            
+            grid.style.gridTemplateColumns = `repeat(${wordLength}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${wordLength}, 1fr)`;
+            
+            gameGrid = [];
+            for (let row = 0; row < wordLength; row++) {
+                gameGrid[row] = [];
+                for (let col = 0; col < wordLength; col++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'game-tile';
+                    grid.appendChild(tile);
+                    gameGrid[row][col] = tile;
+                }
+            }
+            
+            // Create alphabet grid around the game grid
+            createAlphabetGrid(wordLength);
+            
+            debugLog(`✅ Grid with alphabet created: ${gameGrid.length} rows`);
+        }
+
+        /**
+         * Integration hook: modify existing populateGrid function to update alphabet
+         * This function should be called after the original populateGrid
+         */
+        function populateGridWithAlphabet() {
+            // Update alphabet colors based on current game data
+            updateAlphabetColors(currentGameData.guesses, currentGameData.guess_results);
+        }
+
+        /**
+         * Initialize alphabet system - call this after DOM is ready
+         */
+        function initAlphabetSystem() {
+            debugLog('🔤 Initializing alphabet system');
+            
+            // Replace the original createGrid function
+            window.createGrid = createGridWithAlphabet;
+            
+            // Hook into populateGrid by storing original and wrapping it
+            const originalPopulateGrid = window.populateGrid;
+            window.populateGrid = function() {
+                // Call original populateGrid first
+                originalPopulateGrid.call(this);
+                // Then update alphabet
+                populateGridWithAlphabet();
+            };
+            
+            debugLog('✅ Alphabet system initialized');
+        }
+
+        // Original game variables and functions continue below...
+        
         // Global variables
         let currentWordLength = 5;
         let gameGrid = [];
@@ -560,33 +1050,10 @@
             debugLog('✅ UI update complete');
         }
 
-        // Create game grid
+        // Create game grid - NOW REPLACED BY ALPHABET VERSION
         function createGrid(wordLength) {
-            if (wordLength === currentWordLength && gameGrid.length > 0) {
-                return;
-            }
-            
-            debugLog(`🎯 Creating grid: ${wordLength}x${wordLength}`);
-            
-            currentWordLength = wordLength;
-            const grid = document.getElementById('gameGrid');
-            grid.innerHTML = '';
-            
-            grid.style.gridTemplateColumns = `repeat(${wordLength}, 1fr)`;
-            grid.style.gridTemplateRows = `repeat(${wordLength}, 1fr)`;
-            
-            gameGrid = [];
-            for (let row = 0; row < wordLength; row++) {
-                gameGrid[row] = [];
-                for (let col = 0; col < wordLength; col++) {
-                    const tile = document.createElement('div');
-                    tile.className = 'game-tile';
-                    grid.appendChild(tile);
-                    gameGrid[row][col] = tile;
-                }
-            }
-            
-            debugLog(`✅ Grid created: ${gameGrid.length} rows`);
+            // This function is replaced by createGridWithAlphabet during initialization
+            createGridWithAlphabet(wordLength);
         }
 
         // Populate grid with guesses from backend data
@@ -918,7 +1385,10 @@
                 // Keep default audioConfig values if URL parsing fails
             }
             
-            // Create initial grid
+            // Initialize alphabet system BEFORE creating grid
+            initAlphabetSystem();
+            
+            // Create initial grid (now with alphabet)
             createGrid(5);
             
             // Test connection and get initial state
