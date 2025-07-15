@@ -42,6 +42,8 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 
 ### Fill out the setup form:
 
+<img width="404" height="866" alt="wordplay settings" src="https://github.com/user-attachments/assets/661d9858-8c64-470e-9013-f25e89836470" />
+
 - **Paste your access token**
 - **Choose your difficulty level**:
   - **Easy** – Hints shown before guessing  
@@ -68,7 +70,7 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 4. Click **New Game** to begin  
 5. Type guesses and click **Submit Guess**
 
-## 🔧 Step 5: Optional Configuration
+## 🔧 Step 5: Adjusting game Configuration
 
 You can change your settings later at any time:
 
