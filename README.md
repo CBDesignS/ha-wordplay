@@ -1,6 +1,7 @@
 # H.A WordPlay
 
-![game panel](https://github.com/user-attachments/assets/34b4a7aa-6109-4ae9-831e-d87af7f541c5)
+<img width="793" height="416" alt="Wordplay game start" src="https://github.com/user-attachments/assets/c2238dbc-2e5f-4028-9775-f84214c72127" />
+<img width="798" height="654" alt="Wordplay game play" src="https://github.com/user-attachments/assets/4814bcd6-6ca9-44a9-86b3-1d917d97a230" />
 
 🎮 **The Ultimate Word Guessing Game Integration for Home Assistant** 🎮
 
