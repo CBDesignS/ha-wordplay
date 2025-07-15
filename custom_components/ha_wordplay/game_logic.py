@@ -1,4 +1,4 @@
-"""Game logic for H.A WordPlay - Enhanced with Difficulty Support."""
+"""Game logic for H.A WordPlay - Enhanced with Word Reveal on Loss."""
 import logging
 import aiohttp
 import asyncio
@@ -36,7 +36,7 @@ from .api_config import (
 _LOGGER = logging.getLogger(__name__)
 
 class WordPlayGame:
-    """Main game logic class - Enhanced with Difficulty Support."""
+    """Main game logic class - Enhanced with Word Reveal on Loss."""
     
     def __init__(self, hass: HomeAssistant):
         """Initialize the game."""
@@ -53,7 +53,10 @@ class WordPlayGame:
         self.message_type = ""  # Type of message: success, error, info
         self.language = DEFAULT_LANGUAGE  # Current language
         
-        # NEW: Difficulty settings
+        # NEW: Word reveal for loss situations
+        self.revealed_word = ""  # Only populated when game is lost
+        
+        # Difficulty settings
         self.difficulty = DIFFICULTY_NORMAL
         self.hint_mode = "on_request"  # "immediate", "on_request", "disabled"
         
@@ -98,6 +101,7 @@ class WordPlayGame:
             self.hint = ""
             self.current_guess_input = ""
             self.game_state = STATE_PLAYING
+            self.revealed_word = ""  # Clear any previous revealed word
             
             # Set initial message based on difficulty
             if self.difficulty == DIFFICULTY_EASY:
@@ -218,6 +222,8 @@ class WordPlayGame:
                 _LOGGER.info(f"Game won in {len(self.guesses)} guesses!")
             elif len(self.guesses) >= self.word_length:
                 self.game_state = STATE_LOST
+                # NEW: Set revealed word for loss situations
+                self.revealed_word = self.current_word
                 loss_message = f"Game over! The word was {self.current_word}"
                 if self.difficulty == DIFFICULTY_HARD:
                     loss_message += " Hard mode is tough - try again!"

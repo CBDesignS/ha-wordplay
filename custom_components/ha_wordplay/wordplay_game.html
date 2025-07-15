@@ -1121,7 +1121,7 @@
         // Raw button entity data for debugging
         let rawButtonData = null;
         
-        // Parsed game data
+        // Parsed game data - UPDATED: Added revealed_word
         let currentGameData = {
             word_length: 5,
             game_state: 'idle',
@@ -1129,7 +1129,8 @@
             guess_results: [],
             hint: '',
             last_message: '',
-            message_type: ''
+            message_type: '',
+            revealed_word: ''
         };
         
         // Audio configuration from URL parameters
@@ -1278,7 +1279,7 @@
             return response.json();
         }
 
-        // Refresh game state from button entity
+        // Refresh game state from button entity - UPDATED: Added revealed_word
         async function refreshGameState() {
             try {
                 debugLog('🔄 Refreshing game state from button entity...');
@@ -1291,7 +1292,7 @@
                     const attrs = buttonEntity.attributes;
                     debugLog('📊 Raw button attributes received', attrs);
                     
-                    // Parse data from YOUR button.py structure
+                    // Parse data from YOUR button.py structure - UPDATED: Added revealed_word
                     currentGameData = {
                         word_length: attrs.word_length || 5,
                         game_state: parseGameState(attrs.game_status),
@@ -1299,7 +1300,8 @@
                         guess_results: attrs.guess_results || [],
                         hint: attrs.hint || '',
                         last_message: attrs.last_message || '',
-                        message_type: attrs.message_type || 'info'
+                        message_type: attrs.message_type || 'info',
+                        revealed_word: attrs.revealed_word || ''
                     };
                     
                     debugLog('📈 Parsed game data', currentGameData);
@@ -1346,7 +1348,7 @@
             return 'idle';
         }
 
-        // Update the UI based on current game data
+        // Update the UI based on current game data - UPDATED: Added word reveal logic
         function updateUI() {
             debugLog('🎨 Updating UI with current game data');
             
@@ -1372,10 +1374,25 @@
                 populateGrid();
             }
             
-            // Update hint
+            // Update hint - UPDATED: Show revealed word on game loss
             const hintEl = document.getElementById('hintText');
             if (hintEl) {
-                hintEl.textContent = currentGameData.hint || '💡 Click "Get Hint" for a clue!';
+                if (currentGameData.game_state === 'lost' && currentGameData.revealed_word) {
+                    // Show the revealed word when game is lost
+                    hintEl.textContent = `💀 The word was: ${currentGameData.revealed_word}`;
+                    hintEl.style.fontWeight = 'bold';
+                    hintEl.style.color = '#f44336'; // Red color for game over
+                } else if (currentGameData.hint) {
+                    // Show regular hint
+                    hintEl.textContent = currentGameData.hint;
+                    hintEl.style.fontWeight = 'normal';
+                    hintEl.style.color = 'var(--text-secondary-color)';
+                } else {
+                    // Default message
+                    hintEl.textContent = '💡 Click "Get Hint" for a clue!';
+                    hintEl.style.fontWeight = 'normal';
+                    hintEl.style.color = 'var(--text-secondary-color)';
+                }
             }
             
             // Update input max length

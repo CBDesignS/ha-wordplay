@@ -1,4 +1,4 @@
-"""Button platform for H.A WordPlay integration - Single Game Button."""
+"""Button platform for H.A WordPlay integration - Single Game Button with Word Reveal."""
 import logging
 from typing import Optional, Any, Dict
 
@@ -41,7 +41,7 @@ async def async_setup_platform(
 
 
 class WordPlayGameButton(ButtonEntity):
-    """Main game button entity - single button for dashboard."""
+    """Main game button entity - single button for dashboard with word reveal support."""
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize the game button."""
@@ -107,6 +107,11 @@ class WordPlayGameButton(ButtonEntity):
                 "icon": self.icon
             }
             
+            # NEW: Add revealed word for lost games
+            if game.game_state == STATE_LOST and hasattr(game, 'revealed_word') and game.revealed_word:
+                attributes["revealed_word"] = game.revealed_word
+                attributes["word_reveal_message"] = f"The word was: {game.revealed_word}"
+            
             # Add current game info if playing
             if game.game_state == STATE_PLAYING:
                 attributes.update({
@@ -162,7 +167,7 @@ class WordPlayGameButton(ButtonEntity):
         elif game.game_state == STATE_WON:
             return f"Won in {len(game.guesses)} guesses! 🎉"
         elif game.game_state == STATE_LOST:
-            return f"Game Over - Word was {game.current_word}"
+            return f"Game Over - Word was {game.revealed_word or 'UNKNOWN'}"
         return "Unknown"
 
     def _format_current_input(self, game) -> str:
