@@ -95,29 +95,163 @@
         .connection-status.connecting { background: #ff9800; }
         .connection-status.connected { background: var(--secondary-background-color); color: var(--secondary-background-color); }
         
-        .wordplay-card {
+        /* Screen Management System - FIXED: Proper hiding */
+        .screen {
+            display: none !important;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .screen.active {
+            display: block !important;
+            opacity: 1;
+            position: relative;
+        }
+
+        /* Landing Screen Styles - PERFECT, DON'T CHANGE */
+        .landing-screen {
             padding: var(--card-margin);
-            min-height: 350px;
+            min-height: 400px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
+            justify-content: center;
+            gap: 24px;
+            text-align: center;
         }
 
-        .game-header { text-align: center; margin-bottom: 8px; }
+        .landing-header {
+            margin-bottom: 16px;
+        }
+
+        .landing-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--text-primary-color);
+            margin: 0 0 8px 0;
+        }
+
+        .landing-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary-color);
+            margin: 0;
+        }
+
+        .word-length-section {
+            background: var(--primary-background-color);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--divider-color);
+        }
+
+        .word-length-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary-color);
+            margin: 0 0 16px 0;
+        }
+
+        .word-length-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .word-length-btn {
+            padding: 12px 20px;
+            border: 2px solid var(--primary-color);
+            background: var(--tile-empty);
+            color: var(--primary-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 60px;
+            transition: all 0.3s ease;
+        }
+
+        .word-length-btn.active {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .word-length-btn:hover:not(.active) {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .start-game-section {
+            margin-top: 8px;
+        }
+
+        .start-game-btn {
+            padding: 16px 32px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            animation: startPulse 2s ease-in-out infinite;
+        }
+
+        .start-game-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .start-game-btn:disabled {
+            background: var(--tile-absent);
+            cursor: not-allowed;
+            animation: none;
+            transform: none;
+        }
+
+        @keyframes startPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            50% { box-shadow: 0 0 20px 5px rgba(76, 175, 80, 0.3); }
+        }
+
+        /* FIXED Game Screen Styles */
+        .game-screen {
+            padding: 12px;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-start;
+        }
+
+        .game-header { 
+            text-align: center; 
+            margin-bottom: 4px;
+            width: 100%;
+            flex-shrink: 0;
+        }
 
         .game-title {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
             color: var(--text-primary-color);
             margin: 0;
         }
 
         .game-status {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--text-secondary-color);
-            margin: 4px 0 0 0;
-            min-height: 20px;
+            margin: 2px 0 0 0;
+            min-height: 18px;
         }
 
         .game-status.loading { color: var(--primary-color); font-weight: bold; }
@@ -128,7 +262,8 @@
             display: grid;
             gap: var(--tile-gap);
             justify-content: center;
-            margin: 16px 0;
+            margin: 8px 0;
+            flex-shrink: 0;
         }
 
         .game-tile {
@@ -159,8 +294,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            margin: 16px 0;
+            margin: 8px 0;
             position: relative;
+            flex-shrink: 0;
         }
 
         /* Wrapper that contains both game grid and alphabet letters */
@@ -214,12 +350,12 @@
             border-color: var(--tile-absent);
         }
 
-        /* Left side alphabet letters (A-I) */
+        /* Left side alphabet letters (A-I) - bottom to top */
         .alphabet-left {
             position: absolute;
             left: 0;
-            top: 0;
-            height: 100%;
+            bottom: 32px;
+            height: 92%;
             display: flex;
             flex-direction: column-reverse; /* A at bottom, I at top */
             justify-content: space-between;
@@ -240,12 +376,12 @@
             align-items: center;
         }
 
-        /* Right side alphabet letters (R-Z) */
+        /* Right side alphabet letters (R-Z) - top to bottom */
         .alphabet-right {
             position: absolute;
             right: 0;
-            top: 0;
-            height: 100%;
+            bottom: 32px;
+            height: 92%;
             display: flex;
             flex-direction: column; /* R at top, Z at bottom */
             justify-content: space-between;
@@ -253,33 +389,24 @@
             width: 24px;
         }
 
-        .word-length-controls { margin-bottom: 16px; text-align: center; }
-        .word-length-selector { margin: 8px; }
-
-        .word-length-selector button {
-            margin: 0 4px;
-            padding: 8px 16px;
-            border: 2px solid var(--primary-color);
-            background: white;
-            color: var(--primary-color);
-            border-radius: 4px;
-            cursor: pointer;
+        /* FIXED Game Input - Now Centered */
+        .game-input { 
+            width: 100%; 
+            max-width: 400px; 
+            text-align: center;
+            margin: 0 auto;
+            flex-shrink: 0;
         }
-
-        .word-length-selector button.active { background: var(--primary-color); color: white; }
-        .word-length-selector button:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        .game-input { width: 100%; max-width: 400px; text-align: center; }
 
         .input-field {
             width: 100%;
-            padding: 12px;
-            font-size: 18px;
+            padding: 10px;
+            font-size: 16px;
             text-align: center;
             text-transform: uppercase;
             border: 2px solid var(--tile-border);
             border-radius: 4px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             background: var(--tile-empty);
             color: var(--text-primary-color);
         }
@@ -290,53 +417,79 @@
             box-shadow: 0 0 0 2px rgba(3, 169, 244, 0.2);
         }
 
-        .action-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+        .game-actions { 
+            display: flex; 
+            gap: 6px; 
+            justify-content: center; 
+            flex-wrap: wrap; 
+        }
 
-        .action-button {
-            padding: 10px 20px;
+        .game-action-btn {
+            padding: 8px 16px;
             border: none;
             border-radius: 4px;
             font-weight: bold;
             cursor: pointer;
-            min-width: 100px;
+            min-width: 90px;
+            transition: all 0.3s ease;
+            font-size: 14px;
         }
 
-        .action-button.primary { background: var(--primary-color); color: white; }
-        .action-button.secondary { background: var(--secondary-background-color); color: var(--text-primary-color); border: 2px solid var(--divider-color); }
-        .action-button.hint { background: #9c27b0; color: white; border: 2px solid #9c27b0; }
-        .action-button.new-game { background: #4caf50; color: white; border: 2px solid #4caf50; }
-        .action-button.new-game.pulse-text { 
-            background: #4caf50; 
-            border: 2px solid #4caf50;
-            animation: textPulse 2s ease-in-out infinite;
-        }
-        .action-button:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        @keyframes textPulse {
-            0%, 100% { color: white; }
-            50% { color: black; }
+        .game-action-btn.primary { 
+            background: var(--primary-color); 
+            color: white; 
         }
 
+        .game-action-btn.hint { 
+            background: #9c27b0; 
+            color: white; 
+        }
+
+        .game-action-btn.back { 
+            background: var(--tile-absent); 
+            color: white; 
+        }
+
+        .game-action-btn:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+        }
+
+        .game-action-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+
+        /* FIXED Game Info - Centered like buttons */
         .game-info {
             text-align: center;
-            margin-top: 16px;
-            padding: 12px;
-            background: var(--secondary-background-color);
+            margin: 4px auto 0 auto;
+            padding: 8px;
+            background: var(--primary-background-color);
             border-radius: 4px;
             max-width: 400px;
+            width: 100%;
+            border: 1px solid var(--divider-color);
+            flex-shrink: 0;
         }
 
-        .hint-text { font-style: italic; color: var(--text-secondary-color); margin: 8px 0; word-wrap: break-word; white-space: normal; }
+        .hint-text { 
+            font-style: italic; 
+            color: var(--text-secondary-color); 
+            margin: 4px 0; 
+            word-wrap: break-word; 
+            white-space: normal; 
+            font-size: 13px;
+        }
 
         /* Responsive adjustments for mobile devices */
         @media (max-width: 768px) {
             :root { --tile-size: 45px; --tile-gap: 3px; }
             body { padding: 10px; }
-            .wordplay-card { padding: 12px; }
-            .game-title { font-size: 20px; }
+            .landing-screen, .game-screen { padding: 8px; }
+            .landing-title { font-size: 28px; }
             .input-field { font-size: 16px; }
-            .action-buttons { flex-direction: column; align-items: center; }
-            .action-button { width: 100%; max-width: 200px; }
+            .game-actions { flex-direction: column; align-items: center; }
+            .game-action-btn { width: 100%; max-width: 200px; }
             
             .alphabet-wrapper {
                 padding: 28px 40px; /* Maintain proportional spacing on mobile */
@@ -352,6 +505,7 @@
             .alphabet-left,
             .alphabet-right {
                 width: 20px;
+                bottom: 28px;
             }
             
             .alphabet-top {
@@ -364,6 +518,9 @@
         @media (max-width: 480px) {
             :root { --tile-size: 35px; --tile-gap: 2px; }
             .wordplay-container { margin: 5px; border-radius: 4px; }
+            .landing-title { font-size: 24px; }
+            .word-length-buttons { gap: 8px; }
+            .word-length-btn { padding: 10px 16px; font-size: 14px; }
             
             .alphabet-wrapper {
                 padding: 24px 36px; /* Maintain proportional spacing on small mobile */
@@ -379,6 +536,7 @@
             .alphabet-left,
             .alphabet-right {
                 width: 18px;
+                bottom: 24px;
             }
             
             .alphabet-top {
@@ -444,20 +602,35 @@
             🔗 Connecting to Home Assistant...
         </div>
 
-        <div class="wordplay-card">
-            <div class="game-header">
-                <h1 class="game-title">🎮 H.A WordPlay</h1>
-                <p class="game-status" id="gameStatus">Ready to play • Select word length</p>
+        <!-- Landing Screen - PERFECT, UNCHANGED -->
+        <div class="screen landing-screen active" id="landingScreen">
+            <div class="landing-header">
+                <h1 class="landing-title">🎮 H.A WordPlay</h1>
+                <p class="landing-subtitle">Guess the word in as few tries as possible!</p>
             </div>
 
-            <div class="word-length-controls">
-                <div class="word-length-selector">
-                    <span>Word Length:</span>
-                    <button id="length5" class="active" onclick="changeWordLength(5)">5</button>
-                    <button id="length6" onclick="changeWordLength(6)">6</button>
-                    <button id="length7" onclick="changeWordLength(7)">7</button>
-                    <button id="length8" onclick="changeWordLength(8)">8</button>
+            <div class="word-length-section">
+                <h3 class="word-length-title">Choose Word Length</h3>
+                <div class="word-length-buttons">
+                    <button class="word-length-btn active" data-length="5" onclick="selectWordLength(5)">5 Letters</button>
+                    <button class="word-length-btn" data-length="6" onclick="selectWordLength(6)">6 Letters</button>
+                    <button class="word-length-btn" data-length="7" onclick="selectWordLength(7)">7 Letters</button>
+                    <button class="word-length-btn" data-length="8" onclick="selectWordLength(8)">8 Letters</button>
                 </div>
+            </div>
+
+            <div class="start-game-section">
+                <button class="start-game-btn" id="startGameBtn" onclick="startNewGameFlow()">
+                    Start Game
+                </button>
+            </div>
+        </div>
+
+        <!-- FIXED Game Screen -->
+        <div class="screen game-screen" id="gameScreen">
+            <div class="game-header">
+                <h2 class="game-title">🎮 Playing WordPlay</h2>
+                <p class="game-status" id="gameStatus">Starting game...</p>
             </div>
 
             <div class="game-grid" id="gameGrid">
@@ -465,24 +638,173 @@
             </div>
 
             <div class="game-info" id="gameInfo">
-                <div class="hint-text" id="hintText">💡 Click "New Game" to start playing!</div>
-                <p><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
+                <div class="hint-text" id="hintText">💡 Enter your guess below!</div>
+                <p style="font-size: 12px; margin: 4px 0;"><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
             </div>
+
             <div class="game-input">
                 <input type="text" class="input-field" placeholder="Enter your guess..." 
                        maxlength="5" id="guessInput" oninput="updateInput()" onkeypress="handleKeyPress(event)">
                 
-                <div class="action-buttons">
-                    <button class="action-button primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
-                    <button class="action-button hint" id="hintBtn" onclick="getHint()">Get Hint</button>
-                    <button class="action-button new-game" id="newGameBtn" onclick="newGame()">New Game</button>
+                <div class="game-actions">
+                    <button class="game-action-btn primary" id="submitBtn" onclick="submitGuess()">Submit Guess</button>
+                    <button class="game-action-btn hint" id="hintBtn" onclick="getHint()">Get Hint</button>
+                    <button class="game-action-btn back" id="backBtn" onclick="returnToLanding()">New Game</button>
                 </div>
             </div>
-
         </div>
     </div>
 
     <script>
+        // ALL ORIGINAL JAVASCRIPT FROM WORKING FILE - UNCHANGED
+        // Screen Management System
+        let currentScreen = 'landing';
+        let selectedWordLength = 5;
+
+        /**
+         * Switch between screens with smooth transition
+         * @param {string} screenName - 'landing' or 'game'
+         */
+        function switchScreen(screenName) {
+            const currentScreenEl = document.querySelector('.screen.active');
+            const newScreenEl = document.getElementById(screenName + 'Screen');
+            
+            if (currentScreenEl && newScreenEl && currentScreenEl !== newScreenEl) {
+                // Fade out current screen
+                currentScreenEl.style.opacity = '0';
+                
+                setTimeout(() => {
+                    // Hide current and show new
+                    currentScreenEl.classList.remove('active');
+                    newScreenEl.classList.add('active');
+                    
+                    // Fade in new screen
+                    setTimeout(() => {
+                        newScreenEl.style.opacity = '1';
+                    }, 50);
+                }, 200);
+                
+                currentScreen = screenName;
+                debugLog(`📱 Switched to ${screenName} screen`);
+            }
+        }
+
+        /**
+         * Handle word length selection on landing screen
+         * @param {number} length - Selected word length
+         */
+        function selectWordLength(length) {
+            selectedWordLength = length;
+            
+            // Update button states
+            document.querySelectorAll('.word-length-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-length="${length}"]`).classList.add('active');
+            
+            // Update backend select entity
+            if (typeof callHAService !== 'undefined') {
+                callHAService('select', 'select_option', {
+                    entity_id: 'select.ha_wordplay_word_length',
+                    option: length.toString()
+                }).catch(error => {
+                    debugLog('⚠️ Could not update word length entity:', error);
+                });
+            }
+            
+            debugLog(`🔢 Word length selected: ${length}`);
+        }
+
+        /**
+         * Start new game and switch to game screen
+         */
+        async function startNewGameFlow() {
+            try {
+                debugLog(`🎮 Starting new game flow with ${selectedWordLength} letters`);
+                
+                // Disable start button
+                const startBtn = document.getElementById('startGameBtn');
+                startBtn.disabled = true;
+                startBtn.textContent = 'Starting...';
+                
+                // Switch to game screen
+                switchScreen('game');
+                
+                // Set word length in game system
+                currentWordLength = selectedWordLength;
+                
+                // Initialize game components
+                if (typeof initAlphabetSystem !== 'undefined') {
+                    initAlphabetSystem();
+                }
+                
+                // Create game grid
+                createGrid(selectedWordLength);
+                
+                // Start the actual game
+                await callHAService('ha_wordplay', 'new_game', {
+                    word_length: selectedWordLength
+                });
+                
+                // Update input field max length
+                document.getElementById('guessInput').maxLength = selectedWordLength;
+                
+                // Reset start button
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Game';
+                
+                debugLog('✅ Game flow started successfully');
+                
+            } catch (error) {
+                debugLog('❌ Start game flow failed', error);
+                
+                // Reset start button
+                const startBtn = document.getElementById('startGameBtn');
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Game';
+                
+                // Return to landing screen
+                switchScreen('landing');
+            }
+        }
+
+        /**
+         * Return to landing screen (triggered manually or after game ends)
+         */
+        function returnToLanding() {
+            debugLog('🏠 Returning to landing screen');
+            
+            // Clear game state
+            if (typeof clearAlphabetGrid !== 'undefined') {
+                clearAlphabetGrid();
+            }
+            
+            // Clear input
+            const guessInput = document.getElementById('guessInput');
+            if (guessInput) {
+                guessInput.value = '';
+            }
+            
+            // Switch to landing screen
+            switchScreen('landing');
+        }
+
+        /**
+         * Auto-return to landing after game ends (with delay) - DISABLED
+         * @param {string} gameState - Current game state
+         */
+        function checkAutoReturn(gameState) {
+            // AUTO-RETURN DISABLED - Use manual "New Game" button instead
+            // if (gameState === 'won' || gameState === 'lost') {
+            //     // Show result for 3 seconds, then return to landing
+            //     setTimeout(() => {
+            //         if (currentScreen === 'game') {
+            //             returnToLanding();
+            //         }
+            //     }, 3000);
+            // }
+        }
+
         // Alphabet Grid System - JavaScript Functions for H.A WordPlay
         // Adds A-Z letters around the game grid with color feedback
 
@@ -545,7 +867,7 @@
             }
             
             // Get the main game container
-            const gameContainer = document.querySelector('.wordplay-card');
+            const gameContainer = document.querySelector('.game-screen');
             if (!gameContainer) {
                 debugLog('❌ Game container not found for alphabet grid');
                 return;
@@ -635,20 +957,17 @@
          * Clear the existing alphabet grid
          */
         function clearAlphabetGrid() {
-            const alphabetContainer = document.getElementById('alphabetContainer');
-            if (alphabetContainer) {
-                // Remove all alphabet side containers
-                ['left', 'top', 'right'].forEach(side => {
-                    const sideEl = document.getElementById(`alphabet-${side}`);
-                    if (sideEl) {
-                        sideEl.remove();
-                    }
-                });
+            debugLog('🧹 Clearing alphabet grid states (keeping DOM structure)');
+            
+            // Reset all letters to unused state
+            for (let letter of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+                alphabetGrid[letter] = 'unused';
+                if (alphabetElements[letter]) {
+                    alphabetElements[letter].className = 'alphabet-letter unused';
+                }
             }
             
-            // Clear references
-            alphabetElements = {};
-            alphabetGrid = {};
+            debugLog('✅ Alphabet grid states cleared (DOM structure preserved)');
         }
 
         /**
@@ -776,12 +1095,14 @@
             
             // Hook into populateGrid by storing original and wrapping it
             const originalPopulateGrid = window.populateGrid;
-            window.populateGrid = function() {
-                // Call original populateGrid first
-                originalPopulateGrid.call(this);
-                // Then update alphabet
-                populateGridWithAlphabet();
-            };
+            if (originalPopulateGrid) {
+                window.populateGrid = function() {
+                    // Call original populateGrid first
+                    originalPopulateGrid.call(this);
+                    // Then update alphabet
+                    populateGridWithAlphabet();
+                };
+            }
             
             debugLog('✅ Alphabet system initialized');
         }
@@ -986,15 +1307,23 @@
                     lastUpdate = new Date().toLocaleTimeString();
                     updateUI();
                     updateConnectionStatus('connected', 'Connected to Home Assistant');
+                    
+                    // Check for auto-return to landing
+                    if (currentScreen === 'game') {
+                        checkAutoReturn(currentGameData.game_state);
+                    }
+                    
                     return true;
                 }
                 
                 // Also get word length from select entity
                 const lengthEntity = await getEntityState('select.ha_wordplay_word_length');
                 if (lengthEntity && lengthEntity.state) {
-                    currentWordLength = parseInt(lengthEntity.state);
-                    updateWordLengthButtons();
-                    debugLog(`🔢 Word length from select: ${currentWordLength}`);
+                    const entityWordLength = parseInt(lengthEntity.state);
+                    if (currentScreen === 'landing') {
+                        selectWordLength(entityWordLength);
+                    }
+                    debugLog(`🔢 Word length from select: ${entityWordLength}`);
                 }
                 
             } catch (error) {
@@ -1021,6 +1350,11 @@
         function updateUI() {
             debugLog('🎨 Updating UI with current game data');
             
+            // Only update UI if we're on the game screen
+            if (currentScreen !== 'game') {
+                return;
+            }
+            
             // Update game status
             if (currentGameData.game_state === 'playing') {
                 const remaining = currentGameData.word_length - currentGameData.guesses.length;
@@ -1030,19 +1364,25 @@
             } else if (currentGameData.game_state === 'lost') {
                 updateGameStatus(`😞 Game over • Better luck next time!`, 'error');
             } else {
-                updateGameStatus(`Ready to play • Select word length`, 'info');
+                updateGameStatus(`Ready to play • ${currentGameData.word_length} letters`, 'info');
             }
             
-            // Update grid
-            createGrid(currentGameData.word_length);
-            populateGrid();
+            // Update grid if it exists
+            if (document.getElementById('gameGrid')) {
+                populateGrid();
+            }
             
             // Update hint
             const hintEl = document.getElementById('hintText');
-            hintEl.textContent = currentGameData.hint || '💡 Click "Get Hint" for a clue!';
+            if (hintEl) {
+                hintEl.textContent = currentGameData.hint || '💡 Click "Get Hint" for a clue!';
+            }
             
             // Update input max length
-            document.getElementById('guessInput').maxLength = currentGameData.word_length;
+            const guessInput = document.getElementById('guessInput');
+            if (guessInput) {
+                guessInput.maxLength = currentGameData.word_length;
+            }
             
             // Update button states
             updateButtonStates();
@@ -1086,8 +1426,8 @@
                 
                 const resultString = currentGameData.guess_results[guessIndex] || '';
                 
-                debugLog(`📍 FIXED: Processing guess ${guessIndex}: "${guessString}" -> extracted: "${actualWord}"`);
-                debugLog(`📍 FIXED: Result string: "${resultString}"`);
+                debugLog(`📍 Processing guess ${guessIndex}: "${guessString}" -> extracted: "${actualWord}"`);
+                debugLog(`📍 Result string: "${resultString}"`);
                 
                 for (let i = 0; i < actualWord.length && i < currentWordLength; i++) {
                     if (gameGrid[guessIndex] && gameGrid[guessIndex][i]) {
@@ -1113,22 +1453,17 @@
                             }
                         }
                         
-                        debugLog(`🎨 FIXED TILE [${guessIndex},${i}]: "${actualWord[i]}"`);
+                        debugLog(`🎨 TILE [${guessIndex},${i}]: "${actualWord[i]}"`);
                     }
                 }
             });
             
+            // Update alphabet colors
+            if (typeof populateGridWithAlphabet !== 'undefined') {
+                populateGridWithAlphabet();
+            }
+            
             debugLog('✅ Grid population complete');
-        }
-
-        // Update word length buttons
-        function updateWordLengthButtons() {
-            [5, 6, 7, 8].forEach(length => {
-                const btn = document.getElementById(`length${length}`);
-                if (btn) {
-                    btn.classList.toggle('active', length === currentWordLength);
-                }
-            });
         }
 
         // Input handling
@@ -1147,55 +1482,27 @@
         // Update button states
         function updateButtonStates() {
             const submitBtn = document.getElementById('submitBtn');
-            const newGameBtn = document.getElementById('newGameBtn');
-            const isPlaying = currentGameData.game_state === 'playing';
-            const hasValidInput = document.getElementById('guessInput').value.length === currentWordLength;
+            const hintBtn = document.getElementById('hintBtn');
+            const backBtn = document.getElementById('backBtn');
+            const guessInput = document.getElementById('guessInput');
             
-            submitBtn.disabled = !isPlaying || !hasValidInput || cooldowns.submitGuess;
+            if (submitBtn && guessInput) {
+                const isPlaying = currentGameData.game_state === 'playing';
+                const hasValidInput = guessInput.value.length === currentWordLength;
+                
+                submitBtn.disabled = !isPlaying || !hasValidInput || cooldowns.submitGuess;
+            }
             
-            document.getElementById('hintBtn').disabled = !isPlaying || cooldowns.getHint;
-            newGameBtn.disabled = cooldowns.newGame;
+            if (hintBtn) {
+                hintBtn.disabled = currentGameData.game_state !== 'playing' || cooldowns.getHint;
+            }
             
-            // Add pulsing text animation when game is idle
-            if (currentGameData.game_state === 'idle' || currentGameData.game_state === 'won' || currentGameData.game_state === 'lost') {
-                newGameBtn.classList.add('pulse-text');
-            } else {
-                newGameBtn.classList.remove('pulse-text');
+            if (backBtn) {
+                backBtn.disabled = cooldowns.newGame;
             }
         }
 
-        // Game actions - FIXED to match working backend
-        async function newGame() {
-            if (!isActionAllowed('newGame')) {
-                debugLog('🚫 New game blocked by cooldown');
-                return;
-            }
-            
-            try {
-                setActionCooldown('newGame', 500);
-                updateGameStatus('🎮 Starting new game...', 'loading');
-                
-                debugLog(`🎮 Starting new game with word length: ${currentWordLength}`);
-                
-                await callHAService('ha_wordplay', 'new_game', {
-                    word_length: currentWordLength
-                });
-                
-                // Clear input
-                document.getElementById('guessInput').value = '';
-                
-                // Refresh state after delay
-                setTimeout(() => {
-                    debugLog('🔄 Refreshing state after new game');
-                    refreshGameState();
-                }, 1500);
-                
-            } catch (error) {
-                debugLog('❌ New game failed', error);
-                updateGameStatus('Failed to start new game', 'error');
-            }
-        }
-
+        // Game actions - UPDATED for two-screen system
         async function submitGuess() {
             if (!isActionAllowed('submitGuess')) {
                 debugLog('🚫 Submit guess blocked by cooldown');
@@ -1272,62 +1579,6 @@
             }
         }
 
-        async function changeWordLength(length) {
-            try {
-                debugLog(`🔢 Changing word length to: ${length}`);
-                
-                // Update backend first
-                await callHAService('select', 'select_option', {
-                    entity_id: 'select.ha_wordplay_word_length',
-                    option: length.toString()
-                });
-                
-                // Update frontend immediately
-                currentWordLength = length;
-                updateWordLengthButtons();
-                
-                // FIXED: Update grid and input immediately
-                createGrid(length);
-                
-                // FIXED: Update input field max length
-                const inputField = document.getElementById('guessInput');
-                if (inputField) {
-                    inputField.maxLength = length;
-                    inputField.value = ''; // Clear any existing input
-                }
-                
-                // FIXED: Update button states for new word length
-                updateButtonStates();
-
-                // AUTO-START NEW GAME: If game is active, start fresh with new word length
-                if (currentGameData.game_state === 'playing') {
-                    debugLog('🎮 Auto-starting new game due to word length change during active game');
-                    updateGameStatus('🔄 Starting new game with different word length...', 'loading');
-                    
-                    // Call new game service after a short delay to ensure select entity is updated
-                    setTimeout(async () => {
-                        try {
-                            await callHAService('ha_wordplay', 'new_game', {
-                                word_length: length
-                            });
-                            debugLog('✅ Auto-started new game with new word length');
-                        } catch (error) {
-                            debugLog('❌ Auto-start new game failed', error);
-                            updateGameStatus('Failed to start new game', 'error');
-                        }
-                    }, 200);
-                }
-                // Still refresh state for backend sync, but frontend is already updated
-                setTimeout(() => {
-                    debugLog('🔄 Refreshing state after word length change');
-                    refreshGameState();
-                }, 500);
-                
-            } catch (error) {
-                debugLog('❌ Change word length failed', error);
-            }
-        }
-
         // Auto-detect Home Assistant theme
         function detectHATheme() {
             try {
@@ -1368,7 +1619,7 @@
 
         // Initialize theme detection
         async function initWordPlay() {
-            debugLog('🚀 WordPlay: Initializing frontend with backend integration');
+            debugLog('🚀 WordPlay: Initializing two-screen system with backend integration');
             
             // Auto-detect HA theme
             detectHATheme();
@@ -1384,12 +1635,6 @@
                 debugLog('⚠️ Audio config failed, using defaults:', error);
                 // Keep default audioConfig values if URL parsing fails
             }
-            
-            // Initialize alphabet system BEFORE creating grid
-            initAlphabetSystem();
-            
-            // Create initial grid (now with alphabet)
-            createGrid(5);
             
             // Test connection and get initial state
             try {
@@ -1410,7 +1655,7 @@
 
         // Start when page loads
         document.addEventListener('DOMContentLoaded', () => {
-            debugLog('📄 DOM loaded, initializing WordPlay');
+            debugLog('📄 DOM loaded, initializing WordPlay two-screen system');
             initWordPlay();
         });
 
