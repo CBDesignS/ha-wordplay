@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPlay Audio Settings</title>
+    <style>
+        /* CSS Variables from wordplay_game.html */
+        :root {
+            --primary-color: #03a9f4;
+            --accent-color: #ff9800;
+            
+            --tile-correct: #4caf50;
+            --tile-partial: #ff9800;
+            --tile-absent: #9e9e9e;
+            --tile-empty: #ffffff;
+            --tile-border: #d1d5db;
+            
+            --card-margin: 16px;
+            --tile-gap: 4px;
+            --tile-size: 60px;
+        }
+
+        /* Light theme (default) */
+        :root {
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+        }
+
+        /* Dark theme auto-detection */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-background-color: #111111;
+                --secondary-background-color: #1e1e1e;
+                --text-primary-color: #ffffff;
+                --text-secondary-color: #b3b3b3;
+                --divider-color: #333333;
+                --tile-empty: #2c2c2c;
+                --tile-border: #444444;
+            }
+        }
+
+        /* HA theme integration */
+        body[data-theme="dark"] {
+            --primary-background-color: #111111;
+            --secondary-background-color: #1e1e1e;
+            --text-primary-color: #ffffff;
+            --text-secondary-color: #b3b3b3;
+            --divider-color: #333333;
+            --tile-empty: #2c2c2c;
+            --tile-border: #444444;
+        }
+
+        body[data-theme="light"] {
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+            --tile-empty: #ffffff;
+            --tile-border: #d1d5db;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Roboto, sans-serif;
+            background: var(--primary-background-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary-color);
+        }
+
+        .audio-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--secondary-background-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .audio-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .audio-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+        }
+
+        .audio-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .audio-content {
+            padding: 24px;
+        }
+
+        .audio-controls {
+            background: var(--primary-background-color);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--divider-color);
+            margin-bottom: 20px;
+        }
+
+        .control-section {
+            margin-bottom: 24px;
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary-color);
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .main-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--tile-empty);
+            border: 2px solid var(--divider-color);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .toggle-label {
+            font-weight: 600;
+            color: var(--text-primary-color);
+            font-size: 16px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--tile-absent);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: var(--primary-color);
+        }
+
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::before {
+            transform: translateX(30px);
+        }
+
+        .volume-control {
+            margin-bottom: 20px;
+        }
+
+        .volume-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .volume-label {
+            font-weight: 600;
+            color: var(--text-primary-color);
+            min-width: 80px;
+        }
+
+        .volume-slider {
+            flex: 1;
+            height: 6px;
+            background: var(--divider-color);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--primary-color);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .volume-value {
+            font-weight: bold;
+            color: var(--primary-color);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--divider-color);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            color: var(--text-primary-color);
+            font-weight: 500;
+        }
+
+        .setting-description {
+            color: var(--text-secondary-color);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .checkbox-wrapper {
+            position: relative;
+        }
+
+        .setting-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .test-section {
+            background: var(--tile-empty);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--divider-color);
+        }
+
+        .test-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary-color);
+            margin: 0 0 12px 0;
+        }
+
+        .test-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .test-btn {
+            padding: 10px 16px;
+            border: 2px solid var(--primary-color);
+            background: var(--tile-empty);
+            color: var(--primary-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        .test-btn:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .action-btn.primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .action-btn.primary:hover {
+            background: #0288d1;
+            transform: scale(1.05);
+        }
+
+        .action-btn.secondary {
+            background: var(--tile-absent);
+            color: white;
+        }
+
+        .action-btn.secondary:hover {
+            transform: scale(1.05);
+        }
+
+        /* NUCLEAR OPTION: Inline-style level specificity */
+        button.action-btn.reset,
+        .action-buttons button.reset,
+        .action-buttons .action-btn.reset {
+            background-color: #f44336 !important;
+            background: #f44336 !important;
+            color: #ffffff !important;
+            border: 2px solid #f44336 !important;
+        }
+
+        button.action-btn.reset:hover,
+        .action-buttons button.reset:hover,
+        .action-buttons .action-btn.reset:hover {
+            background-color: #d32f2f !important;
+            background: #d32f2f !important;
+            border-color: #d32f2f !important;
+            transform: scale(1.05);
+        }
+
+        button.action-btn.back,
+        .action-buttons button.back,
+        .action-buttons .action-btn.back {
+            background-color: #4caf50 !important;
+            background: #4caf50 !important;
+            color: #ffffff !important;
+            border: 2px solid #4caf50 !important;
+        }
+
+        button.action-btn.back:hover,
+        .action-buttons button.back:hover,
+        .action-buttons .action-btn.back:hover {
+            background-color: #45a049 !important;
+            background: #45a049 !important;
+            border-color: #45a049 !important;
+            transform: scale(1.05);
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 16px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-message.success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status-message.error {
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .audio-content { padding: 16px; }
+            .audio-controls { padding: 16px; }
+            .test-buttons { justify-content: center; }
+            .action-buttons { flex-direction: column; }
+        }
+
+        @media (max-width: 480px) {
+            .audio-container { margin: 5px; border-radius: 4px; }
+            .volume-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .volume-label { min-width: auto; }
+            .volume-slider { width: 100%; }
+        }
+
+        /* Dark theme adjustments */
+        body[data-theme="dark"] .toggle-switch {
+            background: var(--tile-absent);
+        }
+
+        body[data-theme="dark"] .toggle-switch.active {
+            background: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="audio-container">
+        <div class="audio-header">
+            <h1 class="audio-title">🔊 Audio Settings</h1>
+            <p class="audio-subtitle">Customize your WordPlay audio experience</p>
+        </div>
+
+        <div class="audio-content">
+            <div class="audio-controls">
+                <!-- Main Audio Toggle -->
+                <div class="control-section">
+                    <div class="main-toggle">
+                        <span class="toggle-label">Enable Audio</span>
+                        <div class="toggle-switch active" id="mainAudioToggle" onclick="toggleMainAudio()"></div>
+                    </div>
+                </div>
+
+                <!-- Volume Control -->
+                <div class="control-section">
+                    <h3 class="section-title">🔊 Volume</h3>
+                    <div class="volume-control">
+                        <div class="volume-row">
+                            <span class="volume-label">Volume:</span>
+                            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30" oninput="updateVolume(this.value)">
+                            <span class="volume-value" id="volumeValue">30%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audio Event Settings -->
+                <div class="control-section">
+                    <h3 class="section-title">🎵 Sound Events</h3>
+                    
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Game Events</div>
+                            <div class="setting-description">New game, win, lose sounds</div>
+                        </div>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="gameEventsToggle" checked onchange="updateSetting('gameEvents', this.checked)">
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Letter Feedback</div>
+                            <div class="setting-description">Sounds when making guesses</div>
+                        </div>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="guessEventsToggle" checked onchange="updateSetting('guessEvents', this.checked)">
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Error Sounds</div>
+                            <div class="setting-description">Alerts for invalid guesses</div>
+                        </div>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="errorEventsToggle" checked onchange="updateSetting('errorEvents', this.checked)">
+                        </div>
+                    </div>
+
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">UI Click Sounds</div>
+                            <div class="setting-description">Button click feedback</div>
+                        </div>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" class="setting-checkbox" id="uiEventsToggle" onchange="updateSetting('uiEvents', this.checked)">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Section -->
+                <div class="control-section">
+                    <h3 class="section-title">🎮 Test Sounds</h3>
+                    <div class="test-section">
+                        <div class="test-title">Click to test different sounds:</div>
+                        <div class="test-buttons">
+                            <button class="test-btn" onclick="testSound('newGame')">🎮 New Game</button>
+                            <button class="test-btn" onclick="testSound('gameWon')">🏆 Win</button>
+                            <button class="test-btn" onclick="testSound('letterCorrect')">🔵 Correct</button>
+                            <button class="test-btn" onclick="testSound('letterPartial')">🔴 Partial</button>
+                            <button class="test-btn" onclick="testSound('letterAbsent')">⚪ Absent</button>
+                            <button class="test-btn" onclick="testSound('error')">❌ Error</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons - UPDATED with colorful classes -->
+            <div class="action-buttons">
+                <button class="action-btn primary" onclick="saveSettings()">💾 Save Settings</button>
+                <button class="action-btn reset" onclick="resetSettings()">🔄 Reset to Default</button>
+                <button class="action-btn back" onclick="closeSettings()">← Back to Game</button>
+            </div>
+
+            <!-- Status Message -->
+            <div class="status-message" id="statusMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        // Audio settings management
+        let audioSettings = {
+            enabled: true,
+            volume: 30,
+            gameEvents: true,
+            guessEvents: true,
+            errorEvents: true,
+            uiEvents: false
+        };
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            detectHATheme();
+            loadSettings();
+            updateUI();
+        });
+
+        // Auto-detect Home Assistant theme
+        function detectHATheme() {
+            try {
+                // Method 1: Check parent frame theme
+                if (window.parent && window.parent !== window) {
+                    const parentDoc = window.parent.document;
+                    if (parentDoc) {
+                        const haMain = parentDoc.querySelector('home-assistant');
+                        if (haMain && haMain.hass && haMain.hass.themes) {
+                            const currentTheme = haMain.hass.themes.darkMode ? 'dark' : 'light';
+                            document.body.setAttribute('data-theme', currentTheme);
+                            return;
+                        }
+                    }
+                }
+                
+                // Method 2: Check URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('theme')) {
+                    const theme = urlParams.get('theme');
+                    document.body.setAttribute('data-theme', theme);
+                    return;
+                }
+                
+                // Method 3: Use browser preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = prefersDark ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', theme);
+                
+            } catch (error) {
+                console.warn('Theme detection failed, using browser default', error);
+            }
+        }
+
+        // Load settings from localStorage
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('wordplay_audio_settings');
+                if (saved) {
+                    audioSettings = { ...audioSettings, ...JSON.parse(saved) };
+                }
+            } catch (error) {
+                console.warn('Could not load audio settings:', error);
+            }
+        }
+
+        // Save settings to localStorage
+        function saveSettingsToStorage() {
+            try {
+                localStorage.setItem('wordplay_audio_settings', JSON.stringify(audioSettings));
+            } catch (error) {
+                console.warn('Could not save audio settings:', error);
+            }
+        }
+
+        // Update UI elements to reflect current settings
+        function updateUI() {
+            // Main toggle
+            const mainToggle = document.getElementById('mainAudioToggle');
+            mainToggle.classList.toggle('active', audioSettings.enabled);
+            
+            // Volume
+            document.getElementById('volumeSlider').value = audioSettings.volume;
+            document.getElementById('volumeValue').textContent = audioSettings.volume + '%';
+            
+            // Checkboxes
+            document.getElementById('gameEventsToggle').checked = audioSettings.gameEvents;
+            document.getElementById('guessEventsToggle').checked = audioSettings.guessEvents;
+            document.getElementById('errorEventsToggle').checked = audioSettings.errorEvents;
+            document.getElementById('uiEventsToggle').checked = audioSettings.uiEvents;
+            
+            // Enable/disable controls based on main toggle
+            const controls = document.querySelectorAll('.volume-slider, .setting-checkbox, .test-btn');
+            controls.forEach(control => {
+                control.disabled = !audioSettings.enabled;
+                control.style.opacity = audioSettings.enabled ? '1' : '0.5';
+            });
+        }
+
+        // Toggle main audio on/off
+        function toggleMainAudio() {
+            audioSettings.enabled = !audioSettings.enabled;
+            updateUI();
+            applyToAudioSystem();
+        }
+
+        // Update volume setting
+        function updateVolume(value) {
+            audioSettings.volume = parseInt(value);
+            document.getElementById('volumeValue').textContent = value + '%';
+            applyToAudioSystem();
+        }
+
+        // Update individual setting
+        function updateSetting(setting, value) {
+            audioSettings[setting] = value;
+            applyToAudioSystem();
+        }
+
+        // Apply settings to the main audio system
+        function applyToAudioSystem() {
+            // Try to communicate with parent window's audio system
+            try {
+                if (window.parent && window.parent.wordplayAudio) {
+                    const audio = window.parent.wordplayAudio();
+                    if (audio) {
+                        audio.setPreference('enabled', audioSettings.enabled);
+                        audio.setVolume(audioSettings.volume / 100);
+                        audio.setPreference('gameEvents', audioSettings.gameEvents);
+                        audio.setPreference('guessEvents', audioSettings.guessEvents);
+                        audio.setPreference('uiEvents', audioSettings.uiEvents);
+                        audio.setPreference('errorEvents', audioSettings.errorEvents);
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not apply settings to audio system:', error);
+            }
+        }
+
+        // Test a specific sound
+        function testSound(soundName) {
+            if (!audioSettings.enabled) return;
+            
+            try {
+                if (window.parent && window.parent.wordplayAudio) {
+                    const audio = window.parent.wordplayAudio();
+                    if (audio) {
+                        audio.playSound(soundName);
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not test sound:', error);
+            }
+        }
+
+        // Save settings and show confirmation
+        function saveSettings() {
+            saveSettingsToStorage();
+            applyToAudioSystem();
+            showStatus('Settings saved successfully!', 'success');
+        }
+
+        // Reset to default settings
+        function resetSettings() {
+            audioSettings = {
+                enabled: true,
+                volume: 30,
+                gameEvents: true,
+                guessEvents: true,
+                errorEvents: true,
+                uiEvents: false
+            };
+            updateUI();
+            applyToAudioSystem();
+            showStatus('Settings reset to default', 'success');
+        }
+
+        // Close settings window
+        function closeSettings() {
+            // Save before closing
+            saveSettingsToStorage();
+            
+            // Close window or return to parent
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage('closeAudioSettings', '*');
+            } else {
+                window.close();
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type} show`;
+            
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        // Apply settings on load
+        applyToAudioSystem();
+    </script>
+</body>
+</html>
