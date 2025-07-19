@@ -1,10 +1,12 @@
-"""Game logic for H.A WordPlay - Enhanced with Word Reveal on Loss."""
+"""Game logic for H.A WordPlay - Multi-User Version with Stats Foundation."""
 import logging
 import aiohttp
 import asyncio
 from typing import Optional, Dict, List, Any
+from datetime import datetime
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import storage
 
 from .const import (
     API_TIMEOUT,
@@ -22,6 +24,7 @@ from .const import (
     DIFFICULTY_EASY,
     DIFFICULTY_NORMAL,
     DIFFICULTY_HARD,
+    DOMAIN,
 )
 from .api_config import (
     get_language_config,
@@ -35,12 +38,19 @@ from .api_config import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Storage constants for future stats
+STORAGE_VERSION = 1
+STORAGE_KEY_PREFIX = f"{DOMAIN}_stats"
+
 class WordPlayGame:
-    """Main game logic class - Enhanced with Word Reveal on Loss."""
+    """Main game logic class - Multi-User Version with Stats Foundation."""
     
-    def __init__(self, hass: HomeAssistant):
-        """Initialize the game."""
+    def __init__(self, hass: HomeAssistant, user_id: str = "default"):
+        """Initialize the game for a specific user."""
         self.hass = hass
+        self.user_id = user_id
+        
+        # Game state
         self.current_word = ""
         self.word_length = DEFAULT_WORD_LENGTH
         self.guesses = []
@@ -53,12 +63,59 @@ class WordPlayGame:
         self.message_type = ""  # Type of message: success, error, info
         self.language = DEFAULT_LANGUAGE  # Current language
         
-        # NEW: Word reveal for loss situations
+        # Word reveal for loss situations
         self.revealed_word = ""  # Only populated when game is lost
         
         # Difficulty settings
         self.difficulty = DIFFICULTY_NORMAL
         self.hint_mode = "on_request"  # "immediate", "on_request", "disabled"
+        
+        # Game timing
+        self.game_start_time = None
+        self.game_end_time = None
+        
+        # Stats foundation - ready for future expansion
+        self.stats = {
+            'games_played': 0,
+            'games_won': 0,
+            'total_guesses': 0,
+            'guess_distribution': {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0},
+            'win_streak': 0,
+            'max_streak': 0,
+            'last_played': None,
+            'average_guesses': 0.0,
+            'win_rate': 0.0,
+            'total_play_time': 0,  # in seconds
+            'fastest_win': None,  # in seconds
+            'difficulty_stats': {
+                DIFFICULTY_EASY: {'played': 0, 'won': 0},
+                DIFFICULTY_NORMAL: {'played': 0, 'won': 0},
+                DIFFICULTY_HARD: {'played': 0, 'won': 0}
+            }
+        }
+        
+        # Load stats on initialization
+        asyncio.create_task(self._load_stats())
+        
+    async def _load_stats(self) -> None:
+        """Load user statistics from storage."""
+        try:
+            store = storage.Store(self.hass, STORAGE_VERSION, f"{STORAGE_KEY_PREFIX}_{self.user_id}")
+            data = await store.async_load()
+            if data:
+                self.stats.update(data)
+                _LOGGER.info(f"Loaded stats for user {self.user_id}: {self.stats['games_played']} games played")
+        except Exception as e:
+            _LOGGER.error(f"Error loading stats for user {self.user_id}: {e}")
+    
+    async def _save_stats(self) -> None:
+        """Save user statistics to storage."""
+        try:
+            store = storage.Store(self.hass, STORAGE_VERSION, f"{STORAGE_KEY_PREFIX}_{self.user_id}")
+            await store.async_save(self.stats)
+            _LOGGER.debug(f"Saved stats for user {self.user_id}")
+        except Exception as e:
+            _LOGGER.error(f"Error saving stats for user {self.user_id}: {e}")
         
     def set_difficulty(self, difficulty: str) -> None:
         """Set game difficulty and update hint behavior."""
@@ -66,13 +123,13 @@ class WordPlayGame:
         
         if difficulty == DIFFICULTY_EASY:
             self.hint_mode = "immediate"  # Show hint immediately when game starts
-            _LOGGER.info("Difficulty set to EASY - hints shown immediately")
+            _LOGGER.info(f"User {self.user_id}: Difficulty set to EASY - hints shown immediately")
         elif difficulty == DIFFICULTY_NORMAL:
             self.hint_mode = "on_request"  # Show hints when requested
-            _LOGGER.info("Difficulty set to NORMAL - hints available on request")
+            _LOGGER.info(f"User {self.user_id}: Difficulty set to NORMAL - hints available on request")
         elif difficulty == DIFFICULTY_HARD:
             self.hint_mode = "disabled"  # No hints available
-            _LOGGER.info("Difficulty set to HARD - no hints available")
+            _LOGGER.info(f"User {self.user_id}: Difficulty set to HARD - no hints available")
         else:
             _LOGGER.warning(f"Unknown difficulty: {difficulty}, defaulting to NORMAL")
             self.difficulty = DIFFICULTY_NORMAL
@@ -85,12 +142,12 @@ class WordPlayGame:
             if word_length is None:
                 word_length = self.word_length
             
-            # Validate word length bounds only (removed allowed_word_lengths check)
+            # Validate word length bounds
             if word_length < MIN_WORD_LENGTH or word_length > MAX_WORD_LENGTH:
-                _LOGGER.error("Invalid word length: %d", word_length)
+                _LOGGER.error(f"User {self.user_id}: Invalid word length: {word_length}")
                 return False
                 
-            _LOGGER.info(f"Starting new game: {word_length} letters, language: {language}, difficulty: {self.difficulty}")
+            _LOGGER.info(f"User {self.user_id}: Starting new game: {word_length} letters, language: {language}, difficulty: {self.difficulty}")
             
             # Reset game state
             self.word_length = word_length
@@ -102,6 +159,8 @@ class WordPlayGame:
             self.current_guess_input = ""
             self.game_state = STATE_PLAYING
             self.revealed_word = ""  # Clear any previous revealed word
+            self.game_start_time = datetime.now()
+            self.game_end_time = None
             
             # Set initial message based on difficulty
             if self.difficulty == DIFFICULTY_EASY:
@@ -123,7 +182,7 @@ class WordPlayGame:
                 word = get_fallback_word(language, word_length)
                 
             self.current_word = word.upper()
-            _LOGGER.info(f"New game started with word: [HIDDEN] (length: {len(word)})")
+            _LOGGER.info(f"User {self.user_id}: New game started with word: [HIDDEN] (length: {len(word)})")
             
             # Get definition for hint based on difficulty
             if self.hint_mode != "disabled":
@@ -140,7 +199,7 @@ class WordPlayGame:
             return True
             
         except Exception as e:
-            _LOGGER.error(f"Error starting new game: {e}")
+            _LOGGER.error(f"User {self.user_id}: Error starting new game: {e}")
             self.game_state = STATE_IDLE
             self._set_message("Error starting game", "error")
             await self._update_button_attributes()
@@ -188,7 +247,7 @@ class WordPlayGame:
         """Set a message for UI display with type."""
         self.last_message = message
         self.message_type = message_type
-        _LOGGER.info(f"UI message set ({message_type}): {message}")
+        _LOGGER.info(f"User {self.user_id} UI message ({message_type}): {message}")
     
     async def make_guess(self, guess: str) -> Dict[str, Any]:
         """Process a guess and return results."""
@@ -212,23 +271,36 @@ class WordPlayGame:
             self.guess_results.append(result)
             self.latest_result = result
             
+            # Update total guesses stat
+            self.stats['total_guesses'] += 1
+            
             # Check win condition
             if guess == self.current_word:
                 self.game_state = STATE_WON
+                self.game_end_time = datetime.now()
                 win_message = f"Congratulations! You guessed {self.current_word} in {len(self.guesses)} tries!"
                 if self.difficulty == DIFFICULTY_HARD:
                     win_message += " Impressive work in hard mode!"
                 self._set_message(win_message, "success")
-                _LOGGER.info(f"Game won in {len(self.guesses)} guesses!")
+                _LOGGER.info(f"User {self.user_id}: Game won in {len(self.guesses)} guesses!")
+                
+                # Update stats for win
+                await self._update_stats_for_game_end(won=True)
+                
             elif len(self.guesses) >= self.word_length:
                 self.game_state = STATE_LOST
-                # NEW: Set revealed word for loss situations
+                self.game_end_time = datetime.now()
+                # Set revealed word for loss situations
                 self.revealed_word = self.current_word
                 loss_message = f"Game over! The word was {self.current_word}"
                 if self.difficulty == DIFFICULTY_HARD:
                     loss_message += " Hard mode is tough - try again!"
                 self._set_message(loss_message, "info")
-                _LOGGER.info(f"Game lost. Word was {self.current_word}")
+                _LOGGER.info(f"User {self.user_id}: Game lost. Word was {self.current_word}")
+                
+                # Update stats for loss
+                await self._update_stats_for_game_end(won=False)
+                
             else:
                 # Continue playing
                 remaining = self.word_length - len(self.guesses)
@@ -247,10 +319,58 @@ class WordPlayGame:
             }
             
         except Exception as e:
-            _LOGGER.error(f"Error processing guess: {e}")
+            _LOGGER.error(f"User {self.user_id}: Error processing guess: {e}")
             self._set_message("Error processing guess", "error")
             await self._update_button_attributes()
             return {"error": str(e)}
+    
+    async def _update_stats_for_game_end(self, won: bool) -> None:
+        """Update statistics when game ends."""
+        try:
+            # Calculate game duration
+            if self.game_start_time and self.game_end_time:
+                game_duration = (self.game_end_time - self.game_start_time).total_seconds()
+                self.stats['total_play_time'] += int(game_duration)
+            
+            # Update basic stats
+            self.stats['games_played'] += 1
+            self.stats['last_played'] = datetime.now().isoformat()
+            
+            # Update difficulty-specific stats
+            self.stats['difficulty_stats'][self.difficulty]['played'] += 1
+            
+            if won:
+                self.stats['games_won'] += 1
+                self.stats['win_streak'] += 1
+                self.stats['max_streak'] = max(self.stats['max_streak'], self.stats['win_streak'])
+                self.stats['guess_distribution'][len(self.guesses)] += 1
+                self.stats['difficulty_stats'][self.difficulty]['won'] += 1
+                
+                # Track fastest win
+                if self.game_start_time and self.game_end_time:
+                    if not self.stats['fastest_win'] or game_duration < self.stats['fastest_win']:
+                        self.stats['fastest_win'] = int(game_duration)
+            else:
+                self.stats['win_streak'] = 0
+            
+            # Calculate derived stats
+            if self.stats['games_played'] > 0:
+                self.stats['win_rate'] = round(self.stats['games_won'] / self.stats['games_played'] * 100, 1)
+                
+            if self.stats['games_won'] > 0:
+                total_winning_guesses = sum(
+                    guesses * count 
+                    for guesses, count in self.stats['guess_distribution'].items()
+                )
+                self.stats['average_guesses'] = round(total_winning_guesses / self.stats['games_won'], 2)
+            
+            # Save stats
+            await self._save_stats()
+            
+            _LOGGER.info(f"User {self.user_id}: Updated stats - Games: {self.stats['games_played']}, Wins: {self.stats['games_won']}, Win Rate: {self.stats['win_rate']}%")
+            
+        except Exception as e:
+            _LOGGER.error(f"User {self.user_id}: Error updating stats: {e}")
     
     async def get_hint(self) -> str:
         """Get hint for current word - respects difficulty settings."""
@@ -320,7 +440,7 @@ class WordPlayGame:
         # Try primary API
         word = await self._try_api(lang_config["primary"], length)
         if word:
-            _LOGGER.info(f"Got word from primary API (length: {length})")
+            _LOGGER.info(f"User {self.user_id}: Got word from primary API (length: {length})")
             return word
         
         # Try backup APIs
@@ -328,11 +448,11 @@ class WordPlayGame:
             if backup_key in lang_config:
                 word = await self._try_api(lang_config[backup_key], length)
                 if word:
-                    _LOGGER.info(f"Got word from {backup_key} API (length: {length})")
+                    _LOGGER.info(f"User {self.user_id}: Got word from {backup_key} API (length: {length})")
                     return word
         
         # All APIs failed
-        _LOGGER.warning(f"All APIs failed for language: {language}, length: {length}")
+        _LOGGER.warning(f"User {self.user_id}: All APIs failed for language: {language}, length: {length}")
         return None
     
     async def _try_api(self, api_config: dict, length: int) -> Optional[str]:
@@ -341,7 +461,7 @@ class WordPlayGame:
             try:
                 async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=API_TIMEOUT)) as session:
                     url = build_api_url(api_config, length)
-                    _LOGGER.debug(f"Trying API: {url} (attempt {attempt + 1})")
+                    _LOGGER.debug(f"User {self.user_id}: Trying API: {url} (attempt {attempt + 1})")
                     
                     async with session.get(url) as response:
                         if response.status == 200:
@@ -351,10 +471,10 @@ class WordPlayGame:
                             if word and len(word) == length and word.isalpha():
                                 return word.upper()
                             else:
-                                _LOGGER.debug(f"Invalid word from API: {word}")
+                                _LOGGER.debug(f"User {self.user_id}: Invalid word from API: {word}")
                                 
             except Exception as e:
-                _LOGGER.debug(f"API attempt {attempt + 1} failed: {e}")
+                _LOGGER.debug(f"User {self.user_id}: API attempt {attempt + 1} failed: {e}")
             
             # Wait before retry
             if attempt < MAX_API_ATTEMPTS - 1:
@@ -380,10 +500,10 @@ class WordPlayGame:
                                     definition = definitions[0].get("definition", "")
                                     # Simplify the definition for hint
                                     self.hint = self._simplify_definition(definition)
-                                    _LOGGER.debug(f"Got definition for current word")
+                                    _LOGGER.debug(f"User {self.user_id}: Got definition for current word")
                                     return
         except Exception as e:
-            _LOGGER.debug(f"Error getting word definition: {e}")
+            _LOGGER.debug(f"User {self.user_id}: Error getting word definition: {e}")
         
         # Fallback hints based on word length and difficulty
         if self.difficulty == DIFFICULTY_EASY:
@@ -430,25 +550,70 @@ class WordPlayGame:
         return hint.capitalize() if hint else "A word you need to guess!"
     
     async def _clear_input_field(self) -> None:
-        """Clear the input field."""
+        """Clear the input field for this user."""
         try:
-            # Get the text entity and clear it
-            domain_data = self.hass.data.get("ha_wordplay", {})
-            text_entity = domain_data.get("entities", {}).get("text_input")
+            # Get the user's text entity and clear it
+            domain_data = self.hass.data.get(DOMAIN, {})
+            user_entities = domain_data.get("entities", {}).get(self.user_id, {})
+            text_entity = user_entities.get("text_input")
+            
             if text_entity:
                 await text_entity.async_clear_value()
             
             # Also clear our internal tracking
             self.current_guess_input = ""
         except Exception as e:
-            _LOGGER.debug(f"Could not clear input field: {e}")
+            _LOGGER.debug(f"User {self.user_id}: Could not clear input field: {e}")
     
     async def _update_button_attributes(self) -> None:
         """Update button entity attributes when game state changes."""
         try:
-            domain_data = self.hass.data.get("ha_wordplay", {})
-            button_entity = domain_data.get("entities", {}).get("game_button")
+            domain_data = self.hass.data.get(DOMAIN, {})
+            user_entities = domain_data.get("entities", {}).get(self.user_id, {})
+            button_entity = user_entities.get("game_button")
+            
             if button_entity:
                 button_entity.update_attributes()
         except Exception as e:
-            _LOGGER.debug(f"Could not update button attributes: {e}")
+            _LOGGER.debug(f"User {self.user_id}: Could not update button attributes: {e}")
+    
+    def get_stats_summary(self) -> Dict[str, Any]:
+        """Get a summary of user statistics for display."""
+        return {
+            "games_played": self.stats['games_played'],
+            "games_won": self.stats['games_won'],
+            "win_rate": f"{self.stats['win_rate']}%",
+            "current_streak": self.stats['win_streak'],
+            "max_streak": self.stats['max_streak'],
+            "average_guesses": self.stats['average_guesses'],
+            "total_play_time": self._format_play_time(self.stats['total_play_time']),
+            "fastest_win": self._format_play_time(self.stats['fastest_win']) if self.stats['fastest_win'] else "N/A",
+            "difficulty_breakdown": {
+                diff: f"{stats['won']}/{stats['played']} ({(stats['won']/stats['played']*100 if stats['played'] > 0 else 0):.1f}%)"
+                for diff, stats in self.stats['difficulty_stats'].items()
+            }
+        }
+    
+    def _format_play_time(self, seconds: int) -> str:
+        """Format play time in seconds to human readable format."""
+        if seconds is None:
+            return "N/A"
+        
+        if seconds < 60:
+            return f"{seconds}s"
+        elif seconds < 3600:
+            minutes = seconds // 60
+            secs = seconds % 60
+            return f"{minutes}m {secs}s"
+        else:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            return f"{hours}h {minutes}m"
+    
+    def export_stats(self) -> Dict[str, Any]:
+        """Export full statistics for backup or analysis."""
+        return {
+            "user_id": self.user_id,
+            "export_date": datetime.now().isoformat(),
+            "stats": self.stats
+        }

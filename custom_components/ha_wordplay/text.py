@@ -1,4 +1,4 @@
-"""Text platform for H.A WordPlay integration."""
+"""Text platform for H.A WordPlay integration - Multi-User Version."""
 import logging
 from typing import Optional
 
@@ -22,30 +22,54 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up the text platform for WordPlay."""
+    """Set up the text platform for WordPlay - Multi-User."""
     
-    # Create the text input entity
-    entity = WordPlayGuessInput(hass)
+    # Get all users from Home Assistant
+    users = await hass.auth.async_get_users()
     
-    async_add_entities([entity])
+    entities = []
     
-    # Store entity reference
+    # Always create a default entity for system/admin use
+    default_entity = WordPlayGuessInput(hass, "default")
+    entities.append(default_entity)
+    
+    # Store default entity reference
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"entities": {}}
-    hass.data[DOMAIN]["entities"]["text_input"] = entity
+    if "default" not in hass.data[DOMAIN]["entities"]:
+        hass.data[DOMAIN]["entities"]["default"] = {}
+    hass.data[DOMAIN]["entities"]["default"]["text_input"] = default_entity
     
-    _LOGGER.info("WordPlay text input entity created")
+    # Create entity for each user
+    for user in users:
+        if user.system_generated:
+            continue  # Skip system users
+            
+        user_id = user.id
+        entity = WordPlayGuessInput(hass, user_id)
+        entities.append(entity)
+        
+        # Store entity reference
+        if user_id not in hass.data[DOMAIN]["entities"]:
+            hass.data[DOMAIN]["entities"][user_id] = {}
+        hass.data[DOMAIN]["entities"][user_id]["text_input"] = entity
+        
+        _LOGGER.info(f"Created WordPlay text input for user: {user.name} ({user_id})")
+    
+    async_add_entities(entities, True)
+    _LOGGER.info(f"WordPlay created {len(entities)} text input entities")
 
 
 class WordPlayGuessInput(TextEntity):
-    """Custom text input entity for word guesses."""
+    """Custom text input entity for word guesses - one per user."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, user_id: str) -> None:
         """Initialize the text input entity."""
         super().__init__()
         self.hass = hass
-        self._attr_name = "ha wordplay guess input"  # This will create text.ha_wordplay_guess_input
-        self._attr_unique_id = f"{DOMAIN}_guess_input"
+        self.user_id = user_id
+        self._attr_name = f"ha wordplay guess input ({user_id})" if user_id != "default" else "ha wordplay guess input"
+        self._attr_unique_id = f"{DOMAIN}_guess_input_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:keyboard"
         self._attr_native_value = "HELLO"  # Start with valid value to avoid validation errors
@@ -53,8 +77,9 @@ class WordPlayGuessInput(TextEntity):
         self._attr_native_min = 0  # Allow empty values
         self._attr_pattern = r"^[A-Za-z]*$"
         self._attr_mode = "text"
-
-
+        
+        # Set entity_id explicitly
+        self.entity_id = f"text.ha_wordplay_guess_input_{user_id}"
 
     @property
     def native_value(self) -> str:
@@ -68,12 +93,14 @@ class WordPlayGuessInput(TextEntity):
         
         # Only allow letters
         if value and not value.isalpha():
-            _LOGGER.warning("Invalid guess input: %s (only letters allowed)", value)
+            _LOGGER.warning(f"Invalid guess input for user {self.user_id}: {value} (only letters allowed)")
             return
         
         # Limit length based on current game
         game_data = self.hass.data.get(DOMAIN, {})
-        game = game_data.get("game")
+        games = game_data.get("games", {})
+        game = games.get(self.user_id)
+        
         if game and hasattr(game, 'word_length'):
             max_length = game.word_length
         else:

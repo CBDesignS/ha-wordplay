@@ -125,8 +125,8 @@ class WordPlayHA {
         try {
             this.debugLog('🔄 Refreshing game state from button entity...');
             
-            // Get game data from button entity
-            const buttonEntity = await this.getEntityState('button.ha_wordplay_game');
+            // For now, use default user entity until we implement proper user detection
+            const buttonEntity = await this.getEntityState('button.ha_wordplay_game_default');
             this.rawButtonData = buttonEntity; // Store for debugging
             
             if (buttonEntity && buttonEntity.attributes) {
@@ -163,7 +163,7 @@ class WordPlayHA {
             }
             
             // Also get word length from select entity
-            const lengthEntity = await this.getEntityState('select.ha_wordplay_word_length');
+            const lengthEntity = await this.getEntityState('select.ha_wordplay_word_length_default');
             if (lengthEntity && lengthEntity.state) {
                 const entityWordLength = parseInt(lengthEntity.state);
                 this.debugLog(`🔢 Word length from select: ${entityWordLength}`);
@@ -272,9 +272,9 @@ class WordPlayHA {
      * @returns {Promise} Service response
      */
     async submitGuess(guess) {
-        // Step 1: Set the text input
+        // Step 1: Set the text input (using default user entity)
         await this.callHAService('text', 'set_value', {
-            entity_id: 'text.ha_wordplay_guess_input',
+            entity_id: 'text.ha_wordplay_guess_input_default',
             value: guess
         });
         
@@ -297,7 +297,7 @@ class WordPlayHA {
      */
     async updateWordLength(length) {
         return this.callHAService('select', 'select_option', {
-            entity_id: 'select.ha_wordplay_word_length',
+            entity_id: 'select.ha_wordplay_word_length_default',
             option: length.toString()
         });
     }

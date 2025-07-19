@@ -1,4 +1,4 @@
-"""Button platform for H.A WordPlay integration - Single Game Button with Word Reveal."""
+"""Button platform for H.A WordPlay integration - Multi-User Version."""
 import logging
 from typing import Optional, Any, Dict
 
@@ -24,37 +24,60 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up the button platform for WordPlay."""
+    """Set up the button platform for WordPlay - Multi-User."""
     
-    # Create the main game button entity
-    entity = WordPlayGameButton(hass)
+    # Get all users from Home Assistant
+    users = await hass.auth.async_get_users()
     
-    async_add_entities([entity], True)
+    entities = []
     
-    # Store entity reference
+    # Always create a default entity for system/admin use
+    default_entity = WordPlayGameButton(hass, "default")
+    entities.append(default_entity)
+    
+    # Store default entity reference
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"entities": {}}
+    if "default" not in hass.data[DOMAIN]["entities"]:
+        hass.data[DOMAIN]["entities"]["default"] = {}
+    hass.data[DOMAIN]["entities"]["default"]["game_button"] = default_entity
     
-    hass.data[DOMAIN]["entities"]["game_button"] = entity
+    # Create entity for each user
+    for user in users:
+        if user.system_generated:
+            continue  # Skip system users
+            
+        user_id = user.id
+        entity = WordPlayGameButton(hass, user_id)
+        entities.append(entity)
+        
+        # Store entity reference
+        if user_id not in hass.data[DOMAIN]["entities"]:
+            hass.data[DOMAIN]["entities"][user_id] = {}
+        hass.data[DOMAIN]["entities"][user_id]["game_button"] = entity
+        
+        _LOGGER.info(f"Created WordPlay button for user: {user.name} ({user_id})")
     
-    _LOGGER.info("WordPlay game button entity created")
+    async_add_entities(entities, True)
+    _LOGGER.info(f"WordPlay created {len(entities)} game button entities")
 
 
 class WordPlayGameButton(ButtonEntity):
-    """Main game button entity - single button for dashboard with word reveal support."""
+    """Main game button entity - one per user."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
+    def __init__(self, hass: HomeAssistant, user_id: str) -> None:
         """Initialize the game button."""
         super().__init__()
         self.hass = hass
-        self._attr_name = "WordPlay Game"
-        self._attr_unique_id = f"{DOMAIN}_game_button"
+        self.user_id = user_id
+        self._attr_name = f"WordPlay Game ({user_id})" if user_id != "default" else "WordPlay Game"
+        self._attr_unique_id = f"{DOMAIN}_game_button_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:gamepad-variant"
         self._attr_extra_state_attributes = {}
         
         # Set entity_id explicitly
-        self.entity_id = "button.ha_wordplay_game"
+        self.entity_id = f"button.ha_wordplay_game_{user_id}"
 
     @property
     def name(self) -> str:
@@ -71,7 +94,9 @@ class WordPlayGameButton(ButtonEntity):
         """Return the icon."""
         # Dynamic icon based on game state
         game_data = self.hass.data.get(DOMAIN, {})
-        game = game_data.get("game")
+        games = game_data.get("games", {})
+        game = games.get(self.user_id)
+        
         if game:
             if game.game_state == STATE_PLAYING:
                 return "mdi:gamepad-variant"
@@ -86,28 +111,31 @@ class WordPlayGameButton(ButtonEntity):
         """Return rich attributes for more-info dialog."""
         try:
             game_data = self.hass.data.get(DOMAIN, {})
-            game = game_data.get("game")
+            games = game_data.get("games", {})
+            game = games.get(self.user_id)
             
             if not game:
                 return {
+                    "user_id": self.user_id,
                     "game_status": "Ready",
                     "instructions": "Click to start a new WordPlay game!",
-                    "friendly_name": "WordPlay Game",
+                    "friendly_name": self._attr_name,
                     "icon": "mdi:gamepad-variant"
                 }
             
             # Format game state for rich display
             attributes = {
+                "user_id": self.user_id,
                 "game_status": self._format_game_status(game),
                 "word_length": game.word_length,
                 "guesses_made": len(game.guesses),
                 "guesses_remaining": game.word_length - len(game.guesses),
                 "max_guesses": game.word_length,
-                "friendly_name": "WordPlay Game",
+                "friendly_name": self._attr_name,
                 "icon": self.icon
             }
             
-            # NEW: Add revealed word for lost games
+            # Add revealed word for lost games
             if game.game_state == STATE_LOST and hasattr(game, 'revealed_word') and game.revealed_word:
                 attributes["revealed_word"] = game.revealed_word
                 attributes["word_reveal_message"] = f"The word was: {game.revealed_word}"
@@ -151,11 +179,12 @@ class WordPlayGameButton(ButtonEntity):
             return attributes
             
         except Exception as e:
-            _LOGGER.error(f"Error generating button attributes: {e}")
+            _LOGGER.error(f"Error generating button attributes for user {self.user_id}: {e}")
             return {
+                "user_id": self.user_id,
                 "game_status": "Error",
                 "error": str(e),
-                "friendly_name": "WordPlay Game"
+                "friendly_name": self._attr_name
             }
 
     def _format_game_status(self, game) -> str:
@@ -221,20 +250,29 @@ class WordPlayGameButton(ButtonEntity):
     async def async_press(self) -> None:
         """Handle button press - start new game or show game info."""
         try:
-            # Get game instance
+            # Get game instance for this user
             game_data = self.hass.data.get(DOMAIN, {})
-            game = game_data.get("game")
+            games = game_data.get("games", {})
             
-            if not game:
-                _LOGGER.error("Game instance not found")
-                return
+            # Create game if doesn't exist
+            if self.user_id not in games:
+                from .game_logic import WordPlayGame
+                game = WordPlayGame(self.hass)
+                
+                # Set difficulty
+                difficulty = game_data.get("difficulty", "normal")
+                game.set_difficulty(difficulty)
+                
+                games[self.user_id] = game
+            
+            game = games[self.user_id]
             
             # If no game in progress, start a new one
             if game.game_state in [STATE_IDLE, STATE_WON, STATE_LOST]:
-                # Get word length from select entity or use default
+                # Get word length from user's select entity or use default
                 word_length = 5
                 try:
-                    select_state = self.hass.states.get("select.ha_wordplay_word_length")
+                    select_state = self.hass.states.get(f"select.ha_wordplay_word_length_{self.user_id}")
                     if select_state and select_state.state:
                         word_length = int(select_state.state)
                 except (ValueError, TypeError):
@@ -242,15 +280,15 @@ class WordPlayGameButton(ButtonEntity):
                 
                 success = await game.start_new_game(word_length)
                 if success:
-                    _LOGGER.info(f"New game started from button press: {word_length} letters")
+                    _LOGGER.info(f"New game started from button press for user {self.user_id}: {word_length} letters")
                 else:
-                    _LOGGER.error("Failed to start new game from button press")
+                    _LOGGER.error(f"Failed to start new game from button press for user {self.user_id}")
             
             # Update button attributes to reflect new state
             self.async_write_ha_state()
             
         except Exception as e:
-            _LOGGER.error(f"Error handling button press: {e}")
+            _LOGGER.error(f"Error handling button press for user {self.user_id}: {e}")
 
     def update_attributes(self) -> None:
         """Update button attributes when game state changes."""

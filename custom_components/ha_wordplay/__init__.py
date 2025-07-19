@@ -1,5 +1,5 @@
-"""H.A WordPlay integration for Home Assistant - Config Entry Version with Audio Config.
-FIXED VERSION v4.1.6.1 - Function signature mismatch corrected by Claude
+"""H.A WordPlay integration for Home Assistant - Multi-User Version.
+Enhanced to support multiple simultaneous players with isolated game states.
 """
 import logging
 import asyncio
@@ -48,13 +48,12 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up H.A WordPlay integration from YAML (legacy support)."""
-    # This is kept for backward compatibility but the main setup is now via config entry
     _LOGGER.info("WordPlay YAML setup detected - please migrate to config entry via UI")
     return True
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up H.A WordPlay from a config entry."""
-    _LOGGER.info("Setting up H.A WordPlay integration from config entry")
+    """Set up H.A WordPlay from a config entry - Multi-User Version."""
+    _LOGGER.info("Setting up H.A WordPlay Multi-User integration from config entry")
     
     # Get configuration from entry
     config_data = entry.data
@@ -80,14 +79,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
     
-    # Initialize the game instance with config
-    game = WordPlayGame(hass)
-    game.set_difficulty(difficulty)
-    
-    # Store game and configuration data
+    # Initialize multi-user game storage
     hass.data[DOMAIN] = {
-        "game": game,
-        "entities": {},
+        "games": {},  # Will store {user_id: game_instance}
+        "entities": {},  # Will store {user_id: {entity_type: entity}}
         "config_entry": entry,
         "access_token": access_token,
         "difficulty": difficulty,
@@ -105,36 +100,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Wait a moment for entities to be created
     await asyncio.sleep(2)
     
-    # Register the WordPlay HTML panel with secure token passing (FIXED: back to original signature)
+    # Register the WordPlay HTML panel with secure token passing
     await _register_wordplay_html_panel(hass, access_token)
     
-    # Set up state tracking for live input updates
-    async def handle_input_change(event):
-        """Handle changes to the text input."""
-        entity_id = event.data.get("entity_id")
-        new_state = event.data.get("new_state")
-        if new_state and entity_id == "text.ha_wordplay_guess_input":
-            await game.update_current_input(new_state.state or "")
-            # Update button attributes to reflect input changes
-            await _update_button_attributes(hass)
-    
-    # Track the text input entity
-    try:
-        async_track_state_change_event(
-            hass, ["text.ha_wordplay_guess_input"], handle_input_change
-        )
-        _LOGGER.debug("State tracking setup for text input")
-    except Exception as e:
-        _LOGGER.warning(f"Could not setup state tracking: {e}")
-    
-    # Register services
-    await _register_services(hass, game)
+    # Register services with multi-user support
+    await _register_services(hass)
     
     # Listen for options updates
     entry.async_on_unload(entry.add_update_listener(async_update_listener))
     
-    _LOGGER.info("H.A WordPlay integration setup complete - Config Entry Ready!")
-    _LOGGER.info(f"Difficulty: {difficulty}, Audio: {audio_config}")
+    _LOGGER.info("H.A WordPlay Multi-User integration setup complete!")
     return True
 
 async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -157,14 +132,14 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
             )
         ])
         
-        # Get audio config from stored data (FIXED: get from hass.data instead of parameter)
+        # Get audio config from stored data
         domain_data = hass.data.get(DOMAIN, {})
         audio_config = domain_data.get("audio_config", {})
         
-        # Create the panel URL with access token (keep original format that works)
+        # Create the panel URL with access token
         panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?access_token={access_token}"
         
-        # Add audio parameters manually (avoiding urlencode issues)
+        # Add audio parameters manually
         if audio_config:
             audio_enabled = str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower()
             audio_volume = str(audio_config.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME))
@@ -195,35 +170,66 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
         )
         
         _LOGGER.info("WordPlay iframe panel registered successfully with secure token and audio config!")
-        if audio_config:
-            _LOGGER.info(f"Audio config: enabled={audio_config.get(CONF_AUDIO_ENABLED)}, volume={audio_config.get(CONF_AUDIO_VOLUME)}%")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
 
-async def _update_button_attributes(hass: HomeAssistant) -> None:
-    """Update button entity attributes when game state changes."""
+def _get_user_id(call: ServiceCall) -> str:
+    """Extract user ID from service call context."""
+    # For now, always use 'default' until we implement proper user detection
+    # The frontend is using 'default' entities, so backend must match
+    return "default"
+    
+    # TODO: Future implementation when we have proper user detection
+    # user_id = call.context.user_id
+    # if not user_id:
+    #     user_id = "default"
+    # return user_id
+
+def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
+    """Get existing game instance for user or create new one."""
+    games = hass.data[DOMAIN]["games"]
+    
+    if user_id not in games:
+        _LOGGER.info(f"Creating new game instance for user: {user_id}")
+        game = WordPlayGame(hass)
+        
+        # Set difficulty from config
+        difficulty = hass.data[DOMAIN].get("difficulty", DIFFICULTY_NORMAL)
+        game.set_difficulty(difficulty)
+        
+        games[user_id] = game
+    
+    return games[user_id]
+
+async def _update_button_attributes(hass: HomeAssistant, user_id: str) -> None:
+    """Update button entity attributes for specific user when game state changes."""
     try:
         domain_data = hass.data.get(DOMAIN, {})
-        button_entity = domain_data.get("entities", {}).get("game_button")
+        user_entities = domain_data.get("entities", {}).get(user_id, {})
+        button_entity = user_entities.get("game_button")
+        
         if button_entity:
             button_entity.update_attributes()
     except Exception as e:
-        _LOGGER.debug(f"Could not update button attributes: {e}")
+        _LOGGER.debug(f"Could not update button attributes for user {user_id}: {e}")
 
-async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
-    """Register all game services - enhanced for config entry support."""
-    _LOGGER.info("Registering H.A WordPlay services...")
+async def _register_services(hass: HomeAssistant) -> None:
+    """Register all game services with multi-user support."""
+    _LOGGER.info("Registering H.A WordPlay multi-user services...")
     
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
+            user_id = _get_user_id(call)
+            game = _get_or_create_game(hass, user_id)
+            
             word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)
             language = call.data.get("language", "en")
             
-            # Try to get from select entity if not provided
+            # Try to get from user's select entity if not provided
             if not word_length or word_length == DEFAULT_WORD_LENGTH:
-                select_state = hass.states.get("select.ha_wordplay_word_length")
+                select_state = hass.states.get(f"select.ha_wordplay_word_length_{user_id}")
                 if select_state and select_state.state:
                     try:
                         word_length = int(select_state.state)
@@ -233,43 +239,52 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
             success = await game.start_new_game(int(word_length), language)
             
             if success:
-                _LOGGER.info(f"New game started: {word_length} letters, language: {language}")
-                await _update_button_attributes(hass)
+                _LOGGER.info(f"New game started for user {user_id}: {word_length} letters, language: {language}")
+                await _update_button_attributes(hass, user_id)
             else:
-                _LOGGER.error("Failed to start new game")
+                _LOGGER.error(f"Failed to start new game for user {user_id}")
         except Exception as e:
             _LOGGER.error(f"Error in new_game service: {e}")
     
     async def handle_make_guess(call: ServiceCall) -> None:
         """Handle make guess service call."""
         try:
+            user_id = _get_user_id(call)
+            game = _get_or_create_game(hass, user_id)
+            
             guess = call.data.get("guess", "").upper()
             if guess:
                 result = await game.make_guess(guess)
                 if "error" in result:
-                    _LOGGER.warning(f"Guess error: {result['error']}")
+                    _LOGGER.warning(f"Guess error for user {user_id}: {result['error']}")
                 else:
-                    _LOGGER.info(f"Guess processed: {guess}")
-                await _update_button_attributes(hass)
+                    _LOGGER.info(f"Guess processed for user {user_id}: {guess}")
+                await _update_button_attributes(hass, user_id)
             else:
-                _LOGGER.warning("No guess provided to make_guess service")
+                _LOGGER.warning(f"No guess provided to make_guess service for user {user_id}")
         except Exception as e:
             _LOGGER.error(f"Error in make_guess service: {e}")
     
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
         try:
+            user_id = _get_user_id(call)
+            game = _get_or_create_game(hass, user_id)
+            
             hint = await game.get_hint()
-            _LOGGER.info(f"Hint requested: {hint}")
-            await _update_button_attributes(hass)
+            _LOGGER.info(f"Hint requested by user {user_id}: {hint}")
+            await _update_button_attributes(hass, user_id)
         except Exception as e:
             _LOGGER.error(f"Error in get_hint service: {e}")
     
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         try:
-            # Get current input from text entity state
-            text_state = hass.states.get("text.ha_wordplay_guess_input")
+            user_id = _get_user_id(call)
+            game = _get_or_create_game(hass, user_id)
+            
+            # Get current input from user's text entity state
+            text_state = hass.states.get(f"text.ha_wordplay_guess_input_{user_id}")
             guess = None
             
             if text_state and text_state.state:
@@ -278,12 +293,12 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
             if guess and guess != "HELLO":
                 result = await game.make_guess(guess)
                 if "error" in result:
-                    _LOGGER.warning(f"Submit guess error: {result['error']}")
+                    _LOGGER.warning(f"Submit guess error for user {user_id}: {result['error']}")
                 else:
-                    _LOGGER.info(f"Guess submitted: {guess}")
-                await _update_button_attributes(hass)
+                    _LOGGER.info(f"Guess submitted by user {user_id}: {guess}")
+                await _update_button_attributes(hass, user_id)
             else:
-                _LOGGER.warning("No valid guess to submit")
+                _LOGGER.warning(f"No valid guess to submit for user {user_id}")
         except Exception as e:
             _LOGGER.error(f"Error in submit_guess service: {e}")
     
@@ -294,7 +309,7 @@ async def _register_services(hass: HomeAssistant, game: WordPlayGame) -> None:
         hass.services.async_register(DOMAIN, SERVICE_GET_HINT, handle_get_hint)
         hass.services.async_register(DOMAIN, SERVICE_SUBMIT_GUESS, handle_submit_guess)
         
-        _LOGGER.info("All H.A WordPlay services registered successfully")
+        _LOGGER.info("All H.A WordPlay multi-user services registered successfully")
         
     except Exception as e:
         _LOGGER.error(f"Service registration failed: {e}")
