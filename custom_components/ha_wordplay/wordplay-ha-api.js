@@ -96,22 +96,34 @@ class WordPlayHA {
                 
                 this.debugLog(`Found ${wordplayButtons.length} WordPlay button entities`);
                 
-                // If we have entities, check which one has an active game or use default
+                // If we have entities, check which one has an active game
                 if (wordplayButtons.length > 0) {
-                    // For now, prefer 'default' if it exists, otherwise use the first available
-                    const defaultButton = wordplayButtons.find(btn => 
-                        btn.entity_id === 'button.ha_wordplay_game_default'
-                    );
-                    
-                    if (defaultButton) {
-                        this.currentUser = 'default';
-                    } else {
-                        // Extract user ID from first available entity
-                        const entityId = wordplayButtons[0].entity_id;
-                        this.currentUser = entityId.replace('button.ha_wordplay_game_', '');
+                    // Look for the user's specific entity based on the access token
+                    // The backend creates entities with user IDs
+                    for (const button of wordplayButtons) {
+                        const entityId = button.entity_id;
+                        const userId = entityId.replace('button.ha_wordplay_game_', '');
+                        
+                        // Skip 'default' for now and use actual user entities
+                        if (userId !== 'default' && userId.length > 20) {
+                            // This looks like a real user ID (they're typically long hex strings)
+                            this.currentUser = userId;
+                            this.debugLog(`👤 Found user entity: ${this.currentUser}`);
+                            break;
+                        }
                     }
                     
-                    this.debugLog(`👤 Using user: ${this.currentUser}`);
+                    // If no user entity found, fall back to default
+                    if (!this.currentUser) {
+                        const defaultButton = wordplayButtons.find(btn => 
+                            btn.entity_id === 'button.ha_wordplay_game_default'
+                        );
+                        
+                        if (defaultButton) {
+                            this.currentUser = 'default';
+                            this.debugLog('👤 Using default user');
+                        }
+                    }
                 } else {
                     this.currentUser = 'default';
                     this.debugLog('👤 No entities found, using default user');
