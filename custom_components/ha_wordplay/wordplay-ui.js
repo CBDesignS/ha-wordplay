@@ -109,6 +109,73 @@ class WordPlayUI {
     }
     
     /**
+     * Display user stats on landing screen
+     * @param {Object} gameData - Game data including stats
+     */
+    displayUserStats(gameData) {
+        // Find or create stats container
+        let statsContainer = document.getElementById('userStatsContainer');
+        if (!statsContainer) {
+            // Create stats container and insert it after the landing header
+            statsContainer = document.createElement('div');
+            statsContainer.id = 'userStatsContainer';
+            statsContainer.className = 'user-stats-container';
+            
+            const landingHeader = document.querySelector('.landing-header');
+            if (landingHeader && landingHeader.parentNode) {
+                landingHeader.parentNode.insertBefore(statsContainer, landingHeader.nextSibling);
+            }
+        }
+        
+        // Extract user info from game data or URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const userName = urlParams.get('user_name') || 'Player';
+        const userId = urlParams.get('user_id') || 'unknown';
+        
+        // Check if we have stats in the game data
+        let statsHTML = '';
+        
+        if (gameData && gameData.stats_summary) {
+            const stats = gameData.stats_summary;
+            statsHTML = `
+                <div class="stats-header">
+                    <h3 class="stats-title">👤 ${userName}'s Stats</h3>
+                    <p class="stats-subtitle">User ID: ${userId.substring(0, 8)}...</p>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.games_played || 0}</div>
+                        <div class="stat-label">Games Played</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.games_won || 0}</div>
+                        <div class="stat-label">Games Won</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.win_rate || '0%'}</div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.current_streak || 0}</div>
+                        <div class="stat-label">Current Streak</div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // No stats yet, show welcome message
+            statsHTML = `
+                <div class="stats-header">
+                    <h3 class="stats-title">👋 Welcome, ${userName}!</h3>
+                    <p class="stats-subtitle">Ready to start your first game?</p>
+                </div>
+            `;
+        }
+        
+        statsContainer.innerHTML = statsHTML;
+        this.debugLog(`📊 Stats displayed for user: ${userName} (${userId})`);
+    }
+    
+    /**
      * Update game status display
      * @param {string} message - Status message
      * @param {string} type - 'info', 'success', 'error', or 'loading'
@@ -127,6 +194,13 @@ class WordPlayUI {
      */
     updateGameUI() {
         this.debugLog('🎨 Updating UI with current game data');
+        
+        // Display stats on landing screen
+        if (this.currentScreen === 'landing') {
+            const gameData = this.core.getGameData();
+            this.displayUserStats(gameData);
+            return;
+        }
         
         // Only update UI if we're on the game screen
         if (this.currentScreen !== 'game') {

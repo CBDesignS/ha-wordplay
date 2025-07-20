@@ -75,12 +75,67 @@ class WordPlayHA {
      */
     async identifyCurrentUser() {
         try {
+            this.debugLog('🔍 Starting user identification process...');
+            
+            // Method 0: Check if user ID was passed in URL (most reliable!)
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlUserId = urlParams.get('user_id');
+            const urlUserName = urlParams.get('user_name');
+            
+            if (urlUserId) {
+                this.currentUser = urlUserId;
+                this.debugLog(`👤 User ID from URL: ${this.currentUser} (${urlUserName})`);
+                return this.currentUser;
+            }
+            
+            // Method 1: Try to get current user info from HA API
             const headers = {'Content-Type': 'application/json'};
             if (this.accessToken) {
                 headers['Authorization'] = `Bearer ${this.accessToken}`;
             }
             
-            // List all entities to find WordPlay entities for this session
+            // First, try to get the current user's information
+            try {
+                const userResponse = await fetch('/api/config', {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (userResponse.ok) {
+                    const configData = await userResponse.json();
+                    this.debugLog('📊 Config data received:', configData);
+                    
+                    // The config endpoint doesn't directly give us the user ID
+                    // So we need to use a different approach
+                }
+            } catch (error) {
+                this.debugLog('⚠️ Could not get config data:', error);
+            }
+            
+            // Method 2: Get the frontend user info if available
+            try {
+                // Check if we're in an iframe and can access parent HA
+                if (window.parent && window.parent !== window) {
+                    const parentDoc = window.parent.document;
+                    if (parentDoc) {
+                        // Try to get the hass object from parent
+                        const haMain = parentDoc.querySelector('home-assistant');
+                        if (haMain && haMain.hass && haMain.hass.user) {
+                            const userId = haMain.hass.user.id;
+                            if (userId) {
+                                this.currentUser = userId;
+                                this.debugLog(`👤 Found user ID from parent HA: ${this.currentUser}`);
+                                return this.currentUser;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                this.debugLog('⚠️ Could not access parent frame for user info:', error);
+            }
+            
+            // Method 3: Find the correct user by checking which entities we can actually access
+            // List all entities to find WordPlay entities
             const response = await fetch('/api/states', {
                 method: 'GET',
                 headers: headers
@@ -96,38 +151,106 @@ class WordPlayHA {
                 
                 this.debugLog(`Found ${wordplayButtons.length} WordPlay button entities`);
                 
-                // If we have entities, check which one has an active game
-                if (wordplayButtons.length > 0) {
-                    // Look for the user's specific entity based on the access token
-                    // The backend creates entities with user IDs
-                    for (const button of wordplayButtons) {
-                        const entityId = button.entity_id;
-                        const userId = entityId.replace('button.ha_wordplay_game_', '');
-                        
-                        // Skip 'default' for now and use actual user entities
-                        if (userId !== 'default' && userId.length > 20) {
-                            // This looks like a real user ID (they're typically long hex strings)
-                            this.currentUser = userId;
-                            this.debugLog(`👤 Found user entity: ${this.currentUser}`);
-                            break;
-                        }
-                    }
+                // Now we need to determine which user we are
+                // Try to call a service and see which user context we get
+                for (const button of wordplayButtons) {
+                    const entityId = button.entity_id;
+                    const userId = entityId.replace('button.ha_wordplay_game_', '');
                     
-                    // If no user entity found, fall back to default
-                    if (!this.currentUser) {
-                        const defaultButton = wordplayButtons.find(btn => 
-                            btn.entity_id === 'button.ha_wordplay_game_default'
-                        );
+                    // Skip default for now
+                    if (userId === 'default') continue;
+                    
+                    // Check if this button has an active game or recent activity
+                    if (button.attributes && button.attributes.user_id === userId) {
+                        // Try to verify we can access this user's entities
+                        const textEntityId = `text.ha_wordplay_guess_input_${userId}`;
+                        const textEntity = states.find(s => s.entity_id === textEntityId);
                         
-                        if (defaultButton) {
-                            this.currentUser = 'default';
-                            this.debugLog('👤 Using default user');
+                        if (textEntity) {
+                            // Found a matching set of entities, let's test if we can write to it
+                            try {
+                                // Make a test call to see if we get an error
+                                const testResponse = await fetch(`/api/states/${textEntityId}`, {
+                                    method: 'GET',
+                                    headers: headers
+                                });
+                                
+                                if (testResponse.ok) {
+                                    // We can access this entity, this might be our user
+                                    this.currentUser = userId;
+                                    this.debugLog(`👤 Found accessible user entity: ${this.currentUser}`);
+                                    
+                                    // Double-check by looking at any active game state
+                                    if (button.attributes.game_status && 
+                                        button.attributes.game_status !== 'Ready to Play') {
+                                        // This user has an active game, likely ours
+                                        this.debugLog(`✅ Confirmed user ${this.currentUser} has active game`);
+                                        return this.currentUser;
+                                    }
+                                }
+                            } catch (error) {
+                                this.debugLog(`Cannot access entities for user ${userId}`);
+                            }
                         }
                     }
-                } else {
-                    this.currentUser = 'default';
-                    this.debugLog('👤 No entities found, using default user');
                 }
+                
+                // If no active games found, we need another approach
+                // Let's check which user's services we can actually call
+                if (!this.currentUser && wordplayButtons.length > 0) {
+                    this.debugLog('🔍 No active games found, testing service access...');
+                    
+                    // We'll determine user by making a test service call
+                    // The backend will use call.context.user_id to identify us
+                    try {
+                        // Call get_hint service which should fail gracefully if no game
+                        const hintResponse = await this.callHAService('ha_wordplay', 'get_hint');
+                        this.debugLog('🎯 Hint service response received');
+                        
+                        // After this call, check entities again to see which one was updated
+                        await new Promise(resolve => setTimeout(resolve, 500)); // Wait for state update
+                        
+                        // Re-fetch states
+                        const statesAfter = await this.getEntityState('button.ha_wordplay_game_default');
+                        if (statesAfter && statesAfter.attributes && statesAfter.attributes.last_message) {
+                            // Default entity was updated, we might be default user
+                            const defaultButton = wordplayButtons.find(b => 
+                                b.entity_id === 'button.ha_wordplay_game_default'
+                            );
+                            
+                            if (defaultButton) {
+                                this.currentUser = 'default';
+                                this.debugLog('👤 Identified as default user based on service response');
+                                return this.currentUser;
+                            }
+                        }
+                        
+                        // Check each user's button for recent updates
+                        for (const button of wordplayButtons) {
+                            const userId = button.entity_id.replace('button.ha_wordplay_game_', '');
+                            if (userId === 'default') continue;
+                            
+                            const userButton = await this.getEntityState(button.entity_id);
+                            if (userButton && userButton.attributes && 
+                                userButton.attributes.last_message === "No game in progress") {
+                                // This entity was just updated by our service call
+                                this.currentUser = userId;
+                                this.debugLog(`👤 Identified as user ${this.currentUser} based on service response`);
+                                return this.currentUser;
+                            }
+                        }
+                        
+                    } catch (error) {
+                        this.debugLog('⚠️ Service test failed:', error);
+                    }
+                }
+                
+                // Final fallback - if we still don't have a user, default to 'default'
+                if (!this.currentUser) {
+                    this.currentUser = 'default';
+                    this.debugLog('👤 Using default user as final fallback');
+                }
+                
             } else {
                 this.currentUser = 'default';
                 this.debugLog('⚠️ Could not list entities, using default user');
@@ -138,6 +261,7 @@ class WordPlayHA {
             this.currentUser = 'default';
         }
         
+        this.debugLog(`🏁 User identification complete: ${this.currentUser}`);
         return this.currentUser;
     }
     
@@ -249,10 +373,10 @@ class WordPlayHA {
                     this.onConnectionChange('connected', `Connected (User: ${this.currentUser})`);
                 }
                 
-                // Update our user ID from the backend
+                // Update our user ID from the backend if it's different
                 if (attrs.user_id && attrs.user_id !== this.currentUser) {
-                    this.currentUser = attrs.user_id;
-                    this.debugLog(`👤 User updated from backend: ${this.currentUser}`);
+                    this.debugLog(`⚠️ User mismatch detected! Frontend: ${this.currentUser}, Backend: ${attrs.user_id}`);
+                    // Don't update - this might be the issue!
                 }
                 
                 return true;
