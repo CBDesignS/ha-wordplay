@@ -247,13 +247,8 @@ class WordPlayGame {
             guessInput.addEventListener('keypress', (e) => this.handleKeyPress(e));
         }
         
-        // Modal close
-        document.addEventListener('click', (event) => {
-            const modal = document.getElementById('audioSettingsModal');
-            if (event.target === modal) {
-                this.closeAudioSettings();
-            }
-        });
+        // Modal close - REMOVED click outside functionality
+        // Only close via buttons inside the iframe
         
         // Message handler for audio settings iframe
         window.addEventListener('message', this.handleAudioSettingsMessage.bind(this));

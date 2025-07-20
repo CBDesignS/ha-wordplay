@@ -139,6 +139,10 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
         # Create the panel URL with access token
         panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?access_token={access_token}"
         
+        # Add user context to URL - this will be available to all users
+        # The actual user will be determined at runtime from the iframe context
+        panel_url += "&multi_user=true"
+        
         # Add audio parameters manually
         if audio_config:
             audio_enabled = str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower()
@@ -176,15 +180,11 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
 
 def _get_user_id(call: ServiceCall) -> str:
     """Extract user ID from service call context."""
-    # For now, always use 'default' until we implement proper user detection
-    # The frontend is using 'default' entities, so backend must match
-    return "default"
-    
-    # TODO: Future implementation when we have proper user detection
-    # user_id = call.context.user_id
-    # if not user_id:
-    #     user_id = "default"
-    # return user_id
+    user_id = call.context.user_id
+    if not user_id:
+        # Fallback for admin or system calls
+        user_id = "default"
+    return user_id
 
 def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
     """Get existing game instance for user or create new one."""
@@ -192,7 +192,7 @@ def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
     
     if user_id not in games:
         _LOGGER.info(f"Creating new game instance for user: {user_id}")
-        game = WordPlayGame(hass)
+        game = WordPlayGame(hass, user_id)  # Pass user_id to constructor
         
         # Set difficulty from config
         difficulty = hass.data[DOMAIN].get("difficulty", DIFFICULTY_NORMAL)

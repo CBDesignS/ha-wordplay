@@ -1,6 +1,6 @@
 /**
- * WordPlay Home Assistant API - Backend Integration
- * Handles all communication with Home Assistant backend
+ * WordPlay Home Assistant API - Backend Integration - Multi-User Version
+ * Handles all communication with Home Assistant backend for specific users
  */
 
 class WordPlayHA {
@@ -9,6 +9,9 @@ class WordPlayHA {
         this.accessToken = null;
         this.updateInterval = null;
         this.lastUpdate = 'Never';
+        
+        // User identification
+        this.currentUser = null;
         
         // Raw button entity data for debugging
         this.rawButtonData = null;
@@ -30,9 +33,12 @@ class WordPlayHA {
         this.init();
     }
     
-    init() {
+    async init() {
         this.accessToken = this.getAccessToken();
         this.debugLog(`🔑 Access token: ${this.accessToken ? 'Present' : 'Missing'}`);
+        
+        // Get current user
+        await this.identifyCurrentUser();
     }
     
     /**
@@ -64,6 +70,76 @@ class WordPlayHA {
     }
     
     /**
+     * Identify the current user from HA
+     * @returns {Promise<string>} User ID
+     */
+    async identifyCurrentUser() {
+        try {
+            const headers = {'Content-Type': 'application/json'};
+            if (this.accessToken) {
+                headers['Authorization'] = `Bearer ${this.accessToken}`;
+            }
+            
+            // List all entities to find WordPlay entities for this session
+            const response = await fetch('/api/states', {
+                method: 'GET',
+                headers: headers
+            });
+            
+            if (response.ok) {
+                const states = await response.json();
+                
+                // Find all WordPlay button entities
+                const wordplayButtons = states.filter(state => 
+                    state.entity_id.startsWith('button.ha_wordplay_game_')
+                );
+                
+                this.debugLog(`Found ${wordplayButtons.length} WordPlay button entities`);
+                
+                // If we have entities, check which one has an active game or use default
+                if (wordplayButtons.length > 0) {
+                    // For now, prefer 'default' if it exists, otherwise use the first available
+                    const defaultButton = wordplayButtons.find(btn => 
+                        btn.entity_id === 'button.ha_wordplay_game_default'
+                    );
+                    
+                    if (defaultButton) {
+                        this.currentUser = 'default';
+                    } else {
+                        // Extract user ID from first available entity
+                        const entityId = wordplayButtons[0].entity_id;
+                        this.currentUser = entityId.replace('button.ha_wordplay_game_', '');
+                    }
+                    
+                    this.debugLog(`👤 Using user: ${this.currentUser}`);
+                } else {
+                    this.currentUser = 'default';
+                    this.debugLog('👤 No entities found, using default user');
+                }
+            } else {
+                this.currentUser = 'default';
+                this.debugLog('⚠️ Could not list entities, using default user');
+            }
+            
+        } catch (error) {
+            this.debugLog('❌ Error identifying user:', error);
+            this.currentUser = 'default';
+        }
+        
+        return this.currentUser;
+    }
+    
+    /**
+     * Get entity ID for current user
+     * @param {string} entityType - Base entity type (e.g., 'button.ha_wordplay_game')
+     * @returns {string} User-specific entity ID
+     */
+    getUserEntityId(entityType) {
+        const baseName = entityType.replace('_default', '').replace(/_[a-f0-9-]+$/, '');
+        return `${baseName}_${this.currentUser}`;
+    }
+    
+    /**
      * Call Home Assistant service
      * @param {string} domain - Service domain
      * @param {string} service - Service name
@@ -71,7 +147,7 @@ class WordPlayHA {
      * @returns {Promise} Service response
      */
     async callHAService(domain, service, data = {}) {
-        this.debugLog(`🔧 Calling HA service: ${domain}.${service}`, data);
+        this.debugLog(`🔧 Calling HA service: ${domain}.${service} (user: ${this.currentUser})`, data);
         
         const headers = {'Content-Type': 'application/json'};
         if (this.accessToken) {
@@ -123,10 +199,11 @@ class WordPlayHA {
      */
     async refreshGameState() {
         try {
-            this.debugLog('🔄 Refreshing game state from button entity...');
+            this.debugLog('🔄 Refreshing game state from user-specific button entity...');
             
-            // For now, use default user entity until we implement proper user detection
-            const buttonEntity = await this.getEntityState('button.ha_wordplay_game_default');
+            // Get game data from user's button entity
+            const buttonEntityId = this.getUserEntityId('button.ha_wordplay_game');
+            const buttonEntity = await this.getEntityState(buttonEntityId);
             this.rawButtonData = buttonEntity; // Store for debugging
             
             if (buttonEntity && buttonEntity.attributes) {
@@ -142,7 +219,8 @@ class WordPlayHA {
                     hint: attrs.hint || '',
                     last_message: attrs.last_message || '',
                     message_type: attrs.message_type || 'info',
-                    revealed_word: attrs.revealed_word || ''
+                    revealed_word: attrs.revealed_word || '',
+                    user_id: attrs.user_id || this.currentUser
                 };
                 
                 this.debugLog('📈 Parsed game data', gameData);
@@ -156,17 +234,24 @@ class WordPlayHA {
                 
                 // Update connection status
                 if (this.onConnectionChange) {
-                    this.onConnectionChange('connected', 'Connected to Home Assistant');
+                    this.onConnectionChange('connected', `Connected (User: ${this.currentUser})`);
+                }
+                
+                // Update our user ID from the backend
+                if (attrs.user_id && attrs.user_id !== this.currentUser) {
+                    this.currentUser = attrs.user_id;
+                    this.debugLog(`👤 User updated from backend: ${this.currentUser}`);
                 }
                 
                 return true;
             }
             
-            // Also get word length from select entity
-            const lengthEntity = await this.getEntityState('select.ha_wordplay_word_length_default');
+            // Also get word length from user's select entity
+            const lengthEntityId = this.getUserEntityId('select.ha_wordplay_word_length');
+            const lengthEntity = await this.getEntityState(lengthEntityId);
             if (lengthEntity && lengthEntity.state) {
                 const entityWordLength = parseInt(lengthEntity.state);
-                this.debugLog(`🔢 Word length from select: ${entityWordLength}`);
+                this.debugLog(`🔢 Word length from user's select: ${entityWordLength}`);
                 
                 // Trigger word length update if needed
                 if (this.onWordLengthUpdate) {
@@ -214,7 +299,7 @@ class WordPlayHA {
             this.refreshGameState();
         }, this.pollingInterval);
         
-        this.debugLog('⏰ Polling started (1 second intervals)');
+        this.debugLog(`⏰ Polling started for user ${this.currentUser} (1 second intervals)`);
         
         // Initial refresh
         this.refreshGameState();
@@ -272,9 +357,10 @@ class WordPlayHA {
      * @returns {Promise} Service response
      */
     async submitGuess(guess) {
-        // Step 1: Set the text input (using default user entity)
+        // Step 1: Set the user's text input
+        const textEntityId = this.getUserEntityId('text.ha_wordplay_guess_input');
         await this.callHAService('text', 'set_value', {
-            entity_id: 'text.ha_wordplay_guess_input_default',
+            entity_id: textEntityId,
             value: guess
         });
         
@@ -296,8 +382,9 @@ class WordPlayHA {
      * @returns {Promise} Service response
      */
     async updateWordLength(length) {
+        const selectEntityId = this.getUserEntityId('select.ha_wordplay_word_length');
         return this.callHAService('select', 'select_option', {
-            entity_id: 'select.ha_wordplay_word_length_default',
+            entity_id: selectEntityId,
             option: length.toString()
         });
     }
@@ -334,5 +421,5 @@ let wordplayHA = null;
 document.addEventListener('DOMContentLoaded', () => {
     wordplayHA = new WordPlayHA();
     window.wordplayHA = () => wordplayHA;
-    console.log('🔌 WordPlay HA API ready');
+    console.log('🔌 WordPlay HA API (Multi-User) ready');
 });
