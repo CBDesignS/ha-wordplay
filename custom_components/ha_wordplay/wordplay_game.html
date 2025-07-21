@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="wordplay-styles.css">
     
     <!-- Scripts (load order matters) -->
+    <script src="wordplay-user-detect.js"></script>
     <script src="wordplay_audio.js"></script>
     <script src="wordplay-core.js"></script>
     <script src="wordplay-ha-api.js"></script>
@@ -108,68 +109,77 @@
     <script>
         // Update user name when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            // Wait a moment for HA API to initialize
-            setTimeout(() => {
-                // Get user name from HA API
-                if (window.wordplayHA) {
-                    const ha = window.wordplayHA();
-                    
-                    // Watch for when user is identified
-                    const checkUser = setInterval(() => {
-                        if (ha.currentUser) {
-                            // Get username from URL params if available
-                            const urlParams = new URLSearchParams(window.location.search);
-                            let userName = urlParams.get('user_name') || 'Player';
-                            
-                            // Try to get better user name from HA
-                            if (ha.currentUser === 'default') {
-                                userName = 'Guest Player';
-                            } else if (ha.currentUser.length > 20) {
-                                // We have a real user ID, try to get their name from entities
-                                fetch('/api/states', {
-                                    headers: {
-                                        'Authorization': `Bearer ${ha.accessToken}`,
-                                        'Content-Type': 'application/json'
-                                    }
-                                }).then(response => response.json())
-                                  .then(states => {
-                                      // Find any entity that might have user info
-                                      const userButton = states.find(s => 
-                                          s.entity_id === `button.ha_wordplay_game_${ha.currentUser}`
-                                      );
-                                      
-                                      if (userButton && userButton.attributes && userButton.attributes.friendly_name) {
-                                          // Extract user name from friendly name
-                                          const match = userButton.attributes.friendly_name.match(/WordPlay Game \((.*?)\)/);
-                                          if (match && match[1] !== ha.currentUser) {
-                                              userName = match[1];
-                                          }
-                                      }
-                                      
-                                      // Update display
-                                      const userNameEl = document.getElementById('userNameDisplay');
-                                      if (userNameEl) {
-                                          userNameEl.textContent = userName;
-                                      }
-                                  }).catch(error => {
-                                      console.error('Could not fetch user info:', error);
-                                  });
-                            }
-                            
-                            // Update display with initial name
-                            const userNameEl = document.getElementById('userNameDisplay');
-                            if (userNameEl) {
-                                userNameEl.textContent = userName;
-                            }
-                            
-                            clearInterval(checkUser);
-                        }
-                    }, 100);
-                    
-                    // Stop checking after 5 seconds
-                    setTimeout(() => clearInterval(checkUser), 5000);
+            // Check if we already have the user name from pre-detection
+            if (window.WORDPLAY_USER_NAME) {
+                const userNameEl = document.getElementById('userNameDisplay');
+                if (userNameEl) {
+                    userNameEl.textContent = window.WORDPLAY_USER_NAME;
                 }
-            }, 500);
+                console.log(`[WordPlay] Displaying pre-detected user: ${window.WORDPLAY_USER_NAME}`);
+            } else {
+                // Fallback to the original detection method
+                setTimeout(() => {
+                    // Get user name from HA API
+                    if (window.wordplayHA) {
+                        const ha = window.wordplayHA();
+                        
+                        // Watch for when user is identified
+                        const checkUser = setInterval(() => {
+                            if (ha.currentUser) {
+                                // Get username from URL params if available
+                                const urlParams = new URLSearchParams(window.location.search);
+                                let userName = urlParams.get('user_name') || 'Player';
+                                
+                                // Try to get better user name from HA
+                                if (ha.currentUser === 'default') {
+                                    userName = 'Guest Player';
+                                } else if (ha.currentUser.length > 20) {
+                                    // We have a real user ID, try to get their name from entities
+                                    fetch('/api/states', {
+                                        headers: {
+                                            'Authorization': `Bearer ${ha.accessToken}`,
+                                            'Content-Type': 'application/json'
+                                        }
+                                    }).then(response => response.json())
+                                      .then(states => {
+                                          // Find any entity that might have user info
+                                          const userButton = states.find(s => 
+                                              s.entity_id === `button.ha_wordplay_game_${ha.currentUser}`
+                                          );
+                                          
+                                          if (userButton && userButton.attributes && userButton.attributes.friendly_name) {
+                                              // Extract user name from friendly name
+                                              const match = userButton.attributes.friendly_name.match(/WordPlay Game \((.*?)\)/);
+                                              if (match && match[1] !== ha.currentUser) {
+                                                  userName = match[1];
+                                              }
+                                          }
+                                          
+                                          // Update display
+                                          const userNameEl = document.getElementById('userNameDisplay');
+                                          if (userNameEl) {
+                                              userNameEl.textContent = userName;
+                                          }
+                                      }).catch(error => {
+                                          console.error('Could not fetch user info:', error);
+                                      });
+                                }
+                                
+                                // Update display with initial name
+                                const userNameEl = document.getElementById('userNameDisplay');
+                                if (userNameEl) {
+                                    userNameEl.textContent = userName;
+                                }
+                                
+                                clearInterval(checkUser);
+                            }
+                        }, 100);
+                        
+                        // Stop checking after 5 seconds
+                        setTimeout(() => clearInterval(checkUser), 5000);
+                    }
+                }, 500);
+            }
         });
     </script>
 </body>

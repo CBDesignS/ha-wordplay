@@ -75,6 +75,13 @@ class WordPlayHA {
      */
     async identifyCurrentUser() {
         try {
+            // Check if user was already detected by wordplay-user-detect.js
+            if (window.WORDPLAY_USER_ID) {
+                this.currentUser = window.WORDPLAY_USER_ID;
+                this.debugLog(`👤 User from pre-detection: ${window.WORDPLAY_USER_NAME} (${this.currentUser})`);
+                return this.currentUser;
+            }
+            
             const headers = {'Content-Type': 'application/json'};
             if (this.accessToken) {
                 headers['Authorization'] = `Bearer ${this.accessToken}`;
