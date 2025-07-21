@@ -159,10 +159,6 @@ class WordPlayGameButton(ButtonEntity):
                 attributes["last_message"] = game.last_message
                 attributes["message_type"] = game.message_type
             
-            # Add user stats summary
-            if hasattr(game, 'get_stats_summary'):
-                attributes["stats_summary"] = game.get_stats_summary()
-            
             # Add service call hints for more-info dialog
             attributes.update({
                 "available_actions": [
@@ -261,7 +257,7 @@ class WordPlayGameButton(ButtonEntity):
             # Create game if doesn't exist
             if self.user_id not in games:
                 from .game_logic import WordPlayGame
-                game = WordPlayGame(self.hass, self.user_id)
+                game = WordPlayGame(self.hass)
                 
                 # Set difficulty
                 difficulty = game_data.get("difficulty", "normal")

@@ -136,92 +136,44 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
         domain_data = hass.data.get(DOMAIN, {})
         audio_config = domain_data.get("audio_config", {})
         
-        # Create custom panel loader that includes user context
-        panel_js_path = os.path.join(integration_dir, "wordplay_panel_loader.js")
+        # Create the panel URL with access token
+        panel_url = f"/hacsfiles/ha_wordplay/wordplay_game.html?access_token={access_token}"
         
-        # Generate the panel loader JavaScript with user detection
-        panel_loader_js = """
-class WordPlayPanelLoader extends HTMLElement {
-    connectedCallback() {
-        // Get current user from HA
-        const hass = document.querySelector('home-assistant').hass;
-        const userId = hass && hass.user ? hass.user.id : 'default';
-        const userName = hass && hass.user ? hass.user.name : 'Unknown';
+        # Add user context to URL - this will be available to all users
+        # The actual user will be determined at runtime from the iframe context
+        panel_url += "&multi_user=true"
         
-        console.log('[WordPlay] Current user detected:', userName, '(' + userId + ')');
+        # Add audio parameters manually
+        if audio_config:
+            audio_enabled = str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower()
+            audio_volume = str(audio_config.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME))
+            audio_game_events = str(audio_config.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)).lower()
+            audio_guess_events = str(audio_config.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)).lower()
+            audio_ui_events = str(audio_config.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)).lower()
+            audio_error_events = str(audio_config.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)).lower()
+            
+            panel_url += f"&audio_enabled={audio_enabled}"
+            panel_url += f"&audio_volume={audio_volume}"
+            panel_url += f"&audio_gameEvents={audio_game_events}"
+            panel_url += f"&audio_guessEvents={audio_guess_events}"
+            panel_url += f"&audio_uiEvents={audio_ui_events}"
+            panel_url += f"&audio_errorEvents={audio_error_events}"
         
-        // Build iframe URL with user context
-        let iframeUrl = '/hacsfiles/ha_wordplay/wordplay_game.html?';
-        iframeUrl += 'access_token=' + encodeURIComponent('%s');
-        iframeUrl += '&user_id=' + encodeURIComponent(userId);
-        iframeUrl += '&user_name=' + encodeURIComponent(userName);
-        iframeUrl += '&multi_user=true';
-        
-        // Add audio parameters
-        iframeUrl += '&audio_enabled=%s';
-        iframeUrl += '&audio_volume=%s';
-        iframeUrl += '&audio_gameEvents=%s';
-        iframeUrl += '&audio_guessEvents=%s';
-        iframeUrl += '&audio_uiEvents=%s';
-        iframeUrl += '&audio_errorEvents=%s';
-        
-        // Create iframe
-        const iframe = document.createElement('iframe');
-        iframe.src = iframeUrl;
-        iframe.style.width = '100%%';
-        iframe.style.height = '100%%';
-        iframe.style.border = 'none';
-        iframe.title = '🎮 H.A WordPlay';
-        
-        // Clear and add iframe
-        this.innerHTML = '';
-        this.appendChild(iframe);
-    }
-}
-
-customElements.define('wordplay-panel', WordPlayPanelLoader);
-""" % (
-            access_token,
-            str(audio_config.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)).lower(),
-            str(audio_config.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME)),
-            str(audio_config.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)).lower(),
-            str(audio_config.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)).lower(),
-            str(audio_config.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)).lower(),
-            str(audio_config.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)).lower()
-        )
-        
-        # Write the panel loader
-        with open(panel_js_path, 'w') as f:
-            f.write(panel_loader_js)
-        
-        # Register static path for the panel loader
-        await hass.http.async_register_static_paths([
-            StaticPathConfig(
-                url_path="/hacsfiles/ha_wordplay/wordplay_panel_loader.js",
-                path=panel_js_path,
-                cache_headers=False,
-            )
-        ])
-        
-        # Register custom panel
+        # Register iframe panel with secure token URL and audio config
         async_register_built_in_panel(
             hass,
-            component_name="custom",
+            component_name="iframe",
             sidebar_title="🎮 WordPlay",
             sidebar_icon="mdi:gamepad-variant",
             frontend_url_path="wordplay",
             config={
-                "_panel_custom": {
-                    "name": "wordplay-panel",
-                    "embed_iframe": False,
-                    "trust_external": False,
-                    "js_url": "/hacsfiles/ha_wordplay/wordplay_panel_loader.js",
-                }
+                "url": panel_url,
+                "title": "🎮 H.A WordPlay",
             },
             require_admin=False,
         )
         
-        _LOGGER.info("WordPlay custom panel registered successfully with user detection!")
+        _LOGGER.info("WordPlay iframe panel registered successfully with secure token and audio config!")
         
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
