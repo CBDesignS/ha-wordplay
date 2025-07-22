@@ -194,14 +194,20 @@ class WordPlayHA {
     }
     
     /**
-     * Call Home Assistant service
+     * Call Home Assistant service with user context
      * @param {string} domain - Service domain
      * @param {string} service - Service name
      * @param {Object} data - Service data
      * @returns {Promise} Service response
      */
     async callHAService(domain, service, data = {}) {
-        this.debugLog(`🔧 Calling HA service: ${domain}.${service} (user: ${this.currentUser})`, data);
+        // IMPORTANT: Always include the user_id in service data
+        const serviceData = {
+            ...data,
+            user_id: this.currentUser  // Tell backend explicitly which user we are
+        };
+        
+        this.debugLog(`🔧 Calling HA service: ${domain}.${service} (user: ${this.currentUser})`, serviceData);
         
         const headers = {'Content-Type': 'application/json'};
         if (this.accessToken) {
@@ -211,7 +217,7 @@ class WordPlayHA {
         const response = await fetch(`/api/services/${domain}/${service}`, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify(data)
+            body: JSON.stringify(serviceData)
         });
 
         if (!response.ok) {
@@ -418,7 +424,7 @@ class WordPlayHA {
             value: guess
         });
         
-        // Step 2: Submit the guess
+        // Step 2: Submit the guess (user_id will be included automatically)
         return this.callHAService('ha_wordplay', 'submit_guess');
     }
     
