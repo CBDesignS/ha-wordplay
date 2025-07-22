@@ -15,6 +15,7 @@
     <script src="wordplay-ha-api.js"></script>
     <script src="wordplay-ui.js"></script>
     <script src="wordplay-alphabet.js"></script>
+    <script src="wordplay-stats.js"></script>
     <script src="wordplay-game.js"></script>
     
     <style>
@@ -32,6 +33,58 @@
             margin: 8px 0 0 0;
             font-weight: bold;
         }
+        
+        /* Simple Stats Display */
+        .user-stats-simple {
+            margin: 16px auto;
+            max-width: 400px;
+            padding: 12px;
+            background: var(--primary-background-color);
+            border: 1px solid var(--divider-color);
+            border-radius: 8px;
+        }
+
+        .stats-grid-simple {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            text-align: center;
+        }
+
+        .stat-box {
+            padding: 8px;
+            background: var(--tile-empty);
+            border-radius: 4px;
+            border: 1px solid var(--tile-border);
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary-color);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        /* Dark theme support */
+        body[data-theme="dark"] .stat-box {
+            background: var(--tile-empty);
+            border-color: var(--tile-border);
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 480px) {
+            .stats-grid-simple {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
     </style>
 </head>
 <body>
@@ -47,6 +100,28 @@
                 <h1 class="landing-title">🎮 H.A WordPlay</h1>
                 <p class="user-name" id="userNameDisplay">Loading...</p>
                 <p class="landing-subtitle">Guess the word in as few tries as possible!</p>
+            </div>
+
+            <!-- Stats Container -->
+            <div class="user-stats-simple" id="userStatsSimple" style="display: none;">
+                <div class="stats-grid-simple">
+                    <div class="stat-box">
+                        <span class="stat-number" id="statGamesPlayed">0</span>
+                        <span class="stat-label">Games</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" id="statGamesWon">0</span>
+                        <span class="stat-label">Wins</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" id="statWinRate">0%</span>
+                        <span class="stat-label">Win Rate</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number" id="statStreak">0</span>
+                        <span class="stat-label">Streak</span>
+                    </div>
+                </div>
             </div>
 
             <div class="word-length-section">
