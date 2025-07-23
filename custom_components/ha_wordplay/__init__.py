@@ -1,5 +1,6 @@
 """H.A WordPlay integration for Home Assistant - Multi-User Version.
 Enhanced to support multiple simultaneous players with isolated game states.
+FIXED: Proper Home Assistant user context handling - no more explicit user_id in service data
 """
 import logging
 import asyncio
@@ -14,6 +15,7 @@ from homeassistant.helpers import discovery
 from homeassistant.components.frontend import async_register_built_in_panel
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import CONF_ACCESS_TOKEN
+from homeassistant.exceptions import ServiceValidationError, UnknownUser
 
 from .const import (
     DOMAIN,
@@ -178,21 +180,27 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
     except Exception as e:
         _LOGGER.error(f"Failed to register WordPlay HTML panel: {e}")
 
-def _get_user_id(call: ServiceCall) -> str:
-    """Extract user ID from service call context or data."""
-    # First check if user_id was explicitly passed in the service data
-    if "user_id" in call.data:
-        user_id = call.data.get("user_id")
-        if user_id:
-            _LOGGER.debug(f"Using explicit user_id from service data: {user_id}")
-            return user_id
+async def _get_user_from_context(hass: HomeAssistant, call: ServiceCall) -> str:
+    """Get user ID from service call context using proper HA patterns."""
+    # FIXED: Use proper Home Assistant user context handling
+    if not call.context.user_id:
+        # For system/automation calls, use default user
+        _LOGGER.debug("No user context in service call, using default user")
+        return "default"
     
-    # Fall back to context user_id
-    user_id = call.context.user_id
-    if not user_id:
-        # Fallback for admin or system calls
-        user_id = "default"
-    return user_id
+    try:
+        # Verify user exists and get their ID
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if user is None:
+            _LOGGER.warning(f"User {call.context.user_id} not found, using default")
+            return "default"
+        
+        _LOGGER.debug(f"Service called by user: {user.name} ({user.id})")
+        return user.id
+        
+    except Exception as e:
+        _LOGGER.error(f"Error getting user from context: {e}")
+        return "default"
 
 def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
     """Get existing game instance for user or create new one."""
@@ -229,15 +237,13 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
-            user_id = _get_user_id(call)
+            # FIXED: Use proper HA user context instead of explicit user_id
+            user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
-            # Remove user_id from data if present
-            service_data = dict(call.data)
-            service_data.pop("user_id", None)
-            
-            word_length = service_data.get("word_length", DEFAULT_WORD_LENGTH)
-            language = service_data.get("language", "en")
+            # Use service data normally (no user_id expected)
+            word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)
+            language = call.data.get("language", "en")
             
             # Try to get from user's select entity if not provided
             if not word_length or word_length == DEFAULT_WORD_LENGTH:
@@ -261,14 +267,12 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_make_guess(call: ServiceCall) -> None:
         """Handle make guess service call."""
         try:
-            user_id = _get_user_id(call)
+            # FIXED: Use proper HA user context instead of explicit user_id
+            user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
-            # Remove user_id from data if present
-            service_data = dict(call.data)
-            service_data.pop("user_id", None)
-            
-            guess = service_data.get("guess", "").upper()
+            # Use service data normally (no user_id expected)
+            guess = call.data.get("guess", "").upper()
             if guess:
                 result = await game.make_guess(guess)
                 if "error" in result:
@@ -284,7 +288,8 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
         try:
-            user_id = _get_user_id(call)
+            # FIXED: Use proper HA user context instead of explicit user_id
+            user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
             hint = await game.get_hint()
@@ -296,7 +301,8 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         try:
-            user_id = _get_user_id(call)
+            # FIXED: Use proper HA user context instead of explicit user_id
+            user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
             # Get current input from user's text entity state

@@ -1,4 +1,6 @@
-"""Sensor platform for H.A WordPlay integration - Multi-User Version."""
+"""Sensor platform for H.A WordPlay integration - Multi-User Version with Dedicated Stats.
+FIXED: Added dedicated stats sensor entities instead of relying on button attributes
+"""
 import logging
 from typing import Optional, Any, Dict
 
@@ -21,7 +23,7 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up the sensor platform for WordPlay - Multi-User."""
+    """Set up the sensor platform for WordPlay - Multi-User with Stats."""
     
     # Get all users from Home Assistant
     users = await hass.auth.async_get_users()
@@ -34,6 +36,8 @@ async def async_setup_platform(
         user_entities = [
             WordPlayGameStateSensor(hass, user_id, user_name),
             WordPlayGuessesSensor(hass, user_id, user_name),
+            # FIXED: Add dedicated stats sensor
+            WordPlayStatsSensor(hass, user_id, user_name),
         ]
         
         # Add debug sensor in development mode
@@ -51,6 +55,8 @@ async def async_setup_platform(
                 hass.data[DOMAIN]["entities"][user_id]["game_state"] = entity
             elif isinstance(entity, WordPlayGuessesSensor):
                 hass.data[DOMAIN]["entities"][user_id]["guesses"] = entity
+            elif isinstance(entity, WordPlayStatsSensor):
+                hass.data[DOMAIN]["entities"][user_id]["stats"] = entity
             elif isinstance(entity, WordPlayDebugSensor):
                 hass.data[DOMAIN]["entities"][user_id]["debug"] = entity
         
@@ -183,6 +189,113 @@ class WordPlayGuessesSensor(SensorEntity):
         self._attr_extra_state_attributes = attributes
         if self.hass is not None:
             self.async_write_ha_state()
+
+
+class WordPlayStatsSensor(SensorEntity):
+    """FIXED: Dedicated sensor for user statistics - replaces button attributes."""
+
+    def __init__(self, hass: HomeAssistant, user_id: str, user_name: str = None) -> None:
+        """Initialize the stats sensor."""
+        super().__init__()
+        self.hass = hass
+        self.user_id = user_id
+        self.user_name = user_name or user_id
+        self._attr_name = f"ha wordplay stats ({user_id})" if user_id != "default" else "ha wordplay stats"
+        self._attr_unique_id = f"{DOMAIN}_stats_{user_id}"
+        self._attr_entity_category = None
+        self._attr_icon = "mdi:chart-line"
+        self._attr_native_value = 0  # Games played
+        self._attr_extra_state_attributes = {"user_id": user_id}
+        
+        # Set entity_id explicitly to ensure proper registration
+        self.entity_id = f"sensor.ha_wordplay_stats_{user_id}"
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return self._attr_name
+
+    @property
+    def unique_id(self) -> str:
+        """Return unique id."""
+        return self._attr_unique_id
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of games played."""
+        return self._attr_native_value
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        """Return additional state attributes with full stats."""
+        return self._attr_extra_state_attributes
+
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        return self._attr_icon
+
+    def update_stats(self, games_played: int, stats_data: Dict[str, Any]) -> None:
+        """Update the stats sensor with comprehensive statistics."""
+        self._attr_native_value = games_played
+        
+        # Build comprehensive stats attributes
+        attributes = {
+            "user_id": self.user_id,
+            "user_name": self.user_name,
+            "games_played": games_played,
+            "games_won": stats_data.get("games_won", 0),
+            "win_rate": stats_data.get("win_rate", 0.0),
+            "current_streak": stats_data.get("win_streak", 0),
+            "max_streak": stats_data.get("max_streak", 0),
+            "average_guesses": stats_data.get("average_guesses", 0.0),
+            "total_guesses": stats_data.get("total_guesses", 0),
+            "total_play_time": stats_data.get("total_play_time", 0),
+            "fastest_win": stats_data.get("fastest_win"),
+            "last_played": stats_data.get("last_played"),
+            "guess_distribution": stats_data.get("guess_distribution", {}),
+            "difficulty_stats": stats_data.get("difficulty_stats", {}),
+            # Friendly display formats
+            "win_rate_display": f"{stats_data.get('win_rate', 0.0)}%",
+            "play_time_display": self._format_play_time(stats_data.get("total_play_time", 0)),
+            "fastest_win_display": self._format_play_time(stats_data.get("fastest_win")) if stats_data.get("fastest_win") else "N/A",
+        }
+        
+        self._attr_extra_state_attributes = attributes
+        
+        if self.hass is not None:
+            self.async_write_ha_state()
+            _LOGGER.debug(f"Stats updated for user {self.user_id}: {games_played} games, {stats_data.get('games_won', 0)} wins")
+
+    def _format_play_time(self, seconds: int) -> str:
+        """Format play time in seconds to human readable format."""
+        if seconds is None or seconds == 0:
+            return "0s"
+        
+        if seconds < 60:
+            return f"{seconds}s"
+        elif seconds < 3600:
+            minutes = seconds // 60
+            secs = seconds % 60
+            return f"{minutes}m {secs}s"
+        else:
+            hours = seconds // 3600
+            minutes = (seconds % 3600) // 60
+            return f"{hours}h {minutes}m"
+
+    def get_stats_summary(self) -> Dict[str, Any]:
+        """Get a summary of stats for API access."""
+        attrs = self._attr_extra_state_attributes
+        return {
+            "games_played": attrs.get("games_played", 0),
+            "games_won": attrs.get("games_won", 0),
+            "win_rate": attrs.get("win_rate_display", "0%"),
+            "current_streak": attrs.get("current_streak", 0),
+            "max_streak": attrs.get("max_streak", 0),
+            "average_guesses": attrs.get("average_guesses", 0.0),
+            "total_play_time": attrs.get("play_time_display", "0s"),
+            "fastest_win": attrs.get("fastest_win_display", "N/A"),
+        }
 
 
 class WordPlayDebugSensor(SensorEntity):
