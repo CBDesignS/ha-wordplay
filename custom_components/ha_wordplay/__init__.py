@@ -17,7 +17,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.const import CONF_ACCESS_TOKEN
 from homeassistant.exceptions import ServiceValidationError, UnknownUser
 
-from .const import (
+from .wordplay_const import (
     DOMAIN,
     SERVICE_NEW_GAME,
     SERVICE_MAKE_GUESS,
@@ -38,8 +38,8 @@ from .const import (
     DEFAULT_AUDIO_UI_EVENTS,
     DEFAULT_AUDIO_ERROR_EVENTS,
 )
-from .game_logic import WordPlayGame
-from .api_config import get_supported_languages
+from .wordplay_game_logic import WordPlayGame
+from .wordplay_api_config import get_supported_languages
 
 # Config flow constants
 DIFFICULTY_EASY = "easy"

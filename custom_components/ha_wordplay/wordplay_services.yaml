@@ -1,0 +1,33 @@
+new_game:
+  name: Start New Game
+  description: Start a new H.A WordPlay game with specified word length
+  fields:
+    word_length:
+      name: Word Length
+      description: Number of letters in the word (5-8)
+      required: false
+      default: 5
+      selector:
+        number:
+          min: 5
+          max: 8
+          step: 1
+
+make_guess:
+  name: Make Guess
+  description: Submit a guess for the current game
+  fields:
+    guess:
+      name: Guess
+      description: Your word guess
+      required: true
+      selector:
+        text:
+
+get_hint:
+  name: Get Hint
+  description: Get a hint for the current word
+
+submit_guess:
+  name: Submit Current Guess
+  description: Submit the word from the input field
