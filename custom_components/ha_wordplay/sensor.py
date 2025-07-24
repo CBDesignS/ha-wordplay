@@ -1,6 +1,4 @@
-"""Sensor platform for H.A WordPlay integration - Multi-User Version with Dedicated Stats.
-FIXED: Added dedicated stats sensor entities instead of relying on button attributes
-"""
+"""Sensor platform for H.A WordPlay integration - Multi-User Version with User Selection."""
 import logging
 from typing import Optional, Any, Dict
 
@@ -12,6 +10,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from .wordplay_const import (
     DOMAIN,
     STATE_IDLE,
+    CONF_SELECTED_USERS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,7 +22,15 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up the sensor platform for WordPlay - Multi-User with Stats."""
+    """Set up the sensor platform for WordPlay - Multi-User with User Selection."""
+    
+    # Get selected users from config
+    domain_data = hass.data.get(DOMAIN, {})
+    selected_user_ids = domain_data.get("selected_users", [])
+    
+    if not selected_user_ids:
+        _LOGGER.warning("No users selected for WordPlay - no sensor entities will be created")
+        return
     
     # Get all users from Home Assistant
     users = await hass.auth.async_get_users()
@@ -36,7 +43,6 @@ async def async_setup_platform(
         user_entities = [
             WordPlayGameStateSensor(hass, user_id, user_name),
             WordPlayGuessesSensor(hass, user_id, user_name),
-            # FIXED: Add dedicated stats sensor
             WordPlayStatsSensor(hass, user_id, user_name),
         ]
         
@@ -66,19 +72,23 @@ async def async_setup_platform(
     default_sensors = create_user_sensors("default", "Default")
     entities.extend(default_sensors)
     
-    # Create sensors for each user
+    # Create sensors only for selected users
     for user in users:
         if user.system_generated:
             continue  # Skip system users
+        
+        # Only create entities for selected users
+        if user.id not in selected_user_ids:
+            continue
             
         user_sensors = create_user_sensors(user.id, user.name)
         entities.extend(user_sensors)
-        _LOGGER.info(f"Created WordPlay sensors for user: {user.name} ({user.id})")
+        _LOGGER.info(f"Created WordPlay sensors for selected user: {user.name} ({user.id})")
     
     # Add entities to Home Assistant
     async_add_entities(entities, True)
     
-    _LOGGER.info(f"WordPlay sensor entities created: {len(entities)} sensors total")
+    _LOGGER.info(f"WordPlay sensor entities created: {len(entities)} sensors total for {len(selected_user_ids)} selected users")
 
 
 class WordPlayGameStateSensor(SensorEntity):
@@ -192,7 +202,7 @@ class WordPlayGuessesSensor(SensorEntity):
 
 
 class WordPlayStatsSensor(SensorEntity):
-    """FIXED: Dedicated sensor for user statistics - replaces button attributes."""
+    """Dedicated sensor for user statistics."""
 
     def __init__(self, hass: HomeAssistant, user_id: str, user_name: str = None) -> None:
         """Initialize the stats sensor."""

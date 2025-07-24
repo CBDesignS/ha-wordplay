@@ -1,4 +1,4 @@
-"""Select platform for H.A WordPlay integration - Multi-User Version."""
+"""Select platform for H.A WordPlay integration - Multi-User Version with User Selection."""
 import logging
 from typing import Optional
 
@@ -11,6 +11,7 @@ from .wordplay_const import (
     DOMAIN,
     WORD_LENGTH_OPTIONS,
     DEFAULT_WORD_LENGTH,
+    CONF_SELECTED_USERS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,7 +23,15 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up the select platform for WordPlay - Multi-User."""
+    """Set up the select platform for WordPlay - Multi-User with User Selection."""
+    
+    # Get selected users from config
+    domain_data = hass.data.get(DOMAIN, {})
+    selected_user_ids = domain_data.get("selected_users", [])
+    
+    if not selected_user_ids:
+        _LOGGER.warning("No users selected for WordPlay - no select entities will be created")
+        return
     
     # Get all users from Home Assistant
     users = await hass.auth.async_get_users()
@@ -40,10 +49,14 @@ async def async_setup_platform(
         hass.data[DOMAIN]["entities"]["default"] = {}
     hass.data[DOMAIN]["entities"]["default"]["word_length"] = default_entity
     
-    # Create entity for each user
+    # Create entity only for selected users
     for user in users:
         if user.system_generated:
             continue  # Skip system users
+        
+        # Only create entities for selected users
+        if user.id not in selected_user_ids:
+            continue
             
         user_id = user.id
         entity = WordPlayWordLengthSelect(hass, user_id)
@@ -54,10 +67,10 @@ async def async_setup_platform(
             hass.data[DOMAIN]["entities"][user_id] = {}
         hass.data[DOMAIN]["entities"][user_id]["word_length"] = entity
         
-        _LOGGER.info(f"Created WordPlay word length selector for user: {user.name} ({user_id})")
+        _LOGGER.info(f"Created WordPlay word length selector for selected user: {user.name} ({user_id})")
     
     async_add_entities(entities, True)
-    _LOGGER.info(f"WordPlay created {len(entities)} word length selector entities")
+    _LOGGER.info(f"WordPlay created {len(entities)} word length selector entities for {len(selected_user_ids)} selected users")
 
 
 class WordPlayWordLengthSelect(SelectEntity):

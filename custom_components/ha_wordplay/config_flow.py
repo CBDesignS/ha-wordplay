@@ -1,8 +1,8 @@
-"""Config flow for H.A WordPlay integration - Long-Lived Token Setup with Audio Config."""
+"""Config flow for H.A WordPlay integration - Enhanced with User Selection."""
 import logging
 import aiohttp
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 import voluptuous as vol
 
@@ -19,12 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 # Configuration constants
 CONF_DIFFICULTY = "difficulty"
-CONF_AUDIO_ENABLED = "audio_enabled"
-CONF_AUDIO_VOLUME = "audio_volume"
-CONF_AUDIO_GAME_EVENTS = "audio_game_events"
-CONF_AUDIO_GUESS_EVENTS = "audio_guess_events"
-CONF_AUDIO_UI_EVENTS = "audio_ui_events"
-CONF_AUDIO_ERROR_EVENTS = "audio_error_events"
+CONF_SELECTED_USERS = "selected_users"
 
 # Difficulty options
 DIFFICULTY_EASY = "easy"
@@ -37,26 +32,6 @@ DIFFICULTY_OPTIONS = {
     DIFFICULTY_HARD: "Hard (No hints available)"
 }
 
-# Audio default values
-DEFAULT_AUDIO_ENABLED = True
-DEFAULT_AUDIO_VOLUME = 30  # Percentage (0-100)
-DEFAULT_AUDIO_GAME_EVENTS = True
-DEFAULT_AUDIO_GUESS_EVENTS = True
-DEFAULT_AUDIO_UI_EVENTS = False
-DEFAULT_AUDIO_ERROR_EVENTS = True
-
-# Config schema with audio options
-CONFIG_SCHEMA = vol.Schema({
-    vol.Required(CONF_ACCESS_TOKEN): cv.string,
-    vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS),
-    vol.Required(CONF_AUDIO_ENABLED, default=DEFAULT_AUDIO_ENABLED): cv.boolean,
-    vol.Required(CONF_AUDIO_VOLUME, default=DEFAULT_AUDIO_VOLUME): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-    vol.Required(CONF_AUDIO_GAME_EVENTS, default=DEFAULT_AUDIO_GAME_EVENTS): cv.boolean,
-    vol.Required(CONF_AUDIO_GUESS_EVENTS, default=DEFAULT_AUDIO_GUESS_EVENTS): cv.boolean,
-    vol.Required(CONF_AUDIO_UI_EVENTS, default=DEFAULT_AUDIO_UI_EVENTS): cv.boolean,
-    vol.Required(CONF_AUDIO_ERROR_EVENTS, default=DEFAULT_AUDIO_ERROR_EVENTS): cv.boolean,
-})
-
 
 class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for H.A WordPlay."""
@@ -67,11 +42,12 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Initialize the config flow."""
         self._token = None
         self._difficulty = DIFFICULTY_NORMAL
+        self._available_users = []
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step - Access Token and Difficulty."""
         errors = {}
 
         if user_input is not None:
@@ -83,36 +59,132 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             is_valid, error_message = await self._test_token(token)
             
             if is_valid:
-                # Token works, create the entry with audio config
-                title = f"WordPlay ({difficulty.title()} Mode)"
+                # Store token and difficulty for next step
+                self._token = token
+                self._difficulty = difficulty
                 
-                return self.async_create_entry(
-                    title=title,
-                    data={
-                        CONF_ACCESS_TOKEN: token,
-                        CONF_DIFFICULTY: difficulty,
-                        CONF_AUDIO_ENABLED: user_input[CONF_AUDIO_ENABLED],
-                        CONF_AUDIO_VOLUME: user_input[CONF_AUDIO_VOLUME],
-                        CONF_AUDIO_GAME_EVENTS: user_input[CONF_AUDIO_GAME_EVENTS],
-                        CONF_AUDIO_GUESS_EVENTS: user_input[CONF_AUDIO_GUESS_EVENTS],
-                        CONF_AUDIO_UI_EVENTS: user_input[CONF_AUDIO_UI_EVENTS],
-                        CONF_AUDIO_ERROR_EVENTS: user_input[CONF_AUDIO_ERROR_EVENTS],
-                    }
-                )
+                # Move to user selection step
+                return await self.async_step_user_selection()
             else:
                 # Token failed validation
                 errors["base"] = error_message
                 _LOGGER.error(f"Token validation failed: {error_message}")
 
+        # Build initial config schema
+        config_schema = vol.Schema({
+            vol.Required(CONF_ACCESS_TOKEN): cv.string,
+            vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS),
+        })
+
         # Show the form (initial or with errors)
         return self.async_show_form(
             step_id="user",
-            data_schema=CONFIG_SCHEMA,
+            data_schema=config_schema,
             errors=errors,
             description_placeholders={
                 "token_url": f"{self.hass.config.external_url or self.hass.config.internal_url}/profile/security"
             }
         )
+
+    async def async_step_user_selection(
+        self, user_input: Optional[Dict[str, Any]] = None
+    ) -> FlowResult:
+        """Handle user selection step."""
+        errors = {}
+
+        # Get available users if not already loaded
+        if not self._available_users:
+            self._available_users = await self._get_available_users()
+
+        if user_input is not None:
+            # Get selected users
+            selected_users = user_input.get(CONF_SELECTED_USERS, [])
+            
+            if not selected_users:
+                errors["base"] = "no_users_selected"
+            else:
+                # Create the entry with selected configuration
+                title = f"WordPlay ({self._difficulty.title()} Mode) - {len(selected_users)} Users"
+                
+                return self.async_create_entry(
+                    title=title,
+                    data={
+                        CONF_ACCESS_TOKEN: self._token,
+                        CONF_DIFFICULTY: self._difficulty,
+                        CONF_SELECTED_USERS: selected_users,
+                    }
+                )
+
+        # Build user selection schema
+        if self._available_users:
+            # Create options for user selection
+            user_options = {}
+            default_selection = []
+            
+            for user in self._available_users:
+                # Create a friendly display name
+                display_name = f"{user['name']} ({user['role']})"
+                user_options[user['id']] = display_name
+                
+                # Auto-select active, non-system users by default
+                if user['is_active'] and not user['system_generated'] and user['role'] in ['owner', 'administrator', 'user']:
+                    default_selection.append(user['id'])
+
+            user_selection_schema = vol.Schema({
+                vol.Required(
+                    CONF_SELECTED_USERS, 
+                    default=default_selection
+                ): cv.multi_select(user_options),
+            })
+        else:
+            # Fallback if no users found
+            user_selection_schema = vol.Schema({})
+            errors["base"] = "no_users_found"
+
+        return self.async_show_form(
+            step_id="user_selection",
+            data_schema=user_selection_schema,
+            errors=errors,
+            description_placeholders={
+                "user_count": str(len(self._available_users))
+            }
+        )
+
+    async def _get_available_users(self) -> List[Dict[str, Any]]:
+        """Get list of available users from Home Assistant."""
+        try:
+            users = await self.hass.auth.async_get_users()
+            available_users = []
+            
+            for user in users:
+                # Determine user role
+                if user.is_owner:
+                    role = "Owner"
+                elif user.is_admin:
+                    role = "Administrator" 
+                elif user.system_generated:
+                    role = "System User"
+                else:
+                    role = "User"
+                
+                available_users.append({
+                    'id': user.id,
+                    'name': user.name or "Unnamed User",
+                    'role': role,
+                    'is_active': user.is_active,
+                    'system_generated': user.system_generated,
+                })
+            
+            # Sort users: Owners first, then Admins, then Users, then System users
+            role_priority = {"Owner": 0, "Administrator": 1, "User": 2, "System User": 3}
+            available_users.sort(key=lambda x: (role_priority.get(x['role'], 4), x['name']))
+            
+            _LOGGER.info(f"Found {len(available_users)} available users for WordPlay selection")
+            return available_users
+            
+        except Exception as e:
+            _LOGGER.error(f"Error getting available users: {e}")
+            return []
 
     async def _test_token(self, token: str) -> tuple[bool, Optional[str]]:
         """Test if the provided token works with Home Assistant API."""
@@ -207,6 +279,7 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry):
         """Initialize options flow."""
         self.config_entry = config_entry
+        self._available_users = []
 
     async def async_step_init(
         self, user_input: Optional[Dict[str, Any]] = None
@@ -214,8 +287,12 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
         """Manage the options."""
         errors = {}
 
+        # Get available users
+        if not self._available_users:
+            self._available_users = await self._get_available_users()
+
         if user_input is not None:
-            # If token was changed, validate it
+            # Handle token change if provided
             new_token = user_input.get(CONF_ACCESS_TOKEN)
             current_token = self.config_entry.data.get(CONF_ACCESS_TOKEN)
             
@@ -235,7 +312,7 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
                     
                     return self.async_create_entry(title="", data={})
             else:
-                # No token change, just update other settings
+                # No token change or validation passed, update other settings
                 updated_data = {**self.config_entry.data}
                 updated_data.update(user_input)
                 
@@ -243,15 +320,28 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
                 if CONF_ACCESS_TOKEN not in user_input:
                     updated_data[CONF_ACCESS_TOKEN] = current_token
                 
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=updated_data
-                )
-                
-                return self.async_create_entry(title="", data={})
+                # Validate user selection
+                selected_users = user_input.get(CONF_SELECTED_USERS, [])
+                if not selected_users:
+                    errors["base"] = "no_users_selected"
+                else:
+                    self.hass.config_entries.async_update_entry(
+                        self.config_entry, data=updated_data
+                    )
+                    
+                    return self.async_create_entry(title="", data={})
 
         # Build the options schema with current values
         current_data = self.config_entry.data
         
+        # Create user options
+        user_options = {}
+        current_selection = current_data.get(CONF_SELECTED_USERS, [])
+        
+        for user in self._available_users:
+            display_name = f"{user['name']} ({user['role']})"
+            user_options[user['id']] = display_name
+
         options_schema = vol.Schema({
             vol.Optional(
                 CONF_ACCESS_TOKEN, 
@@ -262,29 +352,9 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
                 default=current_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
             ): vol.In(DIFFICULTY_OPTIONS),
             vol.Required(
-                CONF_AUDIO_ENABLED,
-                default=current_data.get(CONF_AUDIO_ENABLED, DEFAULT_AUDIO_ENABLED)
-            ): cv.boolean,
-            vol.Required(
-                CONF_AUDIO_VOLUME,
-                default=current_data.get(CONF_AUDIO_VOLUME, DEFAULT_AUDIO_VOLUME)
-            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=100)),
-            vol.Required(
-                CONF_AUDIO_GAME_EVENTS,
-                default=current_data.get(CONF_AUDIO_GAME_EVENTS, DEFAULT_AUDIO_GAME_EVENTS)
-            ): cv.boolean,
-            vol.Required(
-                CONF_AUDIO_GUESS_EVENTS,
-                default=current_data.get(CONF_AUDIO_GUESS_EVENTS, DEFAULT_AUDIO_GUESS_EVENTS)
-            ): cv.boolean,
-            vol.Required(
-                CONF_AUDIO_UI_EVENTS,
-                default=current_data.get(CONF_AUDIO_UI_EVENTS, DEFAULT_AUDIO_UI_EVENTS)
-            ): cv.boolean,
-            vol.Required(
-                CONF_AUDIO_ERROR_EVENTS,
-                default=current_data.get(CONF_AUDIO_ERROR_EVENTS, DEFAULT_AUDIO_ERROR_EVENTS)
-            ): cv.boolean,
+                CONF_SELECTED_USERS,
+                default=current_selection
+            ): cv.multi_select(user_options),
         })
 
         return self.async_show_form(
@@ -293,9 +363,45 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
             errors=errors,
             description_placeholders={
                 "current_difficulty": current_data.get(CONF_DIFFICULTY, "normal").title(),
+                "current_user_count": str(len(current_selection)),
                 "token_url": f"{self.hass.config.external_url or self.hass.config.internal_url}/profile/security"
             }
         )
+
+    async def _get_available_users(self) -> List[Dict[str, Any]]:
+        """Get list of available users from Home Assistant."""
+        try:
+            users = await self.hass.auth.async_get_users()
+            available_users = []
+            
+            for user in users:
+                # Determine user role
+                if user.is_owner:
+                    role = "Owner"
+                elif user.is_admin:
+                    role = "Administrator" 
+                elif user.system_generated:
+                    role = "System User"
+                else:
+                    role = "User"
+                
+                available_users.append({
+                    'id': user.id,
+                    'name': user.name or "Unnamed User",
+                    'role': role,
+                    'is_active': user.is_active,
+                    'system_generated': user.system_generated,
+                })
+            
+            # Sort users: Owners first, then Admins, then Users, then System users
+            role_priority = {"Owner": 0, "Administrator": 1, "User": 2, "System User": 3}
+            available_users.sort(key=lambda x: (role_priority.get(x['role'], 4), x['name']))
+            
+            return available_users
+            
+        except Exception as e:
+            _LOGGER.error(f"Error getting available users: {e}")
+            return []
 
     async def _test_token(self, token: str) -> tuple[bool, Optional[str]]:
         """Test token (same as main config flow)."""

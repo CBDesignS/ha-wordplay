@@ -1,4 +1,4 @@
-"""Text platform for H.A WordPlay integration - Multi-User Version."""
+"""Text platform for H.A WordPlay integration - Multi-User Version with User Selection."""
 import logging
 from typing import Optional
 
@@ -11,6 +11,7 @@ from .wordplay_const import (
     DOMAIN,
     MIN_WORD_LENGTH,
     MAX_WORD_LENGTH,
+    CONF_SELECTED_USERS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -22,7 +23,15 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: Optional[DiscoveryInfoType] = None,
 ) -> None:
-    """Set up the text platform for WordPlay - Multi-User."""
+    """Set up the text platform for WordPlay - Multi-User with User Selection."""
+    
+    # Get selected users from config
+    domain_data = hass.data.get(DOMAIN, {})
+    selected_user_ids = domain_data.get("selected_users", [])
+    
+    if not selected_user_ids:
+        _LOGGER.warning("No users selected for WordPlay - no text entities will be created")
+        return
     
     # Get all users from Home Assistant
     users = await hass.auth.async_get_users()
@@ -40,10 +49,14 @@ async def async_setup_platform(
         hass.data[DOMAIN]["entities"]["default"] = {}
     hass.data[DOMAIN]["entities"]["default"]["text_input"] = default_entity
     
-    # Create entity for each user
+    # Create entity only for selected users
     for user in users:
         if user.system_generated:
             continue  # Skip system users
+        
+        # Only create entities for selected users
+        if user.id not in selected_user_ids:
+            continue
             
         user_id = user.id
         entity = WordPlayGuessInput(hass, user_id)
@@ -54,10 +67,10 @@ async def async_setup_platform(
             hass.data[DOMAIN]["entities"][user_id] = {}
         hass.data[DOMAIN]["entities"][user_id]["text_input"] = entity
         
-        _LOGGER.info(f"Created WordPlay text input for user: {user.name} ({user_id})")
+        _LOGGER.info(f"Created WordPlay text input for selected user: {user.name} ({user_id})")
     
     async_add_entities(entities, True)
-    _LOGGER.info(f"WordPlay created {len(entities)} text input entities")
+    _LOGGER.info(f"WordPlay created {len(entities)} text input entities for {len(selected_user_ids)} selected users")
 
 
 class WordPlayGuessInput(TextEntity):
