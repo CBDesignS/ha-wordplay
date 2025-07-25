@@ -371,9 +371,12 @@ class WordPlayGame:
                 self.stats['win_streak'] += 1
                 self.stats['max_streak'] = max(self.stats['max_streak'], self.stats['win_streak'])
                 
-                # FIXED: Ensure guess count is within valid range
+                # FIXED: Ensure guess_distribution has all keys as integers
                 guess_count = len(self.guesses)
-                if 1 <= guess_count <= 8:
+                1 <= guess_count <= 8:
+                    # Convert key to int when accessing
+                    if guess_count not in self.stats['guess_distribution']:
+                        self.stats['guess_distribution'][guess_count] = 0
                     self.stats['guess_distribution'][guess_count] += 1
                 
                 self.stats['difficulty_stats'][self.difficulty]['won'] += 1
