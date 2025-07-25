@@ -83,13 +83,20 @@ class WordPlayStats {
             const entity = await response.json();
             
             if (entity && entity.attributes) {
+                this.debugLog('📊 Raw stats entity:', entity);
+                
                 // Extract stats from sensor attributes
                 const stats = {
                     games_played: entity.attributes.games_played || 0,
                     games_won: entity.attributes.games_won || 0,
-                    win_rate: entity.attributes.win_rate_display || '0%',
+                    win_rate: entity.attributes.win_rate_display || entity.attributes.win_rate || '0%',
                     current_streak: entity.attributes.current_streak || 0
                 };
+                
+                // If win_rate is a number, format it
+                if (typeof stats.win_rate === 'number') {
+                    stats.win_rate = `${stats.win_rate}%`;
+                }
                 
                 this.currentStats = stats;
                 this.displayStats(stats);
@@ -114,10 +121,29 @@ class WordPlayStats {
                 
                 if (response.ok) {
                     const entity = await response.json();
+                    this.debugLog('📊 Button entity fallback:', entity);
+                    
+                    // Try multiple possible locations for stats
+                    let stats = null;
+                    
+                    // Check for stats_summary in attributes
                     if (entity && entity.attributes && entity.attributes.stats_summary) {
-                        this.currentStats = entity.attributes.stats_summary;
-                        this.displayStats(this.currentStats);
-                        this.debugLog('✅ Stats updated from button fallback:', this.currentStats);
+                        stats = entity.attributes.stats_summary;
+                    }
+                    // Check for direct stats in attributes
+                    else if (entity && entity.attributes && entity.attributes.games_played !== undefined) {
+                        stats = {
+                            games_played: entity.attributes.games_played || 0,
+                            games_won: entity.attributes.games_won || 0,
+                            win_rate: entity.attributes.win_rate || '0%',
+                            current_streak: entity.attributes.current_streak || 0
+                        };
+                    }
+                    
+                    if (stats) {
+                        this.currentStats = stats;
+                        this.displayStats(stats);
+                        this.debugLog('✅ Stats updated from button fallback:', stats);
                         return;
                     }
                 }
@@ -134,7 +160,12 @@ class WordPlayStats {
      * @param {Object} stats - Stats object from backend
      */
     displayStats(stats) {
-        if (!this.statsContainer) return;
+        if (!this.statsContainer) {
+            this.debugLog('❌ Stats container not found');
+            return;
+        }
+        
+        this.debugLog('🎯 Displaying stats:', stats);
         
         // Update basic stats
         this.updateStatElement('statGamesPlayed', stats.games_played || 0);
@@ -167,6 +198,9 @@ class WordPlayStats {
         const element = document.getElementById(elementId);
         if (element) {
             element.textContent = value;
+            this.debugLog(`📊 Updated ${elementId} to ${value}`);
+        } else {
+            this.debugLog(`❌ Element ${elementId} not found`);
         }
     }
     
@@ -211,9 +245,24 @@ class WordPlayStats {
         });
         
         // Listen for game state changes
-        document.addEventListener('wordplayGameStateChanged', () => {
-            this.debugLog('🔄 Game state changed, updating stats...');
-            setTimeout(() => this.updateStats(), 500);
+        document.addEventListener('wordplayGameStateChanged', (event) => {
+            this.debugLog('🔄 Game state changed, updating stats...', event.detail);
+            // Update stats after a win or loss
+            if (event.detail && event.detail.gameData) {
+                const gameState = event.detail.gameData.game_state;
+                if (gameState === 'won' || gameState === 'lost') {
+                    // Wait a bit for backend to update
+                    setTimeout(() => this.updateStats(), 2000);
+                }
+            }
+        });
+        
+        // Force refresh when returning to landing screen
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'backBtn') {
+                this.debugLog('🔄 Back button clicked, will refresh stats...');
+                setTimeout(() => this.updateStats(), 1000);
+            }
         });
     }
     
