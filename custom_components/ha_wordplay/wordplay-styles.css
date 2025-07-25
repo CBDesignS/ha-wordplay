@@ -196,7 +196,7 @@ body {
     flex: 1;
     min-width: 90px;
     max-width: 120px;
-    padding: 8px 6px;
+    padding: 2px 2px;
     border: 2px solid var(--divider-color);
     background: var(--tile-empty);
     border-radius: 6px;
