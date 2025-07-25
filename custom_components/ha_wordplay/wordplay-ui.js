@@ -12,6 +12,7 @@ class WordPlayUI {
         // UI state
         this.currentScreen = 'landing';
         this.selectedWordLength = 5;
+        this.selectedDifficulty = 'normal';
         
         // DOM element cache
         this.elements = {};
@@ -282,6 +283,26 @@ class WordPlayUI {
     }
     
     /**
+     * Handle difficulty selection
+     * @param {string} difficulty - Selected difficulty
+     */
+    selectDifficulty(difficulty) {
+        this.selectedDifficulty = difficulty;
+        
+        // Update button states
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        const activeBtn = document.querySelector(`[data-difficulty="${difficulty}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
+        
+        this.debugLog(`🎯 Difficulty selected: ${difficulty}`);
+    }
+    
+    /**
      * Get current input value
      * @returns {string} Current guess input
      */
@@ -340,6 +361,14 @@ class WordPlayUI {
      */
     getSelectedWordLength() {
         return this.selectedWordLength;
+    }
+    
+    /**
+     * Get selected difficulty
+     * @returns {string} Selected difficulty
+     */
+    getSelectedDifficulty() {
+        return this.selectedDifficulty;
     }
 }
 

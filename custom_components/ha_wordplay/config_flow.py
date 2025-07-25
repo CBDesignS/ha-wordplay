@@ -18,19 +18,7 @@ from .wordplay_const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 # Configuration constants
-CONF_DIFFICULTY = "difficulty"
 CONF_SELECTED_USERS = "selected_users"
-
-# Difficulty options
-DIFFICULTY_EASY = "easy"
-DIFFICULTY_NORMAL = "normal"
-DIFFICULTY_HARD = "hard"
-
-DIFFICULTY_OPTIONS = {
-    DIFFICULTY_EASY: "Easy (Hint shown before guessing)",
-    DIFFICULTY_NORMAL: "Normal (Hints available on request)",
-    DIFFICULTY_HARD: "Hard (No hints available)"
-}
 
 
 class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -41,27 +29,24 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self._token = None
-        self._difficulty = DIFFICULTY_NORMAL
         self._available_users = []
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None
     ) -> FlowResult:
-        """Handle the initial step - Access Token and Difficulty."""
+        """Handle the initial step - Access Token."""
         errors = {}
 
         if user_input is not None:
             # Validate the token
             token = user_input[CONF_ACCESS_TOKEN].strip()
-            difficulty = user_input[CONF_DIFFICULTY]
 
             # Test the token
             is_valid, error_message = await self._test_token(token)
             
             if is_valid:
-                # Store token and difficulty for next step
+                # Store token for next step
                 self._token = token
-                self._difficulty = difficulty
                 
                 # Move to user selection step
                 return await self.async_step_user_selection()
@@ -70,10 +55,9 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = error_message
                 _LOGGER.error(f"Token validation failed: {error_message}")
 
-        # Build initial config schema
+        # Build initial config schema - REMOVED DIFFICULTY
         config_schema = vol.Schema({
             vol.Required(CONF_ACCESS_TOKEN): cv.string,
-            vol.Required(CONF_DIFFICULTY, default=DIFFICULTY_NORMAL): vol.In(DIFFICULTY_OPTIONS),
         })
 
         # Show the form (initial or with errors)
@@ -104,13 +88,12 @@ class WordPlayConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "no_users_selected"
             else:
                 # Create the entry with selected configuration
-                title = f"WordPlay ({self._difficulty.title()} Mode) - {len(selected_users)} Users"
+                title = f"WordPlay - {len(selected_users)} Users"
                 
                 return self.async_create_entry(
                     title=title,
                     data={
                         CONF_ACCESS_TOKEN: self._token,
-                        CONF_DIFFICULTY: self._difficulty,
                         CONF_SELECTED_USERS: selected_users,
                     }
                 )
@@ -342,15 +325,12 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
             display_name = f"{user['name']} ({user['role']})"
             user_options[user['id']] = display_name
 
+        # REMOVED DIFFICULTY FROM OPTIONS
         options_schema = vol.Schema({
             vol.Optional(
                 CONF_ACCESS_TOKEN, 
                 description="Leave blank to keep current token"
             ): cv.string,
-            vol.Required(
-                CONF_DIFFICULTY, 
-                default=current_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
-            ): vol.In(DIFFICULTY_OPTIONS),
             vol.Required(
                 CONF_SELECTED_USERS,
                 default=current_selection
@@ -362,7 +342,6 @@ class WordPlayOptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=options_schema,
             errors=errors,
             description_placeholders={
-                "current_difficulty": current_data.get(CONF_DIFFICULTY, "normal").title(),
                 "current_user_count": str(len(current_selection)),
                 "token_url": f"{self.hass.config.external_url or self.hass.config.internal_url}/profile/security"
             }

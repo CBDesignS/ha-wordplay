@@ -24,16 +24,10 @@ from .wordplay_const import (
     SERVICE_GET_HINT,
     SERVICE_SUBMIT_GUESS,
     DEFAULT_WORD_LENGTH,
-    CONF_DIFFICULTY,
     CONF_SELECTED_USERS,
 )
 from .wordplay_game_logic import WordPlayGame
 from .wordplay_api_config import get_supported_languages
-
-# Config flow constants
-DIFFICULTY_EASY = "easy"
-DIFFICULTY_NORMAL = "normal" 
-DIFFICULTY_HARD = "hard"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +43,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Get configuration from entry
     config_data = entry.data
     access_token = config_data.get(CONF_ACCESS_TOKEN)
-    difficulty = config_data.get(CONF_DIFFICULTY, DIFFICULTY_NORMAL)
     selected_users = config_data.get(CONF_SELECTED_USERS, [])
     
     if not access_token:
@@ -59,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not selected_users:
         _LOGGER.warning("No users selected for WordPlay - only default entities will be created")
     
-    _LOGGER.info(f"WordPlay config: difficulty={difficulty}, selected_users_count={len(selected_users)}")
+    _LOGGER.info(f"WordPlay config: selected_users_count={len(selected_users)}")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -70,7 +63,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "entities": {},  # Will store {user_id: {entity_type: entity}}
         "config_entry": entry,
         "access_token": access_token,
-        "difficulty": difficulty,
         "selected_users": selected_users,
         "tts_config": tts_config,
         "supported_languages": get_supported_languages(),
@@ -173,9 +165,19 @@ def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
         _LOGGER.info(f"Creating new game instance for user: {user_id}")
         game = WordPlayGame(hass, user_id)  # Pass user_id to constructor
         
-        # Set difficulty from config
-        difficulty = hass.data[DOMAIN].get("difficulty", DIFFICULTY_NORMAL)
-        game.set_difficulty(difficulty)
+        # Get difficulty from user's select entity instead of global config
+        try:
+            difficulty_state = hass.states.get(f"select.ha_wordplay_difficulty_{user_id}")
+            if difficulty_state and difficulty_state.state:
+                game.set_difficulty(difficulty_state.state)
+                _LOGGER.info(f"Set difficulty for user {user_id}: {difficulty_state.state}")
+            else:
+                # Default to normal if no entity found
+                game.set_difficulty("normal")
+                _LOGGER.info(f"No difficulty entity found for user {user_id}, defaulting to normal")
+        except Exception as e:
+            _LOGGER.warning(f"Error getting difficulty for user {user_id}: {e}")
+            game.set_difficulty("normal")
         
         games[user_id] = game
     
@@ -203,6 +205,11 @@ async def _register_services(hass: HomeAssistant) -> None:
             # FIXED: Use proper HA user context instead of explicit user_id
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
+            
+            # Get difficulty from user's select entity
+            difficulty_state = hass.states.get(f"select.ha_wordplay_difficulty_{user_id}")
+            if difficulty_state and difficulty_state.state:
+                game.set_difficulty(difficulty_state.state)
             
             # Use service data normally (no user_id expected)
             word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)

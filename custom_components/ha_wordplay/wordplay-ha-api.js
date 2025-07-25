@@ -1,6 +1,6 @@
 /**
  * WordPlay Home Assistant API - Backend Integration - Multi-User Version
- * FIXED: Removed explicit user_id from service calls - let HA handle user context automatically
+ * FIXED: iPhone app compatibility and user context handling
  */
 
 class WordPlayHA {
@@ -82,9 +82,33 @@ class WordPlayHA {
                 return this.currentUser;
             }
             
+            // Wait for user detection to complete
+            if (window.waitForWordPlayUser) {
+                const userInfo = await window.waitForWordPlayUser();
+                this.currentUser = userInfo.userId;
+                this.debugLog(`👤 User from detection promise: ${userInfo.userName} (${this.currentUser})`);
+                return this.currentUser;
+            }
+            
             const headers = {'Content-Type': 'application/json'};
             if (this.accessToken) {
                 headers['Authorization'] = `Bearer ${this.accessToken}`;
+            }
+            
+            // Try to get user context from the token
+            // First, try to call a service to identify the user context
+            try {
+                // iPhone app fix: Use config/core/check_config as a simple test
+                const testResponse = await fetch('/api/config/core/check_config', {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                if (testResponse.ok) {
+                    this.debugLog('✅ API connection verified for iPhone app');
+                }
+            } catch (testError) {
+                this.debugLog('⚠️ Initial API test failed (iPhone app may need reconnection)');
             }
             
             // List all entities to find WordPlay entities for this session
@@ -105,9 +129,6 @@ class WordPlayHA {
                 
                 // If we have entities, try to determine which user this session belongs to
                 if (wordplayButtons.length > 0) {
-                    // FIXED: Don't make dummy service calls - just use the first available user entity
-                    // The backend will determine the actual user from the access token context
-                    
                     // Look for user entities in order of preference
                     for (const button of wordplayButtons) {
                         const entityId = button.entity_id;
@@ -161,16 +182,14 @@ class WordPlayHA {
     }
     
     /**
-     * Call Home Assistant service - FIXED: No explicit user_id
+     * Call Home Assistant service - iPhone app compatible
      * @param {string} domain - Service domain
      * @param {string} service - Service name
      * @param {Object} data - Service data
      * @returns {Promise} Service response
      */
     async callHAService(domain, service, data = {}) {
-        // FIXED: Remove explicit user_id - let HA handle user context automatically
         const serviceData = { ...data };
-        // REMOVED: serviceData.user_id = this.currentUser;
         
         this.debugLog(`🔧 Calling HA service: ${domain}.${service} (user context automatic)`, serviceData);
         
@@ -179,20 +198,58 @@ class WordPlayHA {
             headers['Authorization'] = `Bearer ${this.accessToken}`;
         }
 
-        const response = await fetch(`/api/services/${domain}/${service}`, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(serviceData)
-        });
+        try {
+            const response = await fetch(`/api/services/${domain}/${service}`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(serviceData)
+            });
 
-        if (!response.ok) {
-            this.debugLog(`❌ Service call failed: ${response.status}`);
-            throw new Error(`Service call failed: ${response.status}`);
+            if (!response.ok) {
+                this.debugLog(`❌ Service call failed: ${response.status}`);
+                
+                // iPhone app specific: Try to get more error details
+                try {
+                    const errorText = await response.text();
+                    this.debugLog(`❌ Error details: ${errorText}`);
+                } catch (e) {
+                    // Ignore if we can't get error text
+                }
+                
+                throw new Error(`Service call failed: ${response.status}`);
+            }
+
+            const result = await response.json();
+            this.debugLog(`✅ Service call successful`, result);
+            return result;
+            
+        } catch (error) {
+            this.debugLog(`❌ Service call error:`, error);
+            
+            // iPhone app fix: Retry once with a delay
+            if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
+                this.debugLog('🔄 Retrying service call for iPhone app...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                try {
+                    const retryResponse = await fetch(`/api/services/${domain}/${service}`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(serviceData)
+                    });
+                    
+                    if (retryResponse.ok) {
+                        const retryResult = await retryResponse.json();
+                        this.debugLog(`✅ Retry successful`, retryResult);
+                        return retryResult;
+                    }
+                } catch (retryError) {
+                    this.debugLog(`❌ Retry also failed:`, retryError);
+                }
+            }
+            
+            throw error;
         }
-
-        const result = await response.json();
-        this.debugLog(`✅ Service call successful`, result);
-        return result;
     }
     
     /**
@@ -206,16 +263,33 @@ class WordPlayHA {
             headers['Authorization'] = `Bearer ${this.accessToken}`;
         }
 
-        const response = await fetch(`/api/states/${entityId}`, {
-            method: 'GET',
-            headers: headers
-        });
+        try {
+            const response = await fetch(`/api/states/${entityId}`, {
+                method: 'GET',
+                headers: headers
+            });
 
-        if (!response.ok) {
-            throw new Error(`Entity fetch failed: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`Entity fetch failed: ${response.status}`);
+            }
+
+            return response.json();
+        } catch (error) {
+            // iPhone app fix: Retry once
+            this.debugLog('🔄 Retrying entity fetch for iPhone app...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const retryResponse = await fetch(`/api/states/${entityId}`, {
+                method: 'GET',
+                headers: headers
+            });
+            
+            if (!retryResponse.ok) {
+                throw new Error(`Entity fetch failed after retry: ${retryResponse.status}`);
+            }
+            
+            return retryResponse.json();
         }
-
-        return response.json();
     }
     
     /**
@@ -267,6 +341,11 @@ class WordPlayHA {
                     this.currentUser = attrs.user_id;
                     this.debugLog(`👤 User updated from backend: ${this.currentUser}`);
                 }
+                
+                // Dispatch custom event for stats update
+                document.dispatchEvent(new CustomEvent('wordplayGameStateChanged', {
+                    detail: { gameData, user: this.currentUser }
+                }));
                 
                 return true;
             }
@@ -366,23 +445,25 @@ class WordPlayHA {
     }
     
     /**
-     * Start new game - FIXED: No explicit user_id
+     * Start new game
      * @param {number} wordLength - Word length
      * @returns {Promise} Service response
      */
     async startNewGame(wordLength) {
-        // FIXED: Let HA determine user from access token context
         return this.callHAService('ha_wordplay', 'new_game', {
             word_length: wordLength
         });
     }
     
     /**
-     * Submit a guess - FIXED: No explicit user_id
+     * Submit a guess
      * @param {string} guess - The guess word
      * @returns {Promise} Service response
      */
     async submitGuess(guess) {
+        // iPhone app fix: Add small delay before text input update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Step 1: Set the user's text input
         const textEntityId = this.getUserEntityId('text.ha_wordplay_guess_input');
         await this.callHAService('text', 'set_value', {
@@ -390,16 +471,18 @@ class WordPlayHA {
             value: guess
         });
         
-        // Step 2: Submit the guess - FIXED: No explicit user_id
+        // iPhone app fix: Add delay between calls
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Step 2: Submit the guess
         return this.callHAService('ha_wordplay', 'submit_guess');
     }
     
     /**
-     * Get a hint - FIXED: No explicit user_id
+     * Get a hint
      * @returns {Promise} Service response
      */
     async getHint() {
-        // FIXED: Let HA determine user from access token context
         return this.callHAService('ha_wordplay', 'get_hint');
     }
     
@@ -448,5 +531,5 @@ let wordplayHA = null;
 document.addEventListener('DOMContentLoaded', () => {
     wordplayHA = new WordPlayHA();
     window.wordplayHA = () => wordplayHA;
-    console.log('🔌 WordPlay HA API (Multi-User FIXED) ready');
+    console.log('🔌 WordPlay HA API (Multi-User + iPhone Fix) ready');
 });

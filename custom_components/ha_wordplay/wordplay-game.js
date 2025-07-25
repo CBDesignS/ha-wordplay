@@ -96,6 +96,9 @@ class WordPlayGame {
             await this.ha.refreshGameState();
             this.ha.startPolling();
             
+            // Load user's difficulty setting
+            await this.loadUserDifficulty();
+            
             // Apply audio configuration after delay
             setTimeout(() => this.applyAudioConfig(), 2000);
             
@@ -178,6 +181,36 @@ class WordPlayGame {
     }
     
     /**
+     * Load user's difficulty setting from their select entity
+     */
+    async loadUserDifficulty() {
+        try {
+            if (!this.ha.currentUser) {
+                this.debugLog('⏳ Waiting for user identification before loading difficulty');
+                return;
+            }
+            
+            const difficultyEntityId = `select.ha_wordplay_difficulty_${this.ha.currentUser}`;
+            const response = await fetch('/api/states/' + difficultyEntityId, {
+                headers: {
+                    'Authorization': `Bearer ${this.ha.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const entity = await response.json();
+                if (entity && entity.state) {
+                    this.ui.selectDifficulty(entity.state);
+                    this.debugLog(`🎯 Loaded user difficulty: ${entity.state}`);
+                }
+            }
+        } catch (error) {
+            this.debugLog('⚠️ Could not load user difficulty, using default:', error);
+        }
+    }
+    
+    /**
      * Apply audio configuration
      */
     applyAudioConfig() {
@@ -209,6 +242,14 @@ class WordPlayGame {
             btn.addEventListener('click', (e) => {
                 const length = parseInt(e.target.dataset.length);
                 this.selectWordLength(length);
+            });
+        });
+        
+        // Difficulty selection buttons
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const difficulty = e.target.dataset.difficulty;
+                this.selectDifficulty(difficulty);
             });
         });
         
@@ -246,9 +287,6 @@ class WordPlayGame {
             guessInput.addEventListener('input', () => this.updateInput());
             guessInput.addEventListener('keypress', (e) => this.handleKeyPress(e));
         }
-        
-        // Modal close - REMOVED click outside functionality
-        // Only close via buttons inside the iframe
         
         // Message handler for audio settings iframe
         window.addEventListener('message', this.handleAudioSettingsMessage.bind(this));
@@ -308,15 +346,40 @@ class WordPlayGame {
     }
     
     /**
+     * Select difficulty
+     * @param {string} difficulty - Selected difficulty
+     */
+    async selectDifficulty(difficulty) {
+        this.ui.selectDifficulty(difficulty);
+        
+        // Update backend select entity
+        try {
+            const difficultyEntityId = `select.ha_wordplay_difficulty_${this.ha.currentUser}`;
+            await this.ha.callHAService('select', 'select_option', {
+                entity_id: difficultyEntityId,
+                option: difficulty
+            });
+            this.debugLog(`🎯 Difficulty updated in backend: ${difficulty}`);
+        } catch (error) {
+            this.debugLog('⚠️ Could not update difficulty entity:', error);
+        }
+    }
+    
+    /**
      * Start new game flow
      */
     async startNewGameFlow() {
         try {
             const selectedLength = this.ui.getSelectedWordLength();
-            this.debugLog(`🎮 Starting new game flow with ${selectedLength} letters`);
+            const selectedDifficulty = this.ui.getSelectedDifficulty();
+            
+            this.debugLog(`🎮 Starting new game flow with ${selectedLength} letters, ${selectedDifficulty} difficulty`);
             
             // Disable start button
             this.ui.setStartButtonState(true, 'Starting...');
+            
+            // Ensure difficulty is set in backend before starting
+            await this.selectDifficulty(selectedDifficulty);
             
             // Switch to game screen
             this.ui.switchScreen('game');
@@ -437,6 +500,9 @@ class WordPlayGame {
         
         // Switch to landing screen
         this.ui.switchScreen('landing');
+        
+        // Reload user's difficulty setting
+        this.loadUserDifficulty();
     }
     
     /**

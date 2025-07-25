@@ -21,6 +21,13 @@ class WordPlayStats {
         
         // Set up observer for landing screen changes
         this.setupScreenObserver();
+        
+        // Also check if landing screen is already active
+        const landingScreen = document.getElementById('landingScreen');
+        if (landingScreen && landingScreen.classList.contains('active')) {
+            // Delay initial load to ensure HA API is ready
+            setTimeout(() => this.updateStats(), 1500);
+        }
     }
     
     /**
@@ -41,21 +48,28 @@ class WordPlayStats {
         // Wait for HA API to be ready
         if (!window.wordplayHA) {
             this.debugLog('⏳ Waiting for HA API...');
+            setTimeout(() => this.updateStats(), 500);
             return;
         }
         
         const ha = window.wordplayHA();
-        if (!ha.currentUser || ha.currentUser === 'default') {
+        if (!ha || !ha.currentUser) {
+            this.debugLog('⏳ Waiting for user identification...');
+            setTimeout(() => this.updateStats(), 500);
+            return;
+        }
+        
+        if (ha.currentUser === 'default') {
             // Hide stats for default/guest users
             this.hideStats();
             return;
         }
         
         try {
-            // Get the button entity to read stats
-            const buttonEntityId = `button.ha_wordplay_game_${ha.currentUser}`;
+            // Get the stats sensor entity directly (more reliable than button attributes)
+            const statsSensorId = `sensor.ha_wordplay_stats_${ha.currentUser}`;
             
-            const response = await fetch('/api/states/' + buttonEntityId, {
+            const response = await fetch('/api/states/' + statsSensorId, {
                 headers: {
                     'Authorization': `Bearer ${ha.accessToken}`,
                     'Content-Type': 'application/json'
@@ -68,17 +82,49 @@ class WordPlayStats {
             
             const entity = await response.json();
             
-            if (entity && entity.attributes && entity.attributes.stats_summary) {
-                this.currentStats = entity.attributes.stats_summary;
-                this.displayStats(this.currentStats);
-                this.debugLog('✅ Stats updated:', this.currentStats);
+            if (entity && entity.attributes) {
+                // Extract stats from sensor attributes
+                const stats = {
+                    games_played: entity.attributes.games_played || 0,
+                    games_won: entity.attributes.games_won || 0,
+                    win_rate: entity.attributes.win_rate_display || '0%',
+                    current_streak: entity.attributes.current_streak || 0
+                };
+                
+                this.currentStats = stats;
+                this.displayStats(stats);
+                this.debugLog('✅ Stats updated from sensor:', stats);
             } else {
-                this.debugLog('📊 No stats found for user');
+                this.debugLog('📊 No stats found in sensor for user');
                 this.hideStats();
             }
             
         } catch (error) {
             this.debugLog('❌ Error fetching stats:', error);
+            
+            // Try fallback to button entity
+            try {
+                const buttonEntityId = `button.ha_wordplay_game_${ha.currentUser}`;
+                const response = await fetch('/api/states/' + buttonEntityId, {
+                    headers: {
+                        'Authorization': `Bearer ${ha.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const entity = await response.json();
+                    if (entity && entity.attributes && entity.attributes.stats_summary) {
+                        this.currentStats = entity.attributes.stats_summary;
+                        this.displayStats(this.currentStats);
+                        this.debugLog('✅ Stats updated from button fallback:', this.currentStats);
+                        return;
+                    }
+                }
+            } catch (fallbackError) {
+                this.debugLog('❌ Fallback also failed:', fallbackError);
+            }
+            
             this.hideStats();
         }
     }
@@ -96,12 +142,19 @@ class WordPlayStats {
         this.updateStatElement('statWinRate', stats.win_rate || '0%');
         this.updateStatElement('statStreak', stats.current_streak || 0);
         
-        // Show the container
+        // Show the container with fade-in effect
         this.statsContainer.style.display = 'block';
         
         // Add animation class if first time showing
         if (!this.statsContainer.classList.contains('stats-loaded')) {
             this.statsContainer.classList.add('stats-loaded');
+            // Force a reflow to ensure animation plays
+            this.statsContainer.offsetHeight;
+            this.statsContainer.style.opacity = '0';
+            setTimeout(() => {
+                this.statsContainer.style.transition = 'opacity 0.5s ease-in';
+                this.statsContainer.style.opacity = '1';
+            }, 50);
         }
     }
     
@@ -137,7 +190,8 @@ class WordPlayStats {
                     mutation.target.classList.contains('landing-screen') && 
                     mutation.target.classList.contains('active')) {
                     this.debugLog('🔄 Landing screen active, updating stats...');
-                    this.updateStats();
+                    // Small delay to ensure everything is loaded
+                    setTimeout(() => this.updateStats(), 500);
                 }
             });
         });
@@ -149,6 +203,18 @@ class WordPlayStats {
                 attributeFilter: ['class'] 
             });
         }
+        
+        // Also listen for custom events that might indicate stats need updating
+        document.addEventListener('wordplayUserReady', () => {
+            this.debugLog('🔄 User ready event, updating stats...');
+            setTimeout(() => this.updateStats(), 1000);
+        });
+        
+        // Listen for game state changes
+        document.addEventListener('wordplayGameStateChanged', () => {
+            this.debugLog('🔄 Game state changed, updating stats...');
+            setTimeout(() => this.updateStats(), 500);
+        });
     }
     
     /**
@@ -180,6 +246,14 @@ class WordPlayStats {
      */
     getCurrentStats() {
         return this.currentStats;
+    }
+    
+    /**
+     * Force refresh stats
+     */
+    async forceRefresh() {
+        this.debugLog('🔄 Force refreshing stats...');
+        await this.updateStats();
     }
     
     // Future expansion methods
@@ -223,6 +297,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Initial stats update after a delay
         setTimeout(() => {
             wordplayStats.updateStats();
-        }, 1000);
+        }, 2000);
     }, 500);
 });

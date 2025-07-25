@@ -75,6 +75,7 @@ class WordPlayGame:
         self.game_end_time = None
         
         # Stats foundation - ready for future expansion
+        # FIXED: Ensure all numeric values are initialized as integers
         self.stats = {
             'games_played': 0,
             'games_won': 0,
@@ -85,7 +86,7 @@ class WordPlayGame:
             'last_played': None,
             'average_guesses': 0.0,
             'win_rate': 0.0,
-            'total_play_time': 0,  # in seconds
+            'total_play_time': 0,  # FIXED: Ensure this is always an integer
             'fastest_win': None,  # in seconds
             'difficulty_stats': {
                 DIFFICULTY_EASY: {'played': 0, 'won': 0},
@@ -103,6 +104,30 @@ class WordPlayGame:
             store = storage.Store(self.hass, STORAGE_VERSION, f"{STORAGE_KEY_PREFIX}_{self.user_id}")
             data = await store.async_load()
             if data:
+                # FIXED: Ensure loaded stats have correct types
+                if 'total_play_time' in data:
+                    # Convert to int if it's a string or float
+                    try:
+                        data['total_play_time'] = int(data['total_play_time'])
+                    except (ValueError, TypeError):
+                        data['total_play_time'] = 0
+                
+                # Ensure all numeric fields are proper types
+                for key in ['games_played', 'games_won', 'total_guesses', 'win_streak', 'max_streak']:
+                    if key in data:
+                        try:
+                            data[key] = int(data[key])
+                        except (ValueError, TypeError):
+                            data[key] = 0
+                
+                # Ensure guess_distribution values are integers
+                if 'guess_distribution' in data:
+                    for k, v in data['guess_distribution'].items():
+                        try:
+                            data['guess_distribution'][k] = int(v)
+                        except (ValueError, TypeError):
+                            data['guess_distribution'][k] = 0
+                
                 self.stats.update(data)
                 _LOGGER.info(f"Loaded stats for user {self.user_id}: {self.stats['games_played']} games played")
         except Exception as e:
@@ -330,7 +355,9 @@ class WordPlayGame:
             # Calculate game duration
             if self.game_start_time and self.game_end_time:
                 game_duration = (self.game_end_time - self.game_start_time).total_seconds()
-                self.stats['total_play_time'] += int(game_duration)
+                # FIXED: Ensure total_play_time is an integer before adding
+                current_play_time = int(self.stats.get('total_play_time', 0))
+                self.stats['total_play_time'] = current_play_time + int(game_duration)
             
             # Update basic stats
             self.stats['games_played'] += 1
@@ -343,7 +370,12 @@ class WordPlayGame:
                 self.stats['games_won'] += 1
                 self.stats['win_streak'] += 1
                 self.stats['max_streak'] = max(self.stats['max_streak'], self.stats['win_streak'])
-                self.stats['guess_distribution'][len(self.guesses)] += 1
+                
+                # FIXED: Ensure guess count is within valid range
+                guess_count = len(self.guesses)
+                if 1 <= guess_count <= 8:
+                    self.stats['guess_distribution'][guess_count] += 1
+                
                 self.stats['difficulty_stats'][self.difficulty]['won'] += 1
                 
                 # Track fastest win

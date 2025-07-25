@@ -12,9 +12,20 @@ from .wordplay_const import (
     WORD_LENGTH_OPTIONS,
     DEFAULT_WORD_LENGTH,
     CONF_SELECTED_USERS,
+    DIFFICULTY_EASY,
+    DIFFICULTY_NORMAL,
+    DIFFICULTY_HARD,
+    DEFAULT_DIFFICULTY,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Difficulty display names
+DIFFICULTY_OPTIONS = {
+    DIFFICULTY_EASY: "Easy",
+    DIFFICULTY_NORMAL: "Normal", 
+    DIFFICULTY_HARD: "Hard"
+}
 
 
 async def async_setup_platform(
@@ -38,18 +49,20 @@ async def async_setup_platform(
     
     entities = []
     
-    # Always create a default entity for system/admin use
-    default_entity = WordPlayWordLengthSelect(hass, "default")
-    entities.append(default_entity)
+    # Create entities for default user
+    default_word_length = WordPlayWordLengthSelect(hass, "default")
+    default_difficulty = WordPlayDifficultySelect(hass, "default")
+    entities.extend([default_word_length, default_difficulty])
     
-    # Store default entity reference
+    # Store default entity references
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"entities": {}}
     if "default" not in hass.data[DOMAIN]["entities"]:
         hass.data[DOMAIN]["entities"]["default"] = {}
-    hass.data[DOMAIN]["entities"]["default"]["word_length"] = default_entity
+    hass.data[DOMAIN]["entities"]["default"]["word_length"] = default_word_length
+    hass.data[DOMAIN]["entities"]["default"]["difficulty"] = default_difficulty
     
-    # Create entity only for selected users
+    # Create entities for selected users
     for user in users:
         if user.system_generated:
             continue  # Skip system users
@@ -59,18 +72,25 @@ async def async_setup_platform(
             continue
             
         user_id = user.id
-        entity = WordPlayWordLengthSelect(hass, user_id)
-        entities.append(entity)
         
-        # Store entity reference
+        # Create word length selector
+        word_length_entity = WordPlayWordLengthSelect(hass, user_id)
+        entities.append(word_length_entity)
+        
+        # Create difficulty selector
+        difficulty_entity = WordPlayDifficultySelect(hass, user_id)
+        entities.append(difficulty_entity)
+        
+        # Store entity references
         if user_id not in hass.data[DOMAIN]["entities"]:
             hass.data[DOMAIN]["entities"][user_id] = {}
-        hass.data[DOMAIN]["entities"][user_id]["word_length"] = entity
+        hass.data[DOMAIN]["entities"][user_id]["word_length"] = word_length_entity
+        hass.data[DOMAIN]["entities"][user_id]["difficulty"] = difficulty_entity
         
-        _LOGGER.info(f"Created WordPlay word length selector for selected user: {user.name} ({user_id})")
+        _LOGGER.info(f"Created WordPlay selectors for selected user: {user.name} ({user_id})")
     
     async_add_entities(entities, True)
-    _LOGGER.info(f"WordPlay created {len(entities)} word length selector entities for {len(selected_user_ids)} selected users")
+    _LOGGER.info(f"WordPlay created {len(entities)} selector entities for {len(selected_user_ids)} selected users")
 
 
 class WordPlayWordLengthSelect(SelectEntity):
@@ -111,3 +131,40 @@ class WordPlayWordLengthSelect(SelectEntity):
             return int(self._attr_current_option)
         except (ValueError, TypeError):
             return DEFAULT_WORD_LENGTH
+
+
+class WordPlayDifficultySelect(SelectEntity):
+    """Select entity for choosing difficulty - one per user."""
+
+    def __init__(self, hass: HomeAssistant, user_id: str) -> None:
+        """Initialize the difficulty select entity."""
+        super().__init__()
+        self.hass = hass
+        self.user_id = user_id
+        self._attr_name = f"ha wordplay difficulty ({user_id})" if user_id != "default" else "ha wordplay difficulty"
+        self._attr_unique_id = f"{DOMAIN}_difficulty_{user_id}"
+        self._attr_entity_category = None
+        self._attr_icon = "mdi:target"
+        self._attr_options = list(DIFFICULTY_OPTIONS.keys())
+        self._attr_current_option = DEFAULT_DIFFICULTY
+        
+        # Set entity_id explicitly
+        self.entity_id = f"select.ha_wordplay_difficulty_{user_id}"
+
+    @property
+    def current_option(self) -> str:
+        """Return the current option."""
+        return self._attr_current_option
+
+    async def async_select_option(self, option: str) -> None:
+        """Select an option."""
+        if option in self._attr_options:
+            self._attr_current_option = option
+            self.async_write_ha_state()
+            _LOGGER.info(f"Difficulty selected for user {self.user_id}: {option}")
+        else:
+            _LOGGER.error(f"Invalid difficulty option for user {self.user_id}: {option}")
+
+    def get_selected_difficulty(self) -> str:
+        """Get the currently selected difficulty."""
+        return self._attr_current_option
