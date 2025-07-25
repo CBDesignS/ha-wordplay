@@ -346,23 +346,14 @@ class WordPlayGame {
     }
     
     /**
-     * Select difficulty
+     * Select difficulty - FIXED: Don't update backend immediately
      * @param {string} difficulty - Selected difficulty
      */
     async selectDifficulty(difficulty) {
         this.ui.selectDifficulty(difficulty);
         
-        // Update backend select entity
-        try {
-            const difficultyEntityId = `select.ha_wordplay_difficulty_${this.ha.currentUser}`;
-            await this.ha.callHAService('select', 'select_option', {
-                entity_id: difficultyEntityId,
-                option: difficulty
-            });
-            this.debugLog(`🎯 Difficulty updated in backend: ${difficulty}`);
-        } catch (error) {
-            this.debugLog('⚠️ Could not update difficulty entity:', error);
-        }
+        // Don't update backend immediately - wait until game starts
+        this.debugLog(`🎯 Difficulty selected: ${difficulty} (will update backend on game start)`);
     }
     
     /**
@@ -378,8 +369,17 @@ class WordPlayGame {
             // Disable start button
             this.ui.setStartButtonState(true, 'Starting...');
             
-            // Ensure difficulty is set in backend before starting
-            await this.selectDifficulty(selectedDifficulty);
+            // Update difficulty in backend only once here
+            try {
+                const difficultyEntityId = `select.ha_wordplay_difficulty_${this.ha.currentUser}`;
+                await this.ha.callHAService('select', 'select_option', {
+                    entity_id: difficultyEntityId,
+                    option: selectedDifficulty
+                });
+                this.debugLog(`🎯 Difficulty updated in backend: ${selectedDifficulty}`);
+            } catch (error) {
+                this.debugLog('⚠️ Could not update difficulty entity:', error);
+            }
             
             // Switch to game screen
             this.ui.switchScreen('game');

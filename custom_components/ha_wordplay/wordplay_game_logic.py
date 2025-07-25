@@ -122,11 +122,20 @@ class WordPlayGame:
                 
                 # Ensure guess_distribution values are integers
                 if 'guess_distribution' in data:
+                    # Convert all keys to integers and values to integers
+                    fixed_distribution = {}
                     for k, v in data['guess_distribution'].items():
                         try:
-                            data['guess_distribution'][k] = int(v)
+                            key_int = int(k)
+                            value_int = int(v)
+                            fixed_distribution[key_int] = value_int
                         except (ValueError, TypeError):
-                            data['guess_distribution'][k] = 0
+                            pass
+                    # Ensure all keys 1-8 exist
+                    for i in range(1, 9):
+                        if i not in fixed_distribution:
+                            fixed_distribution[i] = 0
+                    data['guess_distribution'] = fixed_distribution
                 
                 self.stats.update(data)
                 _LOGGER.info(f"Loaded stats for user {self.user_id}: {self.stats['games_played']} games played")
@@ -371,10 +380,10 @@ class WordPlayGame:
                 self.stats['win_streak'] += 1
                 self.stats['max_streak'] = max(self.stats['max_streak'], self.stats['win_streak'])
                 
-                # FIXED: Ensure guess_distribution has all keys as integers
+                # FIXED: Ensure guess count is within valid range and key exists
                 guess_count = len(self.guesses)
-                1 <= guess_count <= 8:
-                    # Convert key to int when accessing
+                if 1 <= guess_count <= 8:
+                    # Ensure key exists in dictionary
                     if guess_count not in self.stats['guess_distribution']:
                         self.stats['guess_distribution'][guess_count] = 0
                     self.stats['guess_distribution'][guess_count] += 1
