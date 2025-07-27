@@ -214,8 +214,9 @@ class WordPlayGame {
      * Apply audio configuration
      */
     applyAudioConfig() {
-        if (typeof wordplayAudio !== 'undefined' && wordplayAudio) {
-            const audio = wordplayAudio();
+        // Fixed: Check for global wordplayAudio instance directly
+        if (window.wordplayAudio) {
+            const audio = window.wordplayAudio;
             if (audio) {
                 audio.setPreference('enabled', this.audioConfig.enabled);
                 audio.setVolume(this.audioConfig.volume / 100);
