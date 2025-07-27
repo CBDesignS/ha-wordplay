@@ -49,18 +49,9 @@ async def async_setup_platform(
     
     entities = []
     
-    # Create entities for default user
-    default_word_length = WordPlayWordLengthSelect(hass, "default")
-    default_difficulty = WordPlayDifficultySelect(hass, "default")
-    entities.extend([default_word_length, default_difficulty])
-    
-    # Store default entity references
+    # Store entity references
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"entities": {}}
-    if "default" not in hass.data[DOMAIN]["entities"]:
-        hass.data[DOMAIN]["entities"]["default"] = {}
-    hass.data[DOMAIN]["entities"]["default"]["word_length"] = default_word_length
-    hass.data[DOMAIN]["entities"]["default"]["difficulty"] = default_difficulty
     
     # Create entities for selected users
     for user in users:
@@ -101,7 +92,7 @@ class WordPlayWordLengthSelect(SelectEntity):
         super().__init__()
         self.hass = hass
         self.user_id = user_id
-        self._attr_name = f"ha wordplay word length ({user_id})" if user_id != "default" else "ha wordplay word length"
+        self._attr_name = f"ha wordplay word length ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_word_length_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:numeric"
@@ -141,7 +132,7 @@ class WordPlayDifficultySelect(SelectEntity):
         super().__init__()
         self.hass = hass
         self.user_id = user_id
-        self._attr_name = f"ha wordplay difficulty ({user_id})" if user_id != "default" else "ha wordplay difficulty"
+        self._attr_name = f"ha wordplay difficulty ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_difficulty_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:target"

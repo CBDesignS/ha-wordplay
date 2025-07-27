@@ -38,16 +38,9 @@ async def async_setup_platform(
     
     entities = []
     
-    # Always create a default entity for system/admin use
-    default_entity = WordPlayGuessInput(hass, "default")
-    entities.append(default_entity)
-    
-    # Store default entity reference
+    # Store entity references
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"entities": {}}
-    if "default" not in hass.data[DOMAIN]["entities"]:
-        hass.data[DOMAIN]["entities"]["default"] = {}
-    hass.data[DOMAIN]["entities"]["default"]["text_input"] = default_entity
     
     # Create entity only for selected users
     for user in users:
@@ -81,7 +74,7 @@ class WordPlayGuessInput(TextEntity):
         super().__init__()
         self.hass = hass
         self.user_id = user_id
-        self._attr_name = f"ha wordplay guess input ({user_id})" if user_id != "default" else "ha wordplay guess input"
+        self._attr_name = f"ha wordplay guess input ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_guess_input_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:keyboard"

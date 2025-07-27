@@ -1,5 +1,5 @@
 /**
- * WordPlay User Detection - FIXED: Robust retry logic for reliable user context
+ * WordPlay User Detection - FIXED: No default fallback - requires valid user
  * Sets global variables for other scripts to use with proper timing handling
  */
 
@@ -74,8 +74,8 @@ const DETECTION_INTERVAL = 100; // milliseconds
                 if (detectionAttempts < MAX_DETECTION_ATTEMPTS) {
                     setTimeout(checkHA, DETECTION_INTERVAL);
                 } else {
-                    console.log('[WordPlay User Detect] ⚠️ Max attempts reached, falling back to URL/default');
-                    resolve(null); // Fall back to other methods
+                    console.log('[WordPlay User Detect] ⚠️ Max attempts reached, no valid user found');
+                    reject(new Error('No valid user context found'));
                 }
             };
             
@@ -109,20 +109,25 @@ const DETECTION_INTERVAL = 100; // milliseconds
     }
     
     /**
-     * Main detection logic with fallback chain
+     * Main detection logic - no default fallback
      */
     async function detectUser() {
         try {
             // Step 1: Try to get user from HA object with retry logic
             console.log('[WordPlay User Detect] Step 1: Attempting HA object detection...');
-            const haResult = await waitForHAObject();
             
-            if (haResult && haResult.user && haResult.user.id) {
-                window.WORDPLAY_USER_ID = haResult.user.id;
-                window.WORDPLAY_USER_NAME = haResult.user.name || 'HA User';
-                console.log(`[WordPlay User Detect] ✅ User from ${haResult.source}: ${window.WORDPLAY_USER_NAME} (${window.WORDPLAY_USER_ID})`);
-                markUserReady();
-                return;
+            try {
+                const haResult = await waitForHAObject();
+                
+                if (haResult && haResult.user && haResult.user.id) {
+                    window.WORDPLAY_USER_ID = haResult.user.id;
+                    window.WORDPLAY_USER_NAME = haResult.user.name || 'HA User';
+                    console.log(`[WordPlay User Detect] ✅ User from ${haResult.source}: ${window.WORDPLAY_USER_NAME} (${window.WORDPLAY_USER_ID})`);
+                    markUserReady();
+                    return;
+                }
+            } catch (haError) {
+                console.log('[WordPlay User Detect] HA detection failed:', haError.message);
             }
             
             // Step 2: Try URL parameters
@@ -149,19 +154,14 @@ const DETECTION_INTERVAL = 100; // milliseconds
                 return;
             }
             
-            // Step 4: Default fallback
-            console.log('[WordPlay User Detect] Step 4: Using default fallback');
-            window.WORDPLAY_USER_ID = 'default';
-            window.WORDPLAY_USER_NAME = 'Guest Player';
-            console.log('[WordPlay User Detect] ⚠️ Using default user');
-            markUserReady();
+            // No fallback - user detection failed
+            console.error('[WordPlay User Detect] ❌ Failed to detect user - no valid user context found');
+            throw new Error('User detection failed - authentication required');
             
         } catch (error) {
             console.error('[WordPlay User Detect] Error in detection:', error);
-            // Even on error, provide defaults
-            window.WORDPLAY_USER_ID = 'default';
-            window.WORDPLAY_USER_NAME = 'Guest Player';
-            markUserReady();
+            // Show error to user
+            showUserDetectionError();
         }
     }
     
@@ -205,7 +205,7 @@ const DETECTION_INTERVAL = 100; // milliseconds
             console.log(`[WordPlay User Detect] Found ${wordplayEntities.length} WordPlay entities`);
             
             if (wordplayEntities.length > 0) {
-                // Try to find a real user entity (not default)
+                // Try to find a real user entity
                 for (const entity of wordplayEntities) {
                     const entityId = entity.entity_id;
                     let userId = null;
@@ -216,7 +216,7 @@ const DETECTION_INTERVAL = 100; // milliseconds
                         userId = entityId.replace('sensor.ha_wordplay_stats_', '');
                     }
                     
-                    if (userId && userId !== 'default' && userId.length > 10) {
+                    if (userId && userId.length > 10) {
                         // Check if entity has user name in attributes
                         const userName = entity.attributes?.user_name || entity.attributes?.friendly_name || 'Player';
                         
@@ -226,18 +226,6 @@ const DETECTION_INTERVAL = 100; // milliseconds
                         };
                     }
                 }
-                
-                // Fallback to default entity if found
-                const defaultEntity = wordplayEntities.find(e => 
-                    e.entity_id.includes('_default')
-                );
-                
-                if (defaultEntity) {
-                    return {
-                        user_id: 'default',
-                        user_name: 'Guest Player'
-                    };
-                }
             }
             
         } catch (error) {
@@ -245,6 +233,32 @@ const DETECTION_INTERVAL = 100; // milliseconds
         }
         
         return null;
+    }
+    
+    /**
+     * Show error message when user detection fails
+     */
+    function showUserDetectionError() {
+        // Update DOM to show error
+        const userNameEl = document.getElementById('userNameDisplay');
+        if (userNameEl) {
+            userNameEl.textContent = 'Authentication Required';
+            userNameEl.style.color = '#f44336';
+        }
+        
+        // Disable start button
+        const startBtn = document.getElementById('startGameBtn');
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.textContent = 'User Authentication Failed';
+        }
+        
+        // Show error message
+        const landingSubtitle = document.querySelector('.landing-subtitle');
+        if (landingSubtitle) {
+            landingSubtitle.textContent = 'Please ensure you are logged in and have permission to play';
+            landingSubtitle.style.color = '#f44336';
+        }
     }
     
     /**
@@ -269,16 +283,31 @@ const DETECTION_INTERVAL = 100; // milliseconds
      * Provide a promise-based API for other scripts
      */
     window.waitForWordPlayUser = function() {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             if (window.WORDPLAY_USER_READY) {
                 resolve({
                     userId: window.WORDPLAY_USER_ID,
                     userName: window.WORDPLAY_USER_NAME
                 });
             } else {
+                // Set up listeners for both success and failure
+                let resolved = false;
+                
+                // Success listener
                 document.addEventListener('wordplayUserReady', function(event) {
-                    resolve(event.detail);
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(event.detail);
+                    }
                 }, { once: true });
+                
+                // Timeout for failure
+                setTimeout(() => {
+                    if (!resolved && !window.WORDPLAY_USER_READY) {
+                        resolved = true;
+                        reject(new Error('User detection timeout'));
+                    }
+                }, MAX_DETECTION_ATTEMPTS * DETECTION_INTERVAL + 1000);
             }
         });
     };

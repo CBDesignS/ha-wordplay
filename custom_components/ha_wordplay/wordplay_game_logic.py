@@ -45,8 +45,8 @@ STORAGE_KEY_PREFIX = f"{DOMAIN}_stats"
 class WordPlayGame:
     """Main game logic class - Multi-User Version with Stats Foundation."""
     
-    def __init__(self, hass: HomeAssistant, user_id: str = "default"):
-        """Initialize the game for a specific user."""
+    def __init__(self, hass: HomeAssistant, user_id: str):
+        """Initialize the game for a specific user - user_id is required."""
         self.hass = hass
         self.user_id = user_id
         
@@ -148,25 +148,8 @@ class WordPlayGame:
             store = storage.Store(self.hass, STORAGE_VERSION, f"{STORAGE_KEY_PREFIX}_{self.user_id}")
             await store.async_save(self.stats)
             _LOGGER.debug(f"Saved stats for user {self.user_id}")
-            
-            # Update the stats sensor entity
-            await self._update_stats_sensor()
-            
         except Exception as e:
             _LOGGER.error(f"Error saving stats for user {self.user_id}: {e}")
-    
-    async def _update_stats_sensor(self) -> None:
-        """Update the stats sensor entity with current stats."""
-        try:
-            domain_data = self.hass.data.get(DOMAIN, {})
-            user_entities = domain_data.get("entities", {}).get(self.user_id, {})
-            stats_entity = user_entities.get("stats")
-            
-            if stats_entity:
-                stats_entity.update_stats(self.stats['games_played'], self.stats)
-                _LOGGER.debug(f"Updated stats sensor for user {self.user_id}")
-        except Exception as e:
-            _LOGGER.debug(f"Could not update stats sensor: {e}")
         
     def set_difficulty(self, difficulty: str) -> None:
         """Set game difficulty and update hint behavior."""

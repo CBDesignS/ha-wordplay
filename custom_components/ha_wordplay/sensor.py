@@ -68,10 +68,6 @@ async def async_setup_platform(
         
         return user_entities
     
-    # Always create default sensors for system/admin use
-    default_sensors = create_user_sensors("default", "Default")
-    entities.extend(default_sensors)
-    
     # Create sensors only for selected users
     for user in users:
         if user.system_generated:
@@ -100,7 +96,7 @@ class WordPlayGameStateSensor(SensorEntity):
         self.hass = hass
         self.user_id = user_id
         self.user_name = user_name or user_id
-        self._attr_name = f"ha wordplay game state ({user_id})" if user_id != "default" else "ha wordplay game state"
+        self._attr_name = f"ha wordplay game state ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_game_state_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:gamepad-variant"
@@ -155,7 +151,7 @@ class WordPlayGuessesSensor(SensorEntity):
         self.hass = hass
         self.user_id = user_id
         self.user_name = user_name or user_id
-        self._attr_name = f"ha wordplay guesses ({user_id})" if user_id != "default" else "ha wordplay guesses"
+        self._attr_name = f"ha wordplay guesses ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_guesses_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:format-list-numbered"
@@ -210,7 +206,7 @@ class WordPlayStatsSensor(SensorEntity):
         self.hass = hass
         self.user_id = user_id
         self.user_name = user_name or user_id
-        self._attr_name = f"ha wordplay stats ({user_id})" if user_id != "default" else "ha wordplay stats"
+        self._attr_name = f"ha wordplay stats ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_stats_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:chart-line"
@@ -317,7 +313,7 @@ class WordPlayDebugSensor(SensorEntity):
         self.hass = hass
         self.user_id = user_id
         self.user_name = user_name or user_id
-        self._attr_name = f"ha wordplay debug ({user_id})" if user_id != "default" else "ha wordplay debug"
+        self._attr_name = f"ha wordplay debug ({user_id})"
         self._attr_unique_id = f"{DOMAIN}_debug_{user_id}"
         self._attr_entity_category = None
         self._attr_icon = "mdi:bug"

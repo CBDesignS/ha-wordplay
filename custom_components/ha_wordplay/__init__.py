@@ -1,6 +1,6 @@
 """H.A WordPlay integration for Home Assistant - Multi-User Version with User Selection.
 Enhanced to support multiple simultaneous players with isolated game states.
-FIXED: Proper Home Assistant user context handling - no more explicit user_id in service data
+FIXED: Removed all default user logic - requires proper user authentication
 """
 import logging
 import asyncio
@@ -50,7 +50,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
     
     if not selected_users:
-        _LOGGER.warning("No users selected for WordPlay - only default entities will be created")
+        _LOGGER.error("No users selected for WordPlay - cannot continue without user selection")
+        return False
     
     _LOGGER.info(f"WordPlay config: selected_users_count={len(selected_users)}")
     
@@ -137,25 +138,30 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
 
 async def _get_user_from_context(hass: HomeAssistant, call: ServiceCall) -> str:
     """Get user ID from service call context using proper HA patterns."""
-    # FIXED: Use proper Home Assistant user context handling
+    # FIXED: Require proper user context - no default fallback
     if not call.context.user_id:
-        # For system/automation calls, use default user
-        _LOGGER.debug("No user context in service call, using default user")
-        return "default"
+        # For system/automation calls, reject
+        raise ServiceValidationError("WordPlay requires user authentication - no user context found")
     
     try:
         # Verify user exists and get their ID
         user = await hass.auth.async_get_user(call.context.user_id)
         if user is None:
-            _LOGGER.warning(f"User {call.context.user_id} not found, using default")
-            return "default"
+            raise ServiceValidationError(f"User {call.context.user_id} not found")
+        
+        # Check if user is in selected users
+        selected_users = hass.data[DOMAIN].get("selected_users", [])
+        if user.id not in selected_users:
+            raise ServiceValidationError(f"User {user.name} is not authorized to play WordPlay")
         
         _LOGGER.debug(f"Service called by user: {user.name} ({user.id})")
         return user.id
         
+    except ServiceValidationError:
+        raise
     except Exception as e:
         _LOGGER.error(f"Error getting user from context: {e}")
-        return "default"
+        raise ServiceValidationError(f"Failed to authenticate user: {e}")
 
 def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
     """Get existing game instance for user or create new one."""
@@ -165,7 +171,7 @@ def _get_or_create_game(hass: HomeAssistant, user_id: str) -> WordPlayGame:
         _LOGGER.info(f"Creating new game instance for user: {user_id}")
         game = WordPlayGame(hass, user_id)  # Pass user_id to constructor
         
-        # Get difficulty from user's select entity instead of global config
+        # Get difficulty from user's select entity
         try:
             difficulty_state = hass.states.get(f"select.ha_wordplay_difficulty_{user_id}")
             if difficulty_state and difficulty_state.state:
@@ -202,7 +208,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
-            # FIXED: Use proper HA user context instead of explicit user_id
+            # FIXED: Use proper HA user context - no default fallback
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -231,13 +237,17 @@ async def _register_services(hass: HomeAssistant) -> None:
                 await _update_button_attributes(hass, user_id)
             else:
                 _LOGGER.error(f"Failed to start new game for user {user_id}")
+                raise ServiceValidationError("Failed to start new game")
+        except ServiceValidationError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Error in new_game service: {e}")
+            raise ServiceValidationError(f"Error starting new game: {e}")
     
     async def handle_make_guess(call: ServiceCall) -> None:
         """Handle make guess service call."""
         try:
-            # FIXED: Use proper HA user context instead of explicit user_id
+            # FIXED: Use proper HA user context - no default fallback
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -247,31 +257,38 @@ async def _register_services(hass: HomeAssistant) -> None:
                 result = await game.make_guess(guess)
                 if "error" in result:
                     _LOGGER.warning(f"Guess error for user {user_id}: {result['error']}")
+                    raise ServiceValidationError(result['error'])
                 else:
                     _LOGGER.info(f"Guess processed for user {user_id}: {guess}")
                 await _update_button_attributes(hass, user_id)
             else:
-                _LOGGER.warning(f"No guess provided to make_guess service for user {user_id}")
+                raise ServiceValidationError("No guess provided")
+        except ServiceValidationError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Error in make_guess service: {e}")
+            raise ServiceValidationError(f"Error processing guess: {e}")
     
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
         try:
-            # FIXED: Use proper HA user context instead of explicit user_id
+            # FIXED: Use proper HA user context - no default fallback
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
             hint = await game.get_hint()
             _LOGGER.info(f"Hint requested by user {user_id}: {hint}")
             await _update_button_attributes(hass, user_id)
+        except ServiceValidationError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Error in get_hint service: {e}")
+            raise ServiceValidationError(f"Error getting hint: {e}")
     
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         try:
-            # FIXED: Use proper HA user context instead of explicit user_id
+            # FIXED: Use proper HA user context - no default fallback
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -286,13 +303,17 @@ async def _register_services(hass: HomeAssistant) -> None:
                 result = await game.make_guess(guess)
                 if "error" in result:
                     _LOGGER.warning(f"Submit guess error for user {user_id}: {result['error']}")
+                    raise ServiceValidationError(result['error'])
                 else:
                     _LOGGER.info(f"Guess submitted by user {user_id}: {guess}")
                 await _update_button_attributes(hass, user_id)
             else:
-                _LOGGER.warning(f"No valid guess to submit for user {user_id}")
+                raise ServiceValidationError("No valid guess to submit")
+        except ServiceValidationError:
+            raise
         except Exception as e:
             _LOGGER.error(f"Error in submit_guess service: {e}")
+            raise ServiceValidationError(f"Error submitting guess: {e}")
     
     # Register the services
     try:

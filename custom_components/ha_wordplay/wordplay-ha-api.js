@@ -1,6 +1,6 @@
 /**
  * WordPlay Home Assistant API - Backend Integration - Multi-User Version
- * FIXED: iPhone app compatibility and user context handling
+ * FIXED: No default fallback - requires valid user authentication
  */
 
 class WordPlayHA {
@@ -37,6 +37,12 @@ class WordPlayHA {
         this.accessToken = this.getAccessToken();
         this.debugLog(`🔑 Access token: ${this.accessToken ? 'Present' : 'Missing'}`);
         
+        if (!this.accessToken) {
+            this.debugLog('❌ No access token found - cannot initialize');
+            this.handleAuthenticationError();
+            return;
+        }
+        
         // Get current user for entity naming
         await this.identifyCurrentUser();
     }
@@ -70,6 +76,22 @@ class WordPlayHA {
     }
     
     /**
+     * Handle authentication errors
+     */
+    handleAuthenticationError() {
+        if (this.onConnectionChange) {
+            this.onConnectionChange('disconnected', '❌ Authentication failed - no access token');
+        }
+        
+        // Show error in UI
+        const connectionStatus = document.getElementById('connectionStatus');
+        if (connectionStatus) {
+            connectionStatus.textContent = '❌ Authentication failed - no access token';
+            connectionStatus.className = 'connection-status disconnected';
+        }
+    }
+    
+    /**
      * Identify the current user from HA - for entity naming only
      * @returns {Promise<string>} User ID
      */
@@ -84,10 +106,15 @@ class WordPlayHA {
             
             // Wait for user detection to complete
             if (window.waitForWordPlayUser) {
-                const userInfo = await window.waitForWordPlayUser();
-                this.currentUser = userInfo.userId;
-                this.debugLog(`👤 User from detection promise: ${userInfo.userName} (${this.currentUser})`);
-                return this.currentUser;
+                try {
+                    const userInfo = await window.waitForWordPlayUser();
+                    this.currentUser = userInfo.userId;
+                    this.debugLog(`👤 User from detection promise: ${userInfo.userName} (${this.currentUser})`);
+                    return this.currentUser;
+                } catch (userError) {
+                    this.debugLog('❌ User detection failed:', userError);
+                    throw new Error('User authentication required');
+                }
             }
             
             const headers = {'Content-Type': 'application/json'};
@@ -129,46 +156,49 @@ class WordPlayHA {
                 
                 // If we have entities, try to determine which user this session belongs to
                 if (wordplayButtons.length > 0) {
-                    // Look for user entities in order of preference
+                    // Look for user entities
                     for (const button of wordplayButtons) {
                         const entityId = button.entity_id;
                         const userId = entityId.replace('button.ha_wordplay_game_', '');
                         
-                        // Skip 'default' for now and use actual user entities
-                        if (userId !== 'default' && userId.length > 20) {
-                            // This looks like a real user ID (they're typically long hex strings)
+                        // Use first real user ID found (they're typically long hex strings)
+                        if (userId.length > 20) {
                             this.currentUser = userId;
                             this.debugLog(`👤 Found user entity for naming: ${this.currentUser}`);
                             break;
                         }
                     }
                     
-                    // If no user entity found, fall back to default
+                    // If no user entity found, fail
                     if (!this.currentUser) {
-                        const defaultButton = wordplayButtons.find(btn => 
-                            btn.entity_id === 'button.ha_wordplay_game_default'
-                        );
-                        
-                        if (defaultButton) {
-                            this.currentUser = 'default';
-                            this.debugLog('👤 Using default user for naming');
-                        }
+                        throw new Error('No valid user entities found');
                     }
                 } else {
-                    this.currentUser = 'default';
-                    this.debugLog('👤 No entities found, using default user for naming');
+                    throw new Error('No WordPlay entities found - user not authorized');
                 }
             } else {
-                this.currentUser = 'default';
-                this.debugLog('⚠️ Could not list entities, using default user for naming');
+                throw new Error('Could not list entities - authentication failed');
             }
             
         } catch (error) {
             this.debugLog('❌ Error identifying user:', error);
-            this.currentUser = 'default';
+            this.handleUserIdentificationError();
+            throw error;
         }
         
         return this.currentUser;
+    }
+    
+    /**
+     * Handle user identification errors
+     */
+    handleUserIdentificationError() {
+        if (this.onConnectionChange) {
+            this.onConnectionChange('disconnected', '❌ User authentication failed');
+        }
+        
+        // Disable polling
+        this.stopPolling();
     }
     
     /**
@@ -177,6 +207,9 @@ class WordPlayHA {
      * @returns {string} User-specific entity ID
      */
     getUserEntityId(entityType) {
+        if (!this.currentUser) {
+            throw new Error('No user identified - cannot get entity ID');
+        }
         const baseName = entityType.replace('_default', '').replace(/_[a-f0-9-]+$/, '');
         return `${baseName}_${this.currentUser}`;
     }
@@ -189,6 +222,10 @@ class WordPlayHA {
      * @returns {Promise} Service response
      */
     async callHAService(domain, service, data = {}) {
+        if (!this.currentUser) {
+            throw new Error('No user identified - cannot call services');
+        }
+        
         const serviceData = { ...data };
         
         this.debugLog(`🔧 Calling HA service: ${domain}.${service} (user context automatic)`, serviceData);
@@ -298,6 +335,11 @@ class WordPlayHA {
      */
     async refreshGameState() {
         try {
+            if (!this.currentUser) {
+                this.debugLog('❌ Cannot refresh game state - no user identified');
+                return false;
+            }
+            
             this.debugLog('🔄 Refreshing game state from user-specific button entity...');
             
             // Get game data from user's button entity
@@ -395,6 +437,11 @@ class WordPlayHA {
      * Start polling for updates
      */
     startPolling() {
+        if (!this.currentUser) {
+            this.debugLog('❌ Cannot start polling - no user identified');
+            return;
+        }
+        
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
         }
@@ -531,5 +578,5 @@ let wordplayHA = null;
 document.addEventListener('DOMContentLoaded', () => {
     wordplayHA = new WordPlayHA();
     window.wordplayHA = () => wordplayHA;
-    console.log('🔌 WordPlay HA API (Multi-User + iPhone Fix) ready');
+    console.log('🔌 WordPlay HA API (Multi-User - No Default) ready');
 });
