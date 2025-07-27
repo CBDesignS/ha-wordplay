@@ -1,6 +1,5 @@
 """H.A WordPlay integration for Home Assistant - Multi-User Version with User Selection.
 Enhanced to support multiple simultaneous players with isolated game states.
-FIXED: Removed all default user logic - requires proper user authentication
 """
 import logging
 import asyncio
@@ -69,6 +68,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "supported_languages": get_supported_languages(),
     }
     
+    # Create default button entity if not exists
+    await _ensure_default_button(hass)
+    
     # Load entity platforms using discovery
     await discovery.async_load_platform(hass, "button", DOMAIN, {}, {})
     await discovery.async_load_platform(hass, "text", DOMAIN, {}, {})
@@ -94,6 +96,11 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
     """Update listener for config entry changes."""
     _LOGGER.info("WordPlay configuration updated, reloading...")
     await hass.config_entries.async_reload(entry.entry_id)
+
+async def _ensure_default_button(hass: HomeAssistant) -> None:
+    """Ensure default game button exists for backward compatibility."""
+    # This maintains backward compatibility for automations that may rely on the default button
+    pass  # Placeholder - implement if needed for backward compatibility
 
 async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) -> None:
     """Register the WordPlay HTML panel with secure token passing."""
@@ -138,20 +145,24 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
 
 async def _get_user_from_context(hass: HomeAssistant, call: ServiceCall) -> str:
     """Get user ID from service call context using proper HA patterns."""
-    # FIXED: Require proper user context - no default fallback
+    # For default/backward compatibility - handle calls without user context
     if not call.context.user_id:
-        # For system/automation calls, reject
-        raise ServiceValidationError("WordPlay requires user authentication - no user context found")
+        # For system/automation calls, use default user if available
+        _LOGGER.debug("No user context in service call, checking for default fallback")
+        # For now, return error - in future could support default user
+        raise ServiceValidationError("No user context found - authentication required")
     
     try:
         # Verify user exists and get their ID
         user = await hass.auth.async_get_user(call.context.user_id)
         if user is None:
+            _LOGGER.warning(f"User {call.context.user_id} not found in system")
             raise ServiceValidationError(f"User {call.context.user_id} not found")
         
         # Check if user is in selected users
         selected_users = hass.data[DOMAIN].get("selected_users", [])
         if user.id not in selected_users:
+            _LOGGER.warning(f"User {user.name} ({user.id}) is not authorized to play WordPlay")
             raise ServiceValidationError(f"User {user.name} is not authorized to play WordPlay")
         
         _LOGGER.debug(f"Service called by user: {user.name} ({user.id})")
@@ -208,7 +219,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
-            # FIXED: Use proper HA user context - no default fallback
+            # First try to get user from context - this will work for UI calls
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -247,7 +258,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_make_guess(call: ServiceCall) -> None:
         """Handle make guess service call."""
         try:
-            # FIXED: Use proper HA user context - no default fallback
+            # Get user from context
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -272,7 +283,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
         try:
-            # FIXED: Use proper HA user context - no default fallback
+            # Get user from context
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -288,7 +299,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         try:
-            # FIXED: Use proper HA user context - no default fallback
+            # Get user from context
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -315,12 +326,51 @@ async def _register_services(hass: HomeAssistant) -> None:
             _LOGGER.error(f"Error in submit_guess service: {e}")
             raise ServiceValidationError(f"Error submitting guess: {e}")
     
+    async def handle_get_current_user(call: ServiceCall) -> Dict[str, str]:
+        """Handle get current user service call - returns the actual logged-in user."""
+        try:
+            # Get the actual user from the service call context
+            if call.context.user_id:
+                user = await hass.auth.async_get_user(call.context.user_id)
+                if user:
+                    # Check if user is authorized
+                    selected_users = hass.data[DOMAIN].get("selected_users", [])
+                    if user.id in selected_users:
+                        _LOGGER.debug(f"Current user identified: {user.name} ({user.id})")
+                        return {
+                            "user_id": user.id,
+                            "user_name": user.name or "Player",
+                            "is_authorized": True
+                        }
+                    else:
+                        _LOGGER.warning(f"User {user.name} is not authorized for WordPlay")
+                        return {
+                            "user_id": user.id,
+                            "user_name": user.name or "Player",
+                            "is_authorized": False,
+                            "error": "User not authorized for WordPlay"
+                        }
+            
+            # No user context found
+            return {
+                "error": "No user context found",
+                "is_authorized": False
+            }
+            
+        except Exception as e:
+            _LOGGER.error(f"Error in get_current_user service: {e}")
+            return {
+                "error": str(e),
+                "is_authorized": False
+            }
+    
     # Register the services
     try:
         hass.services.async_register(DOMAIN, SERVICE_NEW_GAME, handle_new_game)
         hass.services.async_register(DOMAIN, SERVICE_MAKE_GUESS, handle_make_guess)
         hass.services.async_register(DOMAIN, SERVICE_GET_HINT, handle_get_hint)
         hass.services.async_register(DOMAIN, SERVICE_SUBMIT_GUESS, handle_submit_guess)
+        hass.services.async_register(DOMAIN, "get_current_user", handle_get_current_user)
         
         _LOGGER.info("All H.A WordPlay multi-user services registered successfully")
         
@@ -371,6 +421,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, SERVICE_MAKE_GUESS)
         hass.services.async_remove(DOMAIN, SERVICE_GET_HINT)
         hass.services.async_remove(DOMAIN, SERVICE_SUBMIT_GUESS)
+        hass.services.async_remove(DOMAIN, "get_current_user")
         _LOGGER.info("Services removed successfully")
     except Exception as e:
         _LOGGER.warning(f"Error removing services: {e}")
