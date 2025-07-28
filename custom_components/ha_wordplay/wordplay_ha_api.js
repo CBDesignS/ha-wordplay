@@ -114,7 +114,7 @@ class WordPlayHA {
                 this.debugLog('⚠️ get_current_user service failed, trying fallback methods...');
             }
             
-            // Fallback: Check if user was already detected by wordplay-user-detect.js
+            // FIXED: Check if user was already detected by wordplay_user_detect.js and USE IT
             if (window.WORDPLAY_USER_ID) {
                 this.currentUser = window.WORDPLAY_USER_ID;
                 this.debugLog(`👤 User from pre-detection: ${window.WORDPLAY_USER_NAME} (${this.currentUser})`);
@@ -134,76 +134,17 @@ class WordPlayHA {
                 }
             }
             
-            const headers = {'Content-Type': 'application/json'};
-            if (this.accessToken) {
-                headers['Authorization'] = `Bearer ${this.accessToken}`;
-            }
+            // FIXED: DO NOT do API-based detection that overwrites the correct user
+            // The code below was finding Chris's entities and overwriting Joanne
             
-            // Try to get user context from the token
-            // First, try to call a service to identify the user context
-            try {
-                // iPhone app fix: Use config/core/check_config as a simple test
-                const testResponse = await fetch('/api/config/core/check_config', {
-                    method: 'GET',
-                    headers: headers
-                });
-                
-                if (testResponse.ok) {
-                    this.debugLog('✅ API connection verified for iPhone app');
-                }
-            } catch (testError) {
-                this.debugLog('⚠️ Initial API test failed (iPhone app may need reconnection)');
-            }
-            
-            // List all entities to find WordPlay entities for this session
-            const response = await fetch('/api/states', {
-                method: 'GET',
-                headers: headers
-            });
-            
-            if (response.ok) {
-                const states = await response.json();
-                
-                // Find all WordPlay button entities
-                const wordplayButtons = states.filter(state => 
-                    state.entity_id.startsWith('button.ha_wordplay_game_')
-                );
-                
-                this.debugLog(`Found ${wordplayButtons.length} WordPlay button entities`);
-                
-                // If we have entities, try to determine which user this session belongs to
-                if (wordplayButtons.length > 0) {
-                    // Look for user entities
-                    for (const button of wordplayButtons) {
-                        const entityId = button.entity_id;
-                        const userId = entityId.replace('button.ha_wordplay_game_', '');
-                        
-                        // Use first real user ID found (they're typically long hex strings)
-                        if (userId.length > 20) {
-                            this.currentUser = userId;
-                            this.debugLog(`👤 Found user entity for naming: ${this.currentUser}`);
-                            break;
-                        }
-                    }
-                    
-                    // If no user entity found, fail
-                    if (!this.currentUser) {
-                        throw new Error('No valid user entities found');
-                    }
-                } else {
-                    throw new Error('No WordPlay entities found - user not authorized');
-                }
-            } else {
-                throw new Error('Could not list entities - authentication failed');
-            }
+            // If we get here, no user was detected
+            throw new Error('No valid user context found');
             
         } catch (error) {
             this.debugLog('❌ Error identifying user:', error);
             this.handleUserIdentificationError();
             throw error;
         }
-        
-        return this.currentUser;
     }
     
     /**

@@ -145,19 +145,21 @@ async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) 
 
 async def _get_user_from_context(hass: HomeAssistant, call: ServiceCall) -> str:
     """Get user ID from service call context using proper HA patterns."""
-    # For default/backward compatibility - handle calls without user context
+    # FIXED: Properly get the user from the service call context
     if not call.context.user_id:
-        # For system/automation calls, use default user if available
-        _LOGGER.debug("No user context in service call, checking for default fallback")
-        # For now, return error - in future could support default user
+        # For system/automation calls without user context
+        _LOGGER.debug("No user context in service call")
         raise ServiceValidationError("No user context found - authentication required")
     
     try:
-        # Verify user exists and get their ID
-        user = await hass.auth.async_get_user(call.context.user_id)
+        # Get the actual user making the call
+        user_id = call.context.user_id
+        
+        # Verify user exists
+        user = await hass.auth.async_get_user(user_id)
         if user is None:
-            _LOGGER.warning(f"User {call.context.user_id} not found in system")
-            raise ServiceValidationError(f"User {call.context.user_id} not found")
+            _LOGGER.warning(f"User {user_id} not found in system")
+            raise ServiceValidationError(f"User {user_id} not found")
         
         # Check if user is in selected users
         selected_users = hass.data[DOMAIN].get("selected_users", [])
@@ -219,7 +221,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
-            # First try to get user from context - this will work for UI calls
+            # Get user from context
             user_id = await _get_user_from_context(hass, call)
             game = _get_or_create_game(hass, user_id)
             
@@ -329,7 +331,7 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_get_current_user(call: ServiceCall) -> Dict[str, str]:
         """Handle get current user service call - returns the actual logged-in user."""
         try:
-            # Get the actual user from the service call context
+            # FIXED: Get the actual user from the service call context
             if call.context.user_id:
                 user = await hass.auth.async_get_user(call.context.user_id)
                 if user:
