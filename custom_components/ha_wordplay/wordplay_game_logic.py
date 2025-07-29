@@ -559,7 +559,7 @@ class WordPlayGame:
             }
         else:
             fallback_hints = {
-                5: "A common 5-letter English word",
+                5: "A 5-letter English word you have never heard of before, good luck",
                 6: "A 6-letter word you might use daily",
                 7: "A 7-letter word with good letter variety", 
                 8: "An 8-letter word - think carefully!"
