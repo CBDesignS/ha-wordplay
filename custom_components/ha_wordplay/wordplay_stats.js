@@ -22,12 +22,8 @@ class WordPlayStats {
         // Set up observer for landing screen changes
         this.setupScreenObserver();
         
-        // Also check if landing screen is already active
-        const landingScreen = document.getElementById('landingScreen');
-        if (landingScreen && landingScreen.classList.contains('active')) {
-            // Delay initial load to ensure HA API is ready
-            setTimeout(() => this.updateStats(), 1500);
-        }
+        // FIXED: Wait for user to be identified before loading stats
+        this.waitForUserAndLoadStats();
     }
     
     /**
@@ -39,6 +35,33 @@ class WordPlayStats {
         const timestamp = new Date().toLocaleTimeString();
         const logEntry = `[${timestamp}] ${message}`;
         console.log(logEntry, data);
+    }
+    
+    /**
+     * Wait for user identification then load stats
+     */
+    async waitForUserAndLoadStats() {
+        try {
+            // Wait for user detection to complete
+            if (window.waitForWordPlayUser) {
+                const userInfo = await window.waitForWordPlayUser();
+                this.debugLog('📊 User identified for stats:', userInfo);
+                
+                // Check if on landing screen
+                const landingScreen = document.getElementById('landingScreen');
+                if (landingScreen && landingScreen.classList.contains('active')) {
+                    // Small delay to ensure HA API is ready
+                    setTimeout(() => this.updateStats(), 500);
+                }
+            } else {
+                // Fallback: wait a bit and try again
+                setTimeout(() => this.waitForUserAndLoadStats(), 500);
+            }
+        } catch (error) {
+            this.debugLog('❌ Error waiting for user:', error);
+            // Try again after delay
+            setTimeout(() => this.waitForUserAndLoadStats(), 1000);
+        }
     }
     
     /**
@@ -103,7 +126,7 @@ class WordPlayStats {
                 this.debugLog('✅ Stats updated from sensor:', stats);
             } else {
                 this.debugLog('📊 No stats found in sensor for user');
-                this.hideStats();
+                this.displayDefaultStats();
             }
             
         } catch (error) {
@@ -151,8 +174,21 @@ class WordPlayStats {
                 this.debugLog('❌ Fallback also failed:', fallbackError);
             }
             
-            this.hideStats();
+            this.displayDefaultStats();
         }
+    }
+    
+    /**
+     * Display default stats when none found
+     */
+    displayDefaultStats() {
+        const defaultStats = {
+            games_played: 0,
+            games_won: 0,
+            win_rate: '0%',
+            current_streak: 0
+        };
+        this.displayStats(defaultStats);
     }
     
     /**
@@ -342,10 +378,5 @@ document.addEventListener('DOMContentLoaded', () => {
         wordplayStats = new WordPlayStats();
         window.wordplayStats = () => wordplayStats;
         console.log('📊 WordPlay Stats module ready');
-        
-        // Initial stats update after a delay
-        setTimeout(() => {
-            wordplayStats.updateStats();
-        }, 2000);
     }, 500);
 });

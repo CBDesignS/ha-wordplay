@@ -283,21 +283,23 @@ class WordPlayUI {
     }
     
     /**
-     * Handle difficulty selection
+     * Handle difficulty selection - FIXED: Just update UI, no backend call
      * @param {string} difficulty - Selected difficulty
      */
     selectDifficulty(difficulty) {
         this.selectedDifficulty = difficulty;
         
-        // Update button states
-        document.querySelectorAll('.difficulty-btn').forEach(btn => {
-            btn.classList.remove('active');
+        // Update button states with a small delay to prevent lag
+        requestAnimationFrame(() => {
+            document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            const activeBtn = document.querySelector(`[data-difficulty="${difficulty}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
         });
-        
-        const activeBtn = document.querySelector(`[data-difficulty="${difficulty}"]`);
-        if (activeBtn) {
-            activeBtn.classList.add('active');
-        }
         
         this.debugLog(`🎯 Difficulty selected: ${difficulty}`);
     }

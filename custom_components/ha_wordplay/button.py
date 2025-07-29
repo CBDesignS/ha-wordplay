@@ -81,6 +81,7 @@ class WordPlayGameButton(ButtonEntity):
         self._attr_entity_category = None
         self._attr_icon = "mdi:gamepad-variant"
         self._attr_extra_state_attributes = {}
+        self._hint_requested = False  # Track if hint has been requested
         
         # Set entity_id explicitly
         self.entity_id = f"button.ha_wordplay_game_{user_id}"
@@ -148,12 +149,24 @@ class WordPlayGameButton(ButtonEntity):
             
             # Add current game info if playing
             if game.game_state == STATE_PLAYING:
+                # FIXED: Only show hint if it's been requested or difficulty is easy
+                hint_to_show = ""
+                if game.difficulty == "easy" and game.hint:
+                    hint_to_show = game.hint
+                    self._hint_requested = True
+                elif self._hint_requested and game.hint:
+                    hint_to_show = game.hint
+                
                 attributes.update({
                     "current_word_length": f"{game.word_length} letters",
-                    "hint": game.hint if game.hint else "Click 'Get Hint' for a clue!",
+                    "hint": hint_to_show if hint_to_show else "Click 'Get Hint' for a clue!",
+                    "hint_shown": bool(hint_to_show),  # Track if hint is displayed
                     "current_input": self._format_current_input(game),
                     "latest_guess": self._format_latest_guess(game),
                 })
+            else:
+                # Reset hint tracking when game ends
+                self._hint_requested = False
             
             # Add guess history
             if game.guesses:
@@ -275,6 +288,9 @@ class WordPlayGameButton(ButtonEntity):
             
             # If no game in progress, start a new one
             if game.game_state in [STATE_IDLE, STATE_WON, STATE_LOST]:
+                # Reset hint tracking for new game
+                self._hint_requested = False
+                
                 # Get word length from user's select entity or use default
                 word_length = 5
                 try:
@@ -298,4 +314,15 @@ class WordPlayGameButton(ButtonEntity):
 
     def update_attributes(self) -> None:
         """Update button attributes when game state changes."""
+        # Check if hint was requested
+        game_data = self.hass.data.get(DOMAIN, {})
+        games = game_data.get("games", {})
+        game = games.get(self.user_id)
+        
+        if game and hasattr(game, 'hint') and game.hint and game.game_state == STATE_PLAYING:
+            # If game has a hint and we're playing, mark it as requested
+            # This handles the case where get_hint service was called
+            if game.last_message and "Hint:" in game.last_message:
+                self._hint_requested = True
+        
         self.async_write_ha_state()
