@@ -552,7 +552,7 @@ class WordPlayGame:
         # Fallback hints based on word length and difficulty
         if self.difficulty == DIFFICULTY_EASY:
             fallback_hints = {
-                5: "A common 5-letter English word you use often",
+                5: "A 5-letter English word you will NEVER guess",
                 6: "A 6-letter word you might encounter daily",
                 7: "A 7-letter word with interesting letter patterns", 
                 8: "An 8-letter word - think of longer, descriptive words"
@@ -585,12 +585,7 @@ class WordPlayGame:
                 filtered_words.append(word)
         
         hint = ' '.join(filtered_words)
-        
-        # Limit length based on difficulty
-        max_length = 80 if self.difficulty == DIFFICULTY_EASY else 60
-        if len(hint) > max_length:
-            hint = hint[:max_length-3] + "..."
-        
+               
         return hint.capitalize() if hint else "A word you need to guess!"
     
     async def _clear_input_field(self) -> None:
