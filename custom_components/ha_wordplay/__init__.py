@@ -221,8 +221,18 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_new_game(call: ServiceCall) -> None:
         """Handle new game service call."""
         try:
-            # Get user from context
-            user_id = await _get_user_from_context(hass, call)
+            # SIMPLE FIX: Check if user_id is explicitly provided in the call
+            user_id = call.data.get("user_id")
+            
+            if user_id:
+                # Verify this user is authorized
+                selected_users = hass.data[DOMAIN].get("selected_users", [])
+                if user_id not in selected_users:
+                    raise ServiceValidationError(f"User {user_id} is not authorized for WordPlay")
+            else:
+                # Fall back to context detection
+                user_id = await _get_user_from_context(hass, call)
+            
             game = _get_or_create_game(hass, user_id)
             
             # Get difficulty from user's select entity
@@ -230,7 +240,7 @@ async def _register_services(hass: HomeAssistant) -> None:
             if difficulty_state and difficulty_state.state:
                 game.set_difficulty(difficulty_state.state)
             
-            # Use service data normally (no user_id expected)
+            # Use service data normally
             word_length = call.data.get("word_length", DEFAULT_WORD_LENGTH)
             language = call.data.get("language", "en")
             
@@ -260,11 +270,21 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_make_guess(call: ServiceCall) -> None:
         """Handle make guess service call."""
         try:
-            # Get user from context
-            user_id = await _get_user_from_context(hass, call)
+            # SIMPLE FIX: Check if user_id is explicitly provided
+            user_id = call.data.get("user_id")
+            
+            if user_id:
+                # Verify this user is authorized
+                selected_users = hass.data[DOMAIN].get("selected_users", [])
+                if user_id not in selected_users:
+                    raise ServiceValidationError(f"User {user_id} is not authorized for WordPlay")
+            else:
+                # Fall back to context detection
+                user_id = await _get_user_from_context(hass, call)
+            
             game = _get_or_create_game(hass, user_id)
             
-            # Use service data normally (no user_id expected)
+            # Use service data normally
             guess = call.data.get("guess", "").upper()
             if guess:
                 result = await game.make_guess(guess)
@@ -285,8 +305,18 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_get_hint(call: ServiceCall) -> None:
         """Handle get hint service call."""
         try:
-            # Get user from context
-            user_id = await _get_user_from_context(hass, call)
+            # SIMPLE FIX: Check if user_id is explicitly provided
+            user_id = call.data.get("user_id")
+            
+            if user_id:
+                # Verify this user is authorized
+                selected_users = hass.data[DOMAIN].get("selected_users", [])
+                if user_id not in selected_users:
+                    raise ServiceValidationError(f"User {user_id} is not authorized for WordPlay")
+            else:
+                # Fall back to context detection
+                user_id = await _get_user_from_context(hass, call)
+            
             game = _get_or_create_game(hass, user_id)
             
             hint = await game.get_hint()
@@ -301,8 +331,18 @@ async def _register_services(hass: HomeAssistant) -> None:
     async def handle_submit_guess(call: ServiceCall) -> None:
         """Handle submit current guess service call."""
         try:
-            # Get user from context
-            user_id = await _get_user_from_context(hass, call)
+            # SIMPLE FIX: Check if user_id is explicitly provided
+            user_id = call.data.get("user_id")
+            
+            if user_id:
+                # Verify this user is authorized
+                selected_users = hass.data[DOMAIN].get("selected_users", [])
+                if user_id not in selected_users:
+                    raise ServiceValidationError(f"User {user_id} is not authorized for WordPlay")
+            else:
+                # Fall back to context detection
+                user_id = await _get_user_from_context(hass, call)
+            
             game = _get_or_create_game(hass, user_id)
             
             # Get current input from user's text entity state
@@ -328,42 +368,43 @@ async def _register_services(hass: HomeAssistant) -> None:
             _LOGGER.error(f"Error in submit_guess service: {e}")
             raise ServiceValidationError(f"Error submitting guess: {e}")
     
-    async def handle_get_current_user(call: ServiceCall) -> Dict[str, str]:
-        """Handle get current user service call - returns the actual logged-in user."""
+    async def handle_identify_player(call: ServiceCall) -> Dict[str, str]:
+        """SIMPLE FIX: New service to identify the actual player from browser session."""
         try:
-            # FIXED: Get the actual user from the service call context
+            # This service is called from the iframe
+            # It should identify the actual user viewing the panel
+            
+            # Try to get user from service call context
             if call.context.user_id:
                 user = await hass.auth.async_get_user(call.context.user_id)
                 if user:
                     # Check if user is authorized
                     selected_users = hass.data[DOMAIN].get("selected_users", [])
                     if user.id in selected_users:
-                        _LOGGER.debug(f"Current user identified: {user.name} ({user.id})")
+                        _LOGGER.debug(f"Player identified from context: {user.name} ({user.id})")
                         return {
                             "user_id": user.id,
                             "user_name": user.name or "Player",
-                            "is_authorized": True
-                        }
-                    else:
-                        _LOGGER.warning(f"User {user.name} is not authorized for WordPlay")
-                        return {
-                            "user_id": user.id,
-                            "user_name": user.name or "Player",
-                            "is_authorized": False,
-                            "error": "User not authorized for WordPlay"
+                            "is_authorized": True,
+                            "source": "context"
                         }
             
-            # No user context found
+            # If no context, we need another way to identify the user
+            # This is the tricky part - iframes don't easily pass user context
+            
+            # For now, return an error so we know this approach isn't working
             return {
-                "error": "No user context found",
-                "is_authorized": False
+                "error": "Cannot identify player from iframe context",
+                "is_authorized": False,
+                "source": "failed"
             }
             
         except Exception as e:
-            _LOGGER.error(f"Error in get_current_user service: {e}")
+            _LOGGER.error(f"Error in identify_player service: {e}")
             return {
                 "error": str(e),
-                "is_authorized": False
+                "is_authorized": False,
+                "source": "error"
             }
     
     # Register the services
@@ -372,7 +413,7 @@ async def _register_services(hass: HomeAssistant) -> None:
         hass.services.async_register(DOMAIN, SERVICE_MAKE_GUESS, handle_make_guess)
         hass.services.async_register(DOMAIN, SERVICE_GET_HINT, handle_get_hint)
         hass.services.async_register(DOMAIN, SERVICE_SUBMIT_GUESS, handle_submit_guess)
-        hass.services.async_register(DOMAIN, "get_current_user", handle_get_current_user)
+        hass.services.async_register(DOMAIN, "identify_player", handle_identify_player)
         
         _LOGGER.info("All H.A WordPlay multi-user services registered successfully")
         
@@ -423,7 +464,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_remove(DOMAIN, SERVICE_MAKE_GUESS)
         hass.services.async_remove(DOMAIN, SERVICE_GET_HINT)
         hass.services.async_remove(DOMAIN, SERVICE_SUBMIT_GUESS)
-        hass.services.async_remove(DOMAIN, "get_current_user")
+        hass.services.async_remove(DOMAIN, "identify_player")
         _LOGGER.info("Services removed successfully")
     except Exception as e:
         _LOGGER.warning(f"Error removing services: {e}")

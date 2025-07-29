@@ -97,24 +97,7 @@ class WordPlayHA {
      */
     async identifyCurrentUser() {
         try {
-            // FIXED: First try the new get_current_user service to get the actual logged-in user
-            this.debugLog('🔍 Attempting to identify current user via service...');
-            
-            try {
-                const userResponse = await this.callHAService('ha_wordplay', 'get_current_user');
-                
-                if (userResponse && userResponse.user_id && userResponse.is_authorized) {
-                    this.currentUser = userResponse.user_id;
-                    this.debugLog(`👤 Current user identified via service: ${userResponse.user_name} (${this.currentUser})`);
-                    return this.currentUser;
-                } else if (userResponse && userResponse.error) {
-                    this.debugLog(`❌ User service error: ${userResponse.error}`);
-                }
-            } catch (serviceError) {
-                this.debugLog('⚠️ get_current_user service failed, trying fallback methods...');
-            }
-            
-            // FIXED: Check if user was already detected by wordplay_user_detect.js and USE IT
+            // SIMPLE FIX: Check if user was already detected by wordplay_user_detect.js and USE IT
             if (window.WORDPLAY_USER_ID) {
                 this.currentUser = window.WORDPLAY_USER_ID;
                 this.debugLog(`👤 User from pre-detection: ${window.WORDPLAY_USER_NAME} (${this.currentUser})`);
@@ -133,9 +116,6 @@ class WordPlayHA {
                     throw new Error('User authentication required');
                 }
             }
-            
-            // FIXED: DO NOT do API-based detection that overwrites the correct user
-            // The code below was finding Chris's entities and overwriting Joanne
             
             // If we get here, no user was detected
             throw new Error('No valid user context found');
@@ -174,6 +154,7 @@ class WordPlayHA {
     
     /**
      * Call Home Assistant service - iPhone app compatible
+     * SIMPLE FIX: Include user_id in service data when calling WordPlay services
      * @param {string} domain - Service domain
      * @param {string} service - Service name
      * @param {Object} data - Service data
@@ -186,7 +167,12 @@ class WordPlayHA {
         
         const serviceData = { ...data };
         
-        this.debugLog(`🔧 Calling HA service: ${domain}.${service} (user context automatic)`, serviceData);
+        // SIMPLE FIX: Include user_id for WordPlay services
+        if (domain === 'ha_wordplay' && this.currentUser) {
+            serviceData.user_id = this.currentUser;
+        }
+        
+        this.debugLog(`🔧 Calling HA service: ${domain}.${service}`, serviceData);
         
         const headers = {'Content-Type': 'application/json'};
         if (this.accessToken) {
