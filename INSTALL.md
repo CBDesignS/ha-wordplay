@@ -48,7 +48,7 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 
 - **Choose the players you want to let play the game
 
-- 
+
 <img width="377" height="522" alt="settings1" src="https://github.com/user-attachments/assets/862f5896-20f7-467e-a954-ef533a04871c" />
 
 - Click **Submit** to finish  
