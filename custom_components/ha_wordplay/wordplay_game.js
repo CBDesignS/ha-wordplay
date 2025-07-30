@@ -201,8 +201,11 @@ class WordPlayGame {
             if (response.ok) {
                 const entity = await response.json();
                 if (entity && entity.state) {
-                    this.ui.selectDifficulty(entity.state);
-                    this.debugLog(`🎯 Loaded user difficulty: ${entity.state}`);
+                    // Only update UI if we're on the landing screen
+                    if (this.ui.currentScreen === 'landing') {
+                        this.ui.selectDifficulty(entity.state);
+                        this.debugLog(`🎯 Loaded user difficulty: ${entity.state}`);
+                    }
                 }
             }
         } catch (error) {
@@ -249,8 +252,16 @@ class WordPlayGame {
         // Difficulty selection buttons
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const difficulty = e.target.dataset.difficulty;
-                this.selectDifficulty(difficulty);
+                // Find the actual button element (might have clicked on child)
+                let targetBtn = e.target;
+                while (targetBtn && !targetBtn.classList.contains('difficulty-btn')) {
+                    targetBtn = targetBtn.parentElement;
+                }
+                
+                if (targetBtn) {
+                    const difficulty = targetBtn.dataset.difficulty;
+                    this.selectDifficulty(difficulty);
+                }
             });
         });
         
@@ -347,7 +358,7 @@ class WordPlayGame {
     }
     
     /**
-     * Select difficulty - FIXED: Don't update backend immediately
+     * Select difficulty - Don't update backend until game starts
      * @param {string} difficulty - Selected difficulty
      */
     async selectDifficulty(difficulty) {

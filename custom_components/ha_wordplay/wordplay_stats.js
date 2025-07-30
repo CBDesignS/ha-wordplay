@@ -78,7 +78,8 @@ class WordPlayStats {
         const ha = window.wordplayHA();
         if (!ha || !ha.currentUser) {
             this.debugLog('⏳ Waiting for user identification...');
-            setTimeout(() => this.updateStats(), 500);
+            // Don't retry forever - just show default stats
+            this.displayDefaultStats();
             return;
         }
         

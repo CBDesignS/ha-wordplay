@@ -139,6 +139,10 @@ class WordPlayGame:
                 
                 self.stats.update(data)
                 _LOGGER.info(f"Loaded stats for user {self.user_id}: {self.stats['games_played']} games played")
+                
+                # FIXED: Update stats sensor after loading
+                await self._update_stats_sensor()
+                
         except Exception as e:
             _LOGGER.error(f"Error loading stats for user {self.user_id}: {e}")
     
@@ -150,6 +154,21 @@ class WordPlayGame:
             _LOGGER.debug(f"Saved stats for user {self.user_id}")
         except Exception as e:
             _LOGGER.error(f"Error saving stats for user {self.user_id}: {e}")
+
+    async def _update_stats_sensor(self) -> None:
+        """Update the stats sensor entity with current stats."""
+        try:
+            domain_data = self.hass.data.get(DOMAIN, {})
+            user_entities = domain_data.get("entities", {}).get(self.user_id, {})
+            stats_sensor = user_entities.get("stats")
+            
+            if stats_sensor:
+                stats_sensor.update_stats(self.stats['games_played'], self.stats)
+                _LOGGER.debug(f"User {self.user_id}: Stats sensor updated successfully")
+            else:
+                _LOGGER.warning(f"User {self.user_id}: Stats sensor not found in entities")
+        except Exception as sensor_error:
+            _LOGGER.error(f"User {self.user_id}: Error updating stats sensor: {sensor_error}")
         
     def set_difficulty(self, difficulty: str) -> None:
         """Set game difficulty and update hint behavior."""
@@ -410,6 +429,9 @@ class WordPlayGame:
             
             # Save stats
             await self._save_stats()
+            
+            # CRITICAL FIX: Update the stats sensor entity after saving
+            await self._update_stats_sensor()
             
             _LOGGER.info(f"User {self.user_id}: Updated stats - Games: {self.stats['games_played']}, Wins: {self.stats['games_won']}, Win Rate: {self.stats['win_rate']}%")
             

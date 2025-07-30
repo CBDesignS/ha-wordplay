@@ -214,6 +214,17 @@
                     userNameEl.textContent = window.WORDPLAY_USER_NAME;
                 }
                 console.log(`[WordPlay] Displaying pre-detected user: ${window.WORDPLAY_USER_NAME}`);
+                
+                // FIXED: Trigger stats update after user is pre-detected
+                setTimeout(() => {
+                    if (window.wordplayStats) {
+                        const stats = window.wordplayStats();
+                        if (stats && stats.updateStats) {
+                            console.log('[WordPlay] Triggering stats update after pre-detected user');
+                            stats.updateStats();
+                        }
+                    }
+                }, 1000);
             } else {
                 // Fallback to the original detection method
                 setTimeout(() => {
@@ -258,6 +269,17 @@
                                           if (userNameEl) {
                                               userNameEl.textContent = userName;
                                           }
+                                          
+                                          // FIXED: Trigger stats update after user is identified via API
+                                          setTimeout(() => {
+                                              if (window.wordplayStats) {
+                                                  const stats = window.wordplayStats();
+                                                  if (stats && stats.updateStats) {
+                                                      console.log('[WordPlay] Triggering stats update after API user identification');
+                                                      stats.updateStats();
+                                                  }
+                                              }
+                                          }, 1000);
                                       }).catch(error => {
                                           console.error('Could not fetch user info:', error);
                                       });
