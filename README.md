@@ -13,7 +13,7 @@ A professional HTML panel word guessing game that brings the complete word puzzl
 **🎯 Modern HTML Panel Interface**
 - **Sidebar Integration** - Native Home Assistant panel experience  
 - **Dynamic Responsive Design** - HTML panel that automatically resizes to different screen sizes
-- **Multi-Device Perfect** - Optimized for desktop, tablet, and mobile experiences
+- **Multi-Device Perfect** - Optimized for desktop, tablet, and mobile experiences in web browser or Home Assistant App.
 - **Theme Integration** - Automatically matches your HA theme (light/dark)
 - **Professional UI** - Clean, intuitive game interface
 
@@ -36,7 +36,7 @@ A professional HTML panel word guessing game that brings the complete word puzzl
 - **Multiple Word Lengths** - 5, 6, 7, or 8-letter words
 - **Smart Guess Limits** - Number of guesses equals word length
 - **Color-Coded Feedback** - 🔵 Correct • 🔴 Wrong position • ⚪ Not in word
-- **Dictionary Hints** - AI-powered clues from real definitions
+- **Dictionary Hints** - AI-powered clues from real definitions if available for the returned word. if the returned word fails to get an api hint a generic hint will be used.
 
 ## 🚀 Installation & Setup
 
@@ -162,6 +162,7 @@ service: ha_wordplay.get_hint
 - **Multiplayer Modes** - Family tournaments and challenges
 - **Advanced Themes** - More visual customization options
 - **Sound Effects** - Optional audio feedback (respects HA quiet hours)
+- **Find the annoying bug** and stomp it that stops the game stats from loading at the very start of a game session and after a version update to new/updated game code
 
 **Want to help?** [Contribute language APIs or suggest features!](https://github.com/CBDesignS/ha-wordplay/discussions)
 
