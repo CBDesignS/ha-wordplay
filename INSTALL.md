@@ -46,7 +46,7 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 
 <img width="424" height="329" alt="settings2" src="https://github.com/user-attachments/assets/b0dd3548-d5c9-490b-a0e0-6eb79e9981ac" />
 
-- **Choose the players you want to let play the game
+- **Choose the players you want to let play the game**
 
 
 <img width="377" height="522" alt="settings1" src="https://github.com/user-attachments/assets/862f5896-20f7-467e-a954-ef533a04871c" />
@@ -61,8 +61,8 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 4. Choose a word length (5 to 8 letters)  
 5. Click **Start Game** to begin
 6. If you want to adjust in game audio just press the Audio Settings button to open a new window overlay,
-7. If you need a hit in normal mode press the get hint button (hints auto enabled in easy mode, no hints in hard mode)
-8. Type word guesses and click **Submit Guess**
+7. If you need a hint in normal mode press the get hint button (hints auto enabled in easy mode, no hints in hard mode)
+8. Type word guesses into the ENTER YOUR GUESSES box and click **Submit Guess or press enter/return on the keyboard or mobile device screen**
 
 
 You can change your settings later at any time on the initial landing page:
