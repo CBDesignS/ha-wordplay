@@ -48,8 +48,9 @@ A professional HTML panel word guessing game that brings the complete word puzzl
 1. Install via HACS or manually
 2. Generate a long-lived access token in HA
 3. Add integration via Settings → Devices & Services
-4. Configure difficulty and enter your token
-5. Access game from sidebar
+4. Enter your Long Lived token to enable authentication service and validate the connection
+5. Choose the users you want to give access to from the drop down box and submit to save.
+6. Access game from sidebar
 
 ## 🎮 How to Play
 
@@ -157,7 +158,6 @@ service: ha_wordplay.get_hint
 *We welcome community contributions for additional language APIs! Character-based languages (Chinese, Japanese, etc.) are not planned due to gameplay mechanics.*
 
 ### Feature Roadmap
-- **Statistics Tracking** - Win rates, average guesses, streaks
 - **Custom Word Lists** - User-defined word collections
 - **Multiplayer Modes** - Family tournaments and challenges
 - **Advanced Themes** - More visual customization options
