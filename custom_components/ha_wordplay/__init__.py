@@ -288,11 +288,16 @@ async def _register_services(hass: HomeAssistant) -> None:
             guess = call.data.get("guess", "").upper()
             if guess:
                 result = await game.make_guess(guess)
+                
+                # FIXED: Handle anti-cheat violations gracefully without raising service errors
                 if "error" in result:
-                    _LOGGER.warning(f"Guess error for user {user_id}: {result['error']}")
-                    raise ServiceValidationError(result['error'])
+                    # Log the anti-cheat violation but don't raise a service error
+                    _LOGGER.info(f"Game rule violation for user {user_id}: {result['error']}")
+                    # The game logic already handles updating the UI message and button attributes
+                    # This is normal game behavior, not a service failure
                 else:
                     _LOGGER.info(f"Guess processed for user {user_id}: {guess}")
+                    
                 await _update_button_attributes(hass, user_id)
             else:
                 raise ServiceValidationError("No guess provided")
@@ -354,11 +359,16 @@ async def _register_services(hass: HomeAssistant) -> None:
             
             if guess and guess != "HELLO":
                 result = await game.make_guess(guess)
+                
+                # FIXED: Handle anti-cheat violations gracefully without raising service errors
                 if "error" in result:
-                    _LOGGER.warning(f"Submit guess error for user {user_id}: {result['error']}")
-                    raise ServiceValidationError(result['error'])
+                    # Log the anti-cheat violation but don't raise a service error
+                    _LOGGER.info(f"Game rule violation for user {user_id}: {result['error']}")
+                    # The game logic already handles updating the UI message and button attributes
+                    # This is normal game behavior, not a service failure
                 else:
                     _LOGGER.info(f"Guess submitted by user {user_id}: {guess}")
+                    
                 await _update_button_attributes(hass, user_id)
             else:
                 raise ServiceValidationError("No valid guess to submit")
