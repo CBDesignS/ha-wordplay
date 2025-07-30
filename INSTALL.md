@@ -45,41 +45,23 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 <img width="404" height="866" alt="wordplay settings" src="https://github.com/user-attachments/assets/661d9858-8c64-470e-9013-f25e89836470" />
 
 - **Paste your access token**
-- **Choose your difficulty level**:
-  - **Easy** – Hints shown before guessing  
-  - **Normal** – Hints available on request  
-  - **Hard** – No hints at all
+- **Choose the players you want to let play the game
 
-### Set your audio preferences:
-
-- **Enable Audio** – Turn game sounds on or off  
-- **Audio Volume** – Set how loud the sounds are (0–100)  
-- **Game Sounds** – Sounds for game start, win, and lose  
-- **Guess Sounds** – Sounds when making guesses  
-- **UI Click Sounds** – Optional sounds for clicking buttons  
-- **Error Sounds** – Alerts when something goes wrong
-
-4. Click **Submit** to finish  
-5. You should now see `"WordPlay (Normal Mode)"` (or your chosen mode) in the integrations list
+- Click **Submit** to finish  
 
 ## 🎮 Step 4: Access the Game
 
 1. Look for **🎮 WordPlay** in the Home Assistant sidebar  
-2. Click it to open the game panel  
-3. Choose a word length (5 to 8 letters)  
-4. Click **New Game** to begin  
-5. Type guesses and click **Submit Guess**
+2. Click it to open the game panel
+3. Choose the game difficulty level you want to play at
+4. Choose a word length (5 to 8 letters)  
+5. Click **Start Game** to begin
+6. If you want to adjust in game audio just press the Audio Settings button to open a new window overlay,
+7. If you need a hit in normal mode press the get hint button (hints auto enabled in easy mode, no hints in hard mode)
+8. Type word guesses and click **Submit Guess**
 
-## 🔧 Step 5: Adjusting game Configuration
 
-You can change your settings later at any time:
-
-- Go to **Settings** → **Devices & Services**
-- Find **H.A WordPlay**
-- Click **Configure** to:
-  - Change difficulty
-  - Adjust audio options
-  - Update your access token if needed
+You can change your settings later at any time on the initial landing page:
 
 ### Advanced Users: Entity Control
 
