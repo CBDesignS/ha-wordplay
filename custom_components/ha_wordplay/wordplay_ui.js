@@ -65,9 +65,13 @@ class WordPlayUI {
             backBtn: document.getElementById('backBtn'),
             audioSettingsBtn: document.getElementById('audioSettingsBtn'),
             
-            // Modal
+            // Audio Modal
             audioSettingsModal: document.getElementById('audioSettingsModal'),
-            audioSettingsIframe: document.getElementById('audioSettingsIframe')
+            audioSettingsIframe: document.getElementById('audioSettingsIframe'),
+            
+            // Stats Modal - NEW
+            statsModal: document.getElementById('statsModal'),
+            statsIframe: document.getElementById('statsIframe')
         };
     }
     
@@ -75,18 +79,26 @@ class WordPlayUI {
      * Setup focus management for accessibility
      */
     setupFocusManagement() {
-        // Add escape key handler for modal
+        // Add escape key handler for modals
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (this.elements.audioSettingsModal && this.elements.audioSettingsModal.classList.contains('active')) {
                     this.closeAudioSettings();
                 }
+                if (this.elements.statsModal && this.elements.statsModal.classList.contains('active')) {
+                    this.closeStatsPage();
+                }
             }
         });
         
-        // Set up focus trapping for modal
+        // Set up focus trapping for audio modal
         if (this.elements.audioSettingsModal) {
             this.elements.audioSettingsModal.addEventListener('keydown', this.handleModalKeydown.bind(this));
+        }
+        
+        // Set up focus trapping for stats modal - NEW
+        if (this.elements.statsModal) {
+            this.elements.statsModal.addEventListener('keydown', this.handleModalKeydown.bind(this));
         }
     }
     
@@ -97,7 +109,7 @@ class WordPlayUI {
     handleModalKeydown(e) {
         if (e.key !== 'Tab') return;
         
-        const modal = this.elements.audioSettingsModal;
+        const modal = e.currentTarget;
         if (!modal.classList.contains('active')) return;
         
         const focusableElements = modal.querySelectorAll(
@@ -478,6 +490,79 @@ class WordPlayUI {
                 // Fallback: focus audio settings button
                 if (this.elements.audioSettingsBtn) {
                     this.elements.audioSettingsBtn.focus();
+                }
+            }
+        }
+    }
+    
+    /**
+     * Open stats page modal with proper focus management - NEW
+     */
+    openStatsPage() {
+        this.debugLog('📊 Opening stats page modal');
+        
+        if (this.elements.statsModal && this.elements.statsIframe) {
+            // Store current focus
+            this.lastFocusedElement = document.activeElement;
+            
+            // Set modal attributes for accessibility
+            this.elements.statsModal.setAttribute('aria-modal', 'true');
+            this.elements.statsModal.setAttribute('role', 'dialog');
+            this.elements.statsModal.setAttribute('aria-labelledby', 'stats-modal-title');
+            
+            // Hide background content from screen readers
+            const mainContent = document.querySelector('.wordplay-container');
+            if (mainContent) {
+                mainContent.setAttribute('aria-hidden', 'true');
+            }
+            
+            // Load iframe and show modal
+            this.elements.statsIframe.src = 'wordplay_stats.html';
+            this.elements.statsModal.classList.add('active');
+            
+            // Focus first element in modal after brief delay for iframe load
+            setTimeout(() => {
+                const focusableElements = this.elements.statsModal.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), iframe'
+                );
+                if (focusableElements.length > 0) {
+                    focusableElements[0].focus();
+                }
+            }, 100);
+        }
+    }
+    
+    /**
+     * Close stats page modal with proper focus restoration - NEW
+     */
+    closeStatsPage() {
+        this.debugLog('📊 Closing stats page modal');
+        
+        if (this.elements.statsModal && this.elements.statsIframe) {
+            // Hide modal
+            this.elements.statsModal.classList.remove('active');
+            this.elements.statsIframe.src = '';
+            
+            // Remove modal attributes
+            this.elements.statsModal.removeAttribute('aria-modal');
+            this.elements.statsModal.removeAttribute('role');
+            this.elements.statsModal.removeAttribute('aria-labelledby');
+            
+            // Restore background content for screen readers
+            const mainContent = document.querySelector('.wordplay-container');
+            if (mainContent) {
+                mainContent.removeAttribute('aria-hidden');
+            }
+            
+            // Restore focus to last focused element (stats container or fallback)
+            if (this.lastFocusedElement) {
+                this.lastFocusedElement.focus();
+                this.lastFocusedElement = null;
+            } else {
+                // Fallback: focus stats container
+                const statsContainer = document.getElementById('userStatsSimple');
+                if (statsContainer) {
+                    statsContainer.focus();
                 }
             }
         }

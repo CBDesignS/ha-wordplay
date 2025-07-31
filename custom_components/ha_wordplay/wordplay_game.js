@@ -266,6 +266,18 @@ class WordPlayGame {
             audioBtn.addEventListener('click', () => this.openAudioSettings());
         }
         
+        // Stats container click - NEW
+        const statsContainer = document.getElementById('userStatsSimple');
+        if (statsContainer) {
+            statsContainer.addEventListener('click', () => this.openStatsPage());
+            statsContainer.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.openStatsPage();
+                }
+            });
+        }
+        
         // Game action buttons
         const submitBtn = document.getElementById('submitBtn');
         if (submitBtn) {
@@ -290,7 +302,7 @@ class WordPlayGame {
         }
         
         // Message handler for audio settings iframe
-        window.addEventListener('message', this.handleAudioSettingsMessage.bind(this));
+        window.addEventListener('message', this.handleModalMessages.bind(this));
     }
     
     /**
@@ -548,18 +560,43 @@ class WordPlayGame {
     }
     
     /**
-     * Handle messages from audio settings iframe
+     * Open stats page modal - NEW
+     */
+    openStatsPage() {
+        this.debugLog('📊 Opening stats page modal');
+        this.ui.openStatsPage();
+    }
+    
+    /**
+     * Close stats page modal - NEW
+     */
+    closeStatsPage() {
+        this.debugLog('📊 Closing stats page modal');
+        this.ui.closeStatsPage();
+    }
+    
+    /**
+     * Handle messages from modal iframes - UPDATED
      * @param {MessageEvent} event - Message event
      */
-    handleAudioSettingsMessage(event) {
+    handleModalMessages(event) {
         this.debugLog('📨 Received message from iframe:', event.data);
         
         if (event.data) {
+            // Handle audio settings messages
             if (event.data.action === 'closeAudioSettings' || 
                 event.data.action === 'close' ||
                 event.data === 'close' ||
                 event.data === 'closeAudioSettings') {
                 this.closeAudioSettings();
+                return;
+            }
+            
+            // Handle stats page messages
+            if (event.data.action === 'closeStats' || 
+                event.data === 'closeStats') {
+                this.closeStatsPage();
+                return;
             }
         }
     }

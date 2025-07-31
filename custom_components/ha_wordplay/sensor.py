@@ -1,11 +1,12 @@
-"""Sensor platform for H.A WordPlay integration - Multi-User Version with User Selection."""
+"""Sensor platform for H.A WordPlay integration - Multi-User Version with User Selection and Stats Restoration."""
 import logging
 from typing import Optional, Any, Dict
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, RestoreEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.restore_state import RestoreStateData
 
 from .wordplay_const import (
     DOMAIN,
@@ -197,8 +198,8 @@ class WordPlayGuessesSensor(SensorEntity):
             self.async_write_ha_state()
 
 
-class WordPlayStatsSensor(SensorEntity):
-    """Dedicated sensor for user statistics."""
+class WordPlayStatsSensor(RestoreEntity, SensorEntity):
+    """Dedicated sensor for user statistics with state restoration."""
 
     def __init__(self, hass: HomeAssistant, user_id: str, user_name: str = None) -> None:
         """Initialize the stats sensor."""
@@ -215,6 +216,37 @@ class WordPlayStatsSensor(SensorEntity):
         
         # Set entity_id explicitly to ensure proper registration
         self.entity_id = f"sensor.ha_wordplay_stats_{user_id}"
+
+    async def async_added_to_hass(self) -> None:
+        """Called when entity is added to hass - restore previous state."""
+        await super().async_added_to_hass()
+        
+        # Try to restore previous state
+        last_state = await self.async_get_last_state()
+        last_extra_data = await self.async_get_last_extra_data()
+        
+        if last_state is not None and last_state.state not in (None, "unknown", "unavailable"):
+            try:
+                # Restore the games played count
+                self._attr_native_value = int(last_state.state)
+                
+                # Restore all the attributes if available
+                if last_state.attributes:
+                    # Create a copy of attributes and ensure user info is included
+                    restored_attributes = dict(last_state.attributes)
+                    restored_attributes["user_id"] = self.user_id
+                    restored_attributes["user_name"] = self.user_name
+                    self._attr_extra_state_attributes = restored_attributes
+                
+                # Schedule an update to write the restored state
+                self.async_write_ha_state()
+                
+                _LOGGER.info(f"Stats sensor restored for user {self.user_id}: {self._attr_native_value} games played")
+                
+            except (ValueError, TypeError) as err:
+                _LOGGER.warning(f"Could not restore stats sensor state for user {self.user_id}: {err}")
+        else:
+            _LOGGER.debug(f"No previous state to restore for stats sensor {self.user_id}")
 
     @property
     def name(self) -> str:

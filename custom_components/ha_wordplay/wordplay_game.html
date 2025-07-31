@@ -34,7 +34,7 @@
             font-weight: bold;
         }
         
-        /* Simple Stats Display */
+        /* Simple Stats Display - NOW CLICKABLE */
         .user-stats-simple {
             margin: 16px auto;
             max-width: 400px;
@@ -42,6 +42,14 @@
             background: var(--primary-background-color);
             border: 1px solid var(--divider-color);
             border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .user-stats-simple:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(3, 169, 244, 0.2);
+            border-color: var(--primary-color);
         }
 
         .stats-grid-simple {
@@ -73,6 +81,15 @@
             margin-top: 2px;
         }
 
+        /* Click hint for stats */
+        .stats-click-hint {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary-color);
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+
         /* Dark theme support */
         body[data-theme="dark"] .stat-box {
             background: var(--tile-empty);
@@ -99,9 +116,9 @@
 
         .modal-content {
             width: 95%;
-            max-width: 800px;
-            height: 80%;
-            max-height: 500px;
+            max-width: 900px;
+            height: 85%;
+            max-height: 600px;
             background: var(--secondary-background-color);
             border-radius: 12px;
             overflow: hidden;
@@ -150,7 +167,7 @@
             
             .modal-content {
                 width: 98%;
-                height: 85%;
+                height: 90%;
             }
         }
 
@@ -183,9 +200,9 @@
                 <p class="landing-subtitle">Guess the word in as few tries as possible!</p>
             </div>
 
-            <!-- Stats Container -->
-            <div class="user-stats-simple" id="userStatsSimple" style="display: none;" role="region" aria-labelledby="stats-title">
-                <h2 id="stats-title" class="sr-only">Game Statistics</h2>
+            <!-- Stats Container - Made Clickable -->
+            <div class="user-stats-simple" id="userStatsSimple" style="display: none;" role="button" aria-labelledby="stats-title" tabindex="0">
+                <h2 id="stats-title" class="sr-only">Game Statistics - Click for Details</h2>
                 <div class="stats-grid-simple">
                     <div class="stat-box">
                         <span class="stat-number" id="statGamesPlayed" aria-label="Games played">0</span>
@@ -204,6 +221,7 @@
                         <span class="stat-label">Streak</span>
                     </div>
                 </div>
+                <div class="stats-click-hint">📊 Click for detailed statistics</div>
             </div>
 
             <div class="word-length-section">
@@ -290,6 +308,17 @@
             </button>
             <h2 id="audio-settings-title" class="sr-only">Audio Settings</h2>
             <iframe class="modal-iframe" id="audioSettingsIframe" src="" title="Audio Settings Configuration"></iframe>
+        </div>
+    </div>
+
+    <!-- Modal for Detailed Stats -->
+    <div class="modal-overlay" id="statsModal" tabindex="-1">
+        <div class="modal-content">
+            <button class="modal-close" onclick="wordplayGame().closeStatsPage()" aria-label="Close detailed statistics">
+                ×
+            </button>
+            <h2 id="stats-modal-title" class="sr-only">Detailed Statistics</h2>
+            <iframe class="modal-iframe" id="statsIframe" src="" title="Detailed Game Statistics"></iframe>
         </div>
     </div>
     
