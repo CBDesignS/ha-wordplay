@@ -17,11 +17,15 @@ class WordPlayUI {
         // DOM element cache
         this.elements = {};
         
+        // Focus management
+        this.lastFocusedElement = null;
+        
         this.init();
     }
     
     init() {
         this.cacheElements();
+        this.setupFocusManagement();
         this.debugLog('🎨 WordPlay UI initialized');
     }
     
@@ -68,6 +72,57 @@ class WordPlayUI {
     }
     
     /**
+     * Setup focus management for accessibility
+     */
+    setupFocusManagement() {
+        // Add escape key handler for modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this.elements.audioSettingsModal && this.elements.audioSettingsModal.classList.contains('active')) {
+                    this.closeAudioSettings();
+                }
+            }
+        });
+        
+        // Set up focus trapping for modal
+        if (this.elements.audioSettingsModal) {
+            this.elements.audioSettingsModal.addEventListener('keydown', this.handleModalKeydown.bind(this));
+        }
+    }
+    
+    /**
+     * Handle keydown events in modal for focus trapping
+     * @param {KeyboardEvent} e - Keyboard event
+     */
+    handleModalKeydown(e) {
+        if (e.key !== 'Tab') return;
+        
+        const modal = this.elements.audioSettingsModal;
+        if (!modal.classList.contains('active')) return;
+        
+        const focusableElements = modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), iframe'
+        );
+        
+        const firstFocusable = focusableElements[0];
+        const lastFocusable = focusableElements[focusableElements.length - 1];
+        
+        if (e.shiftKey) {
+            // Shift + Tab
+            if (document.activeElement === firstFocusable) {
+                e.preventDefault();
+                lastFocusable.focus();
+            }
+        } else {
+            // Tab
+            if (document.activeElement === lastFocusable) {
+                e.preventDefault();
+                firstFocusable.focus();
+            }
+        }
+    }
+    
+    /**
      * Switch between screens with smooth transition
      * @param {string} screenName - 'landing' or 'game'
      */
@@ -76,6 +131,9 @@ class WordPlayUI {
         const newScreenEl = this.elements[screenName + 'Screen'];
         
         if (currentScreenEl && newScreenEl && currentScreenEl !== newScreenEl) {
+            // Hide current screen from screen readers
+            currentScreenEl.setAttribute('aria-hidden', 'true');
+            
             // Fade out current screen
             currentScreenEl.style.opacity = '0';
             
@@ -83,6 +141,12 @@ class WordPlayUI {
                 // Hide current and show new
                 currentScreenEl.classList.remove('active');
                 newScreenEl.classList.add('active');
+                
+                // Show new screen to screen readers
+                newScreenEl.setAttribute('aria-hidden', 'false');
+                
+                // Focus first interactive element in new screen
+                this.focusFirstElement(newScreenEl);
                 
                 // Fade in new screen
                 setTimeout(() => {
@@ -92,6 +156,20 @@ class WordPlayUI {
             
             this.currentScreen = screenName;
             this.debugLog(`📱 Switched to ${screenName} screen`);
+        }
+    }
+    
+    /**
+     * Focus first interactive element in container
+     * @param {HTMLElement} container - Container element
+     */
+    focusFirstElement(container) {
+        const focusableElements = container.querySelectorAll(
+            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        
+        if (focusableElements.length > 0) {
+            focusableElements[0].focus();
         }
     }
     
@@ -334,26 +412,74 @@ class WordPlayUI {
     }
     
     /**
-     * Open audio settings modal
+     * Open audio settings modal with proper focus management
      */
     openAudioSettings() {
         this.debugLog('🔊 Opening audio settings modal');
         
         if (this.elements.audioSettingsModal && this.elements.audioSettingsIframe) {
+            // Store current focus
+            this.lastFocusedElement = document.activeElement;
+            
+            // Set modal attributes for accessibility
+            this.elements.audioSettingsModal.setAttribute('aria-modal', 'true');
+            this.elements.audioSettingsModal.setAttribute('role', 'dialog');
+            this.elements.audioSettingsModal.setAttribute('aria-labelledby', 'audio-settings-title');
+            
+            // Hide background content from screen readers
+            const mainContent = document.querySelector('.wordplay-container');
+            if (mainContent) {
+                mainContent.setAttribute('aria-hidden', 'true');
+            }
+            
+            // Load iframe and show modal
             this.elements.audioSettingsIframe.src = 'wordplay_sound_cfg.html';
             this.elements.audioSettingsModal.classList.add('active');
+            
+            // Focus first element in modal after brief delay for iframe load
+            setTimeout(() => {
+                const focusableElements = this.elements.audioSettingsModal.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), iframe'
+                );
+                if (focusableElements.length > 0) {
+                    focusableElements[0].focus();
+                }
+            }, 100);
         }
     }
     
     /**
-     * Close audio settings modal
+     * Close audio settings modal with proper focus restoration
      */
     closeAudioSettings() {
         this.debugLog('🔊 Closing audio settings modal');
         
         if (this.elements.audioSettingsModal && this.elements.audioSettingsIframe) {
+            // Hide modal
             this.elements.audioSettingsModal.classList.remove('active');
             this.elements.audioSettingsIframe.src = '';
+            
+            // Remove modal attributes
+            this.elements.audioSettingsModal.removeAttribute('aria-modal');
+            this.elements.audioSettingsModal.removeAttribute('role');
+            this.elements.audioSettingsModal.removeAttribute('aria-labelledby');
+            
+            // Restore background content for screen readers
+            const mainContent = document.querySelector('.wordplay-container');
+            if (mainContent) {
+                mainContent.removeAttribute('aria-hidden');
+            }
+            
+            // Restore focus to last focused element
+            if (this.lastFocusedElement) {
+                this.lastFocusedElement.focus();
+                this.lastFocusedElement = null;
+            } else {
+                // Fallback: focus audio settings button
+                if (this.elements.audioSettingsBtn) {
+                    this.elements.audioSettingsBtn.focus();
+                }
+            }
         }
     }
     

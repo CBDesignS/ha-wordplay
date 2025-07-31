@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WordPlay Detailed Statistics</title>
+    <style>
+        /* CSS Variables from wordplay_game.html */
+        :root {
+            --primary-color: #03a9f4;
+            --accent-color: #ff9800;
+            
+            --tile-correct: #4caf50;
+            --tile-partial: #ff9800;
+            --tile-absent: #9e9e9e;
+            --tile-empty: #ffffff;
+            --tile-border: #d1d5db;
+            
+            --card-margin: 16px;
+            --tile-gap: 4px;
+            --tile-size: 60px;
+        }
+
+        /* Light theme (default) */
+        :root {
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+        }
+
+        /* Dark theme auto-detection */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-background-color: #111111;
+                --secondary-background-color: #1e1e1e;
+                --text-primary-color: #ffffff;
+                --text-secondary-color: #b3b3b3;
+                --divider-color: #333333;
+                --tile-empty: #2c2c2c;
+                --tile-border: #444444;
+            }
+        }
+
+        /* HA theme integration */
+        body[data-theme="dark"] {
+            --primary-background-color: #111111;
+            --secondary-background-color: #1e1e1e;
+            --text-primary-color: #ffffff;
+            --text-secondary-color: #b3b3b3;
+            --divider-color: #333333;
+            --tile-empty: #2c2c2c;
+            --tile-border: #444444;
+        }
+
+        body[data-theme="light"] {
+            --primary-background-color: #fafafa;
+            --secondary-background-color: #e5e5e5;
+            --text-primary-color: #212121;
+            --text-secondary-color: #727272;
+            --divider-color: #e0e0e0;
+            --tile-empty: #ffffff;
+            --tile-border: #d1d5db;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Roboto, sans-serif;
+            background: var(--primary-background-color);
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary-color);
+        }
+
+        .stats-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--secondary-background-color);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .stats-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stats-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+        }
+
+        .stats-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .stats-content {
+            padding: 24px;
+        }
+
+        .stats-section {
+            background: var(--primary-background-color);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--divider-color);
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary-color);
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Overview Stats Grid */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--tile-empty);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--divider-color);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary-color);
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* Guess Distribution Chart */
+        .distribution-chart {
+            margin: 20px 0;
+        }
+
+        .chart-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 8px;
+        }
+
+        .guess-number {
+            font-weight: bold;
+            width: 20px;
+            text-align: center;
+        }
+
+        .chart-bar {
+            height: 24px;
+            background: var(--primary-color);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            min-width: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .chart-bar:hover {
+            transform: scale(1.02);
+            box-shadow: 0 2px 8px rgba(3, 169, 244, 0.3);
+        }
+
+        /* Difficulty Stats */
+        .difficulty-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+        }
+
+        .difficulty-card {
+            background: var(--tile-empty);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--divider-color);
+            text-align: center;
+        }
+
+        .difficulty-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .difficulty-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .difficulty-record {
+            font-size: 14px;
+            color: var(--text-secondary-color);
+        }
+
+        /* Time Stats */
+        .time-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        /* Achievement Badges */
+        .achievements {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .achievement {
+            background: var(--tile-empty);
+            border: 2px solid var(--divider-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            min-width: 120px;
+            transition: all 0.3s ease;
+        }
+
+        .achievement.earned {
+            border-color: var(--tile-correct);
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .achievement.locked {
+            opacity: 0.5;
+            border-color: var(--tile-absent);
+        }
+
+        .achievement-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .achievement-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .achievement-desc {
+            font-size: 10px;
+            color: var(--text-secondary-color);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .action-btn:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        .action-btn.export {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .action-btn.export:hover,
+        .action-btn.export:focus {
+            background-color: #f57c00;
+            transform: scale(1.05);
+        }
+
+        .action-btn.close {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .action-btn.close:hover,
+        .action-btn.close:focus {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 16px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-message.success {
+            background: rgba(76, 175, 80, 0.1);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .status-message.error {
+            background: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary-color);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--divider-color);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Screen reader only text */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .stats-content { padding: 16px; }
+            .stats-section { padding: 16px; }
+            .overview-grid { grid-template-columns: repeat(2, 1fr); }
+            .action-buttons { flex-direction: column; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-container { margin: 5px; border-radius: 4px; }
+            .overview-grid { grid-template-columns: 1fr; }
+            .difficulty-stats { grid-template-columns: 1fr; }
+            .time-stats { grid-template-columns: 1fr; }
+            .achievements { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stats-container" role="main">
+        <div class="stats-header">
+            <h1 class="stats-title">📊 Detailed Statistics</h1>
+            <p class="stats-subtitle" id="userNameDisplay">Loading player stats...</p>
+        </div>
+
+        <div class="stats-content" id="statsContent">
+            <div class="loading" id="loadingIndicator" role="status" aria-live="polite">
+                <div class="loading-spinner" aria-hidden="true"></div>
+                Loading your game statistics...
+            </div>
+
+            <!-- Overview Section -->
+            <div class="stats-section" id="overviewSection" style="display: none;">
+                <h2 class="section-title">🏆 Game Overview</h2>
+                <div class="overview-grid" role="region" aria-labelledby="overview-title">
+                    <h3 id="overview-title" class="sr-only">Game Statistics Overview</h3>
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalGames" aria-label="Total games played">0</span>
+                        <span class="stat-label">Total Games</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalWins" aria-label="Total games won">0</span>
+                        <span class="stat-label">Games Won</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="winPercentage" aria-label="Win percentage">0%</span>
+                        <span class="stat-label">Win Rate</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="currentStreak" aria-label="Current winning streak">0</span>
+                        <span class="stat-label">Current Streak</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="maxStreak" aria-label="Best winning streak">0</span>
+                        <span class="stat-label">Best Streak</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="averageGuesses" aria-label="Average guesses per win">0.0</span>
+                        <span class="stat-label">Avg Guesses</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="totalPlayTime" aria-label="Total time played">0s</span>
+                        <span class="stat-label">Total Play Time</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="fastestWin" aria-label="Fastest win time">N/A</span>
+                        <span class="stat-label">Fastest Win</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Guess Distribution Section -->
+            <div class="stats-section" id="distributionSection" style="display: none;">
+                <h2 class="section-title">📈 Guess Distribution</h2>
+                <div class="distribution-chart" id="guessChart" role="img" aria-labelledby="chart-title" aria-describedby="chart-desc">
+                    <h3 id="chart-title" class="sr-only">Guess Distribution Chart</h3>
+                    <p id="chart-desc" class="sr-only">Bar chart showing how many games were won in each number of guesses</p>
+                    <!-- Chart will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Difficulty Stats Section -->
+            <div class="stats-section" id="difficultySection" style="display: none;">
+                <h2 class="section-title">🎯 Performance by Difficulty</h2>
+                <div class="difficulty-stats" role="region" aria-labelledby="difficulty-title">
+                    <h3 id="difficulty-title" class="sr-only">Difficulty Performance Statistics</h3>
+                    <div class="difficulty-card">
+                        <div class="difficulty-icon" aria-hidden="true">🟢</div>
+                        <div class="difficulty-name">Easy Mode</div>
+                        <div class="difficulty-record" id="easyRecord" aria-label="Easy mode win record">0/0 (0%)</div>
+                    </div>
+                    <div class="difficulty-card">
+                        <div class="difficulty-icon" aria-hidden="true">🟡</div>
+                        <div class="difficulty-name">Normal Mode</div>
+                        <div class="difficulty-record" id="normalRecord" aria-label="Normal mode win record">0/0 (0%)</div>
+                    </div>
+                    <div class="difficulty-card">
+                        <div class="difficulty-icon" aria-hidden="true">🔴</div>
+                        <div class="difficulty-name">Hard Mode</div>
+                        <div class="difficulty-record" id="hardRecord" aria-label="Hard mode win record">0/0 (0%)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements Section -->
+            <div class="stats-section" id="achievementsSection" style="display: none;">
+                <h2 class="section-title">🏅 Achievements</h2>
+                <div class="achievements" id="achievementsList" role="region" aria-labelledby="achievements-title">
+                    <h3 id="achievements-title" class="sr-only">Game Achievements</h3>
+                    <!-- Achievements will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="action-btn export" onclick="exportStats()" aria-describedby="export-desc">📤 Export Data</button>
+                <button class="action-btn close" onclick="closeStats()" aria-describedby="close-desc">← Back to Game</button>
+                <span id="export-desc" class="sr-only">Download your statistics as a JSON file</span>
+                <span id="close-desc" class="sr-only">Return to the main game interface</span>
+            </div>
+
+            <!-- Status Message -->
+            <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>
+        </div>
+    </div>
+
+    <script>
+        // User and stats data
+        let currentUserId = null;
+        let currentUserName = null;
+        let statsData = null;
+
+        // Focus management
+        let firstFocusableElement = null;
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            detectHATheme();
+            setupFocusManagement();
+            identifyUser();
+        });
+
+        // Setup focus management
+        function setupFocusManagement() {
+            // Get first focusable element and focus it
+            const focusableElements = document.querySelectorAll(
+                'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            );
+            
+            if (focusableElements.length > 0) {
+                firstFocusableElement = focusableElements[0];
+                // Focus first element after stats load
+                setTimeout(() => {
+                    if (firstFocusableElement) {
+                        firstFocusableElement.focus();
+                    }
+                }, 1500);
+            }
+
+            // Add keyboard navigation
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        // Handle keyboard navigation
+        function handleKeyDown(e) {
+            // Escape key to close stats
+            if (e.key === 'Escape') {
+                closeStats();
+            }
+        }
+
+        // Auto-detect Home Assistant theme (same as audio config)
+        function detectHATheme() {
+            try {
+                // Method 1: Check parent frame theme
+                if (window.parent && window.parent !== window) {
+                    const parentDoc = window.parent.document;
+                    if (parentDoc) {
+                        const haMain = parentDoc.querySelector('home-assistant');
+                        if (haMain && haMain.hass && haMain.hass.themes) {
+                            const currentTheme = haMain.hass.themes.darkMode ? 'dark' : 'light';
+                            document.body.setAttribute('data-theme', currentTheme);
+                            return;
+                        }
+                    }
+                }
+                
+                // Method 2: Check URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('theme')) {
+                    const theme = urlParams.get('theme');
+                    document.body.setAttribute('data-theme', theme);
+                    return;
+                }
+                
+                // Method 3: Use browser preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = prefersDark ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', theme);
+                
+            } catch (error) {
+                console.warn('Theme detection failed, using browser default', error);
+            }
+        }
+
+        // Identify current user (same pattern as audio config)
+        function identifyUser() {
+            try {
+                // Check if parent window has user info
+                if (window.parent && window.parent.WORDPLAY_USER_ID) {
+                    currentUserId = window.parent.WORDPLAY_USER_ID;
+                    currentUserName = window.parent.WORDPLAY_USER_NAME || 'Player';
+                    console.log('[Stats] User identified:', currentUserName, currentUserId);
+                    loadUserStats();
+                    return;
+                }
+
+                // Check URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlUserId = urlParams.get('user_id');
+                const urlUserName = urlParams.get('user_name');
+                
+                if (urlUserId) {
+                    currentUserId = urlUserId;
+                    currentUserName = urlUserName || 'Player';
+                    console.log('[Stats] User from URL:', currentUserName, currentUserId);
+                    loadUserStats();
+                    return;
+                }
+
+                // Wait and try again
+                setTimeout(identifyUser, 500);
+                
+            } catch (error) {
+                console.error('[Stats] Error identifying user:', error);
+                showError('Could not identify user');
+            }
+        }
+
+        // Load user statistics from sensor
+        async function loadUserStats() {
+            try {
+                showStatus('Loading statistics...', 'info');
+                
+                // Update header with user name
+                document.getElementById('userNameDisplay').textContent = `${currentUserName}'s Game Statistics`;
+
+                // Get access token from parent
+                let accessToken = null;
+                if (window.parent && window.parent.wordplayHA) {
+                    const ha = window.parent.wordplayHA();
+                    accessToken = ha.accessToken;
+                }
+
+                if (!accessToken) {
+                    // Try URL params
+                    const urlParams = new URLSearchParams(window.location.search);
+                    accessToken = urlParams.get('access_token');
+                }
+
+                if (!accessToken) {
+                    throw new Error('No access token available');
+                }
+
+                // Fetch stats from sensor entity
+                const sensorId = `sensor.ha_wordplay_stats_${currentUserId}`;
+                const response = await fetch(`/api/states/${sensorId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch stats: ${response.status}`);
+                }
+
+                const sensorData = await response.json();
+                console.log('[Stats] Sensor data:', sensorData);
+
+                if (sensorData && sensorData.attributes) {
+                    statsData = sensorData.attributes;
+                    displayStats();
+                } else {
+                    throw new Error('No stats data found');
+                }
+
+            } catch (error) {
+                console.error('[Stats] Error loading stats:', error);
+                showError('Failed to load statistics');
+            }
+        }
+
+        // Display all statistics
+        function displayStats() {
+            console.log('[Stats] Displaying stats:', statsData);
+            
+            // Hide loading, show content
+            document.getElementById('loadingIndicator').style.display = 'none';
+            
+            // Display overview stats
+            displayOverviewStats();
+            
+            // Display guess distribution
+            displayGuessDistribution();
+            
+            // Display difficulty stats
+            displayDifficultyStats();
+            
+            // Display achievements
+            displayAchievements();
+            
+            // Show all sections
+            document.getElementById('overviewSection').style.display = 'block';
+            document.getElementById('distributionSection').style.display = 'block';
+            document.getElementById('difficultySection').style.display = 'block';
+            document.getElementById('achievementsSection').style.display = 'block';
+            
+            showStatus('Statistics loaded successfully!', 'success');
+        }
+
+        // Display overview statistics
+        function displayOverviewStats() {
+            document.getElementById('totalGames').textContent = statsData.games_played || 0;
+            document.getElementById('totalWins').textContent = statsData.games_won || 0;
+            document.getElementById('winPercentage').textContent = statsData.win_rate_display || '0%';
+            document.getElementById('currentStreak').textContent = statsData.current_streak || 0;
+            document.getElementById('maxStreak').textContent = statsData.max_streak || 0;
+            document.getElementById('averageGuesses').textContent = statsData.average_guesses || '0.0';
+            document.getElementById('totalPlayTime').textContent = statsData.play_time_display || '0s';
+            document.getElementById('fastestWin').textContent = statsData.fastest_win_display || 'N/A';
+        }
+
+        // Display guess distribution chart
+        function displayGuessDistribution() {
+            const chartContainer = document.getElementById('guessChart');
+            const distribution = statsData.guess_distribution || {};
+            const totalWins = statsData.games_won || 0;
+            
+            chartContainer.innerHTML = '';
+            
+            if (totalWins === 0) {
+                chartContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary-color);">No wins yet - play some games to see your guess distribution!</p>';
+                return;
+            }
+
+            // Create bars for guesses 1-8
+            for (let guess = 1; guess <= 8; guess++) {
+                const count = distribution[guess] || 0;
+                const percentage = totalWins > 0 ? (count / totalWins * 100) : 0;
+                
+                const row = document.createElement('div');
+                row.className = 'chart-row';
+                row.setAttribute('role', 'presentation');
+                
+                const guessNum = document.createElement('div');
+                guessNum.className = 'guess-number';
+                guessNum.textContent = guess;
+                guessNum.setAttribute('aria-label', `${guess} guesses`);
+                
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar';
+                bar.style.width = `${Math.max(percentage, 5)}%`; // Minimum 5% width for visibility
+                bar.textContent = count > 0 ? count : '';
+                bar.setAttribute('aria-label', `${count} games won in ${guess} guesses`);
+                bar.setAttribute('title', `${count} games won in ${guess} guesses (${percentage.toFixed(1)}%)`);
+                
+                // Color coding
+                if (guess === 1) bar.style.background = '#4caf50'; // Green for hole-in-one
+                else if (guess <= 3) bar.style.background = '#03a9f4'; // Blue for good
+                else if (guess <= 5) bar.style.background = '#ff9800'; // Orange for average
+                else bar.style.background = '#f44336'; // Red for tough wins
+                
+                row.appendChild(guessNum);
+                row.appendChild(bar);
+                chartContainer.appendChild(row);
+            }
+        }
+
+        // Display difficulty statistics
+        function displayDifficultyStats() {
+            const diffStats = statsData.difficulty_stats || {};
+            
+            ['easy', 'normal', 'hard'].forEach(difficulty => {
+                const stats = diffStats[difficulty] || { played: 0, won: 0 };
+                const winRate = stats.played > 0 ? (stats.won / stats.played * 100).toFixed(1) : '0.0';
+                const record = `${stats.won}/${stats.played} (${winRate}%)`;
+                
+                document.getElementById(`${difficulty}Record`).textContent = record;
+            });
+        }
+
+        // Display achievements
+        function displayAchievements() {
+            const achievementsList = document.getElementById('achievementsList');
+            const gamesPlayed = statsData.games_played || 0;
+            const gamesWon = statsData.games_won || 0;
+            const maxStreak = statsData.max_streak || 0;
+            const distribution = statsData.guess_distribution || {};
+            const firstGuessWins = distribution[1] || 0;
+            
+            const achievements = [
+                {
+                    icon: '🎯',
+                    name: 'First Blood',
+                    desc: 'Win your first game',
+                    earned: gamesWon > 0
+                },
+                {
+                    icon: '🏆',
+                    name: 'Hat Trick',
+                    desc: 'Win 3 games in a row',
+                    earned: maxStreak >= 3
+                },
+                {
+                    icon: '🔥',
+                    name: 'On Fire',
+                    desc: 'Win 5 games in a row',
+                    earned: maxStreak >= 5
+                },
+                {
+                    icon: '⚡',
+                    name: 'Lightning Round',
+                    desc: 'Win on first guess',
+                    earned: firstGuessWins > 0
+                },
+                {
+                    icon: '💎',
+                    name: 'Perfect 10',
+                    desc: 'Win 10 games total',
+                    earned: gamesWon >= 10
+                },
+                {
+                    icon: '🌟',
+                    name: 'Century Club',
+                    desc: 'Play 100 games',
+                    earned: gamesPlayed >= 100
+                },
+                {
+                    icon: '🎖️',
+                    name: 'Perfectionist',
+                    desc: '90% win rate (min 10 games)',
+                    earned: gamesPlayed >= 10 && (gamesWon / gamesPlayed) >= 0.9
+                },
+                {
+                    icon: '🚀',
+                    name: 'Unstoppable',
+                    desc: 'Win 10 games in a row',
+                    earned: maxStreak >= 10
+                }
+            ];
+            
+            achievementsList.innerHTML = '';
+            
+            achievements.forEach(achievement => {
+                const achievementEl = document.createElement('div');
+                achievementEl.className = `achievement ${achievement.earned ? 'earned' : 'locked'}`;
+                achievementEl.setAttribute('role', 'img');
+                achievementEl.setAttribute('aria-label', `${achievement.name}: ${achievement.desc} - ${achievement.earned ? 'Earned' : 'Not earned yet'}`);
+                
+                achievementEl.innerHTML = `
+                    <div class="achievement-icon" aria-hidden="true">${achievement.icon}</div>
+                    <div class="achievement-name">${achievement.name}</div>
+                    <div class="achievement-desc">${achievement.desc}</div>
+                `;
+                
+                achievementsList.appendChild(achievementEl);
+            });
+        }
+
+        // Export statistics data
+        function exportStats() {
+            try {
+                const exportData = {
+                    user_id: currentUserId,
+                    user_name: currentUserName,
+                    export_date: new Date().toISOString(),
+                    stats: statsData
+                };
+                
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `wordplay_stats_${currentUserName}_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showStatus('Statistics exported successfully!', 'success');
+                
+            } catch (error) {
+                console.error('[Stats] Export error:', error);
+                showStatus('Failed to export statistics', 'error');
+            }
+        }
+
+        // Close stats window with proper focus management
+        function closeStats() {
+            // Close window or return to parent
+            if (window.parent && window.parent !== window) {
+                try {
+                    window.parent.postMessage({action: 'closeStats'}, '*');
+                } catch (error) {
+                    console.warn('Could not send close message to parent:', error);
+                }
+            } else {
+                window.close();
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type} show`;
+            
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            showStatus(message, 'error');
+        }
+    </script>
+</body>
+</html>

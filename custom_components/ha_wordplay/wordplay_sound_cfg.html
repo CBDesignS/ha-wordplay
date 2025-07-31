@@ -225,6 +225,11 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
+        .volume-slider:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
         .volume-value {
             font-weight: bold;
             color: var(--primary-color);
@@ -266,6 +271,11 @@
             cursor: pointer;
         }
 
+        .setting-checkbox:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
         .test-section {
             background: var(--tile-empty);
             padding: 16px;
@@ -299,10 +309,13 @@
             min-width: 80px;
         }
 
-        .test-btn:hover {
+        .test-btn:hover,
+        .test-btn:focus {
             background: var(--primary-color);
             color: white;
             transform: scale(1.05);
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
         }
 
         .action-buttons {
@@ -322,12 +335,18 @@
             font-size: 14px;
         }
 
+        .action-btn:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
         .action-btn.primary {
             background: var(--primary-color);
             color: white;
         }
 
-        .action-btn.primary:hover {
+        .action-btn.primary:hover,
+        .action-btn.primary:focus {
             background: #0288d1;
             transform: scale(1.05);
         }
@@ -337,7 +356,8 @@
             color: white;
         }
 
-        .action-btn.secondary:hover {
+        .action-btn.secondary:hover,
+        .action-btn.secondary:focus {
             transform: scale(1.05);
         }
 
@@ -353,7 +373,10 @@
 
         button.action-btn.reset:hover,
         .action-buttons button.reset:hover,
-        .action-buttons .action-btn.reset:hover {
+        .action-buttons .action-btn.reset:hover,
+        button.action-btn.reset:focus,
+        .action-buttons button.reset:focus,
+        .action-buttons .action-btn.reset:focus {
             background-color: #d32f2f !important;
             background: #d32f2f !important;
             border-color: #d32f2f !important;
@@ -371,7 +394,10 @@
 
         button.action-btn.back:hover,
         .action-buttons button.back:hover,
-        .action-buttons .action-btn.back:hover {
+        .action-buttons .action-btn.back:hover,
+        button.action-btn.back:focus,
+        .action-buttons button.back:focus,
+        .action-buttons .action-btn.back:focus {
             background-color: #45a049 !important;
             background: #45a049 !important;
             border-color: #45a049 !important;
@@ -404,6 +430,19 @@
             border: 1px solid rgba(244, 67, 54, 0.3);
         }
 
+        /* Screen reader only text */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             body { padding: 10px; }
@@ -431,7 +470,7 @@
     </style>
 </head>
 <body>
-    <div class="audio-container">
+    <div class="audio-container" role="main">
         <div class="audio-header">
             <h1 class="audio-title">🔊 Audio Settings</h1>
             <p class="audio-subtitle">Customize your WordPlay audio experience</p>
@@ -442,80 +481,103 @@
                 <!-- Main Audio Toggle -->
                 <div class="control-section">
                     <div class="main-toggle">
-                        <span class="toggle-label">Enable Audio</span>
-                        <div class="toggle-switch active" id="mainAudioToggle" onclick="toggleMainAudio()"></div>
+                        <label class="toggle-label" for="mainAudioToggle">Enable Audio</label>
+                        <button class="toggle-switch active" id="mainAudioToggle" onclick="toggleMainAudio()" 
+                                role="switch" aria-checked="true" aria-describedby="audio-toggle-desc">
+                            <span class="sr-only">Toggle audio on or off</span>
+                        </button>
+                        <span id="audio-toggle-desc" class="sr-only">Enable or disable all game audio</span>
                     </div>
                 </div>
 
                 <!-- Volume Control -->
                 <div class="control-section">
-                    <h3 class="section-title">🔊 Volume</h3>
+                    <h2 class="section-title">🔊 Volume</h2>
                     <div class="volume-control">
                         <div class="volume-row">
-                            <span class="volume-label">Volume:</span>
-                            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30" oninput="updateVolume(this.value)">
-                            <span class="volume-value" id="volumeValue">30%</span>
+                            <label for="volumeSlider" class="volume-label">Volume:</label>
+                            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30" 
+                                   oninput="updateVolume(this.value)" aria-describedby="volume-help">
+                            <span class="volume-value" id="volumeValue" aria-live="polite">30%</span>
                         </div>
+                        <span id="volume-help" class="sr-only">Adjust the overall volume of game sounds</span>
                     </div>
                 </div>
 
                 <!-- Audio Event Settings -->
                 <div class="control-section">
-                    <h3 class="section-title">🎵 Sound Events</h3>
+                    <h2 class="section-title">🎵 Sound Events</h2>
                     
                     <div class="setting-row">
                         <div>
-                            <div class="setting-label">Game Events</div>
+                            <label for="gameEventsToggle" class="setting-label">Game Events</label>
                             <div class="setting-description">New game, win, lose sounds</div>
                         </div>
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" class="setting-checkbox" id="gameEventsToggle" checked onchange="updateSetting('gameEvents', this.checked)">
+                            <input type="checkbox" class="setting-checkbox" id="gameEventsToggle" checked 
+                                   onchange="updateSetting('gameEvents', this.checked)" aria-describedby="game-events-desc">
+                            <span id="game-events-desc" class="sr-only">Enable sounds for game start, win, and lose events</span>
                         </div>
                     </div>
 
                     <div class="setting-row">
                         <div>
-                            <div class="setting-label">Letter Feedback</div>
+                            <label for="guessEventsToggle" class="setting-label">Letter Feedback</label>
                             <div class="setting-description">Sounds when making guesses</div>
                         </div>
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" class="setting-checkbox" id="guessEventsToggle" checked onchange="updateSetting('guessEvents', this.checked)">
+                            <input type="checkbox" class="setting-checkbox" id="guessEventsToggle" checked 
+                                   onchange="updateSetting('guessEvents', this.checked)" aria-describedby="guess-events-desc">
+                            <span id="guess-events-desc" class="sr-only">Enable sounds for letter feedback when guessing</span>
                         </div>
                     </div>
 
                     <div class="setting-row">
                         <div>
-                            <div class="setting-label">Error Sounds</div>
+                            <label for="errorEventsToggle" class="setting-label">Error Sounds</label>
                             <div class="setting-description">Alerts for invalid guesses</div>
                         </div>
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" class="setting-checkbox" id="errorEventsToggle" checked onchange="updateSetting('errorEvents', this.checked)">
+                            <input type="checkbox" class="setting-checkbox" id="errorEventsToggle" checked 
+                                   onchange="updateSetting('errorEvents', this.checked)" aria-describedby="error-events-desc">
+                            <span id="error-events-desc" class="sr-only">Enable sounds for error notifications</span>
                         </div>
                     </div>
 
                     <div class="setting-row">
                         <div>
-                            <div class="setting-label">UI Click Sounds</div>
+                            <label for="uiEventsToggle" class="setting-label">UI Click Sounds</label>
                             <div class="setting-description">Button click feedback</div>
                         </div>
                         <div class="checkbox-wrapper">
-                            <input type="checkbox" class="setting-checkbox" id="uiEventsToggle" onchange="updateSetting('uiEvents', this.checked)">
+                            <input type="checkbox" class="setting-checkbox" id="uiEventsToggle" 
+                                   onchange="updateSetting('uiEvents', this.checked)" aria-describedby="ui-events-desc">
+                            <span id="ui-events-desc" class="sr-only">Enable sounds for button clicks and UI interactions</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Test Section -->
                 <div class="control-section">
-                    <h3 class="section-title">🎮 Test Sounds</h3>
+                    <h2 class="section-title">🎮 Test Sounds</h2>
                     <div class="test-section">
                         <div class="test-title">Click to test different sounds:</div>
-                        <div class="test-buttons">
-                            <button class="test-btn" onclick="testSound('newGame')">🎮 New Game</button>
-                            <button class="test-btn" onclick="testSound('gameWon')">🏆 Win</button>
-                            <button class="test-btn" onclick="testSound('letterCorrect')">🔵 Correct</button>
-                            <button class="test-btn" onclick="testSound('letterPartial')">🔴 Partial</button>
-                            <button class="test-btn" onclick="testSound('letterAbsent')">⚪ Absent</button>
-                            <button class="test-btn" onclick="testSound('error')">❌ Error</button>
+                        <div class="test-buttons" role="group" aria-labelledby="test-sounds-title">
+                            <h3 id="test-sounds-title" class="sr-only">Test Sound Buttons</h3>
+                            <button class="test-btn" onclick="testSound('newGame')" aria-describedby="new-game-test-desc">🎮 New Game</button>
+                            <button class="test-btn" onclick="testSound('gameWon')" aria-describedby="win-test-desc">🏆 Win</button>
+                            <button class="test-btn" onclick="testSound('letterCorrect')" aria-describedby="correct-test-desc">🔵 Correct</button>
+                            <button class="test-btn" onclick="testSound('letterPartial')" aria-describedby="partial-test-desc">🔴 Partial</button>
+                            <button class="test-btn" onclick="testSound('letterAbsent')" aria-describedby="absent-test-desc">⚪ Absent</button>
+                            <button class="test-btn" onclick="testSound('error')" aria-describedby="error-test-desc">❌ Error</button>
+                            
+                            <!-- Hidden descriptions for screen readers -->
+                            <span id="new-game-test-desc" class="sr-only">Play the new game start sound</span>
+                            <span id="win-test-desc" class="sr-only">Play the game win sound</span>
+                            <span id="correct-test-desc" class="sr-only">Play the correct letter sound</span>
+                            <span id="partial-test-desc" class="sr-only">Play the partial match sound</span>
+                            <span id="absent-test-desc" class="sr-only">Play the absent letter sound</span>
+                            <span id="error-test-desc" class="sr-only">Play the error notification sound</span>
                         </div>
                     </div>
                 </div>
@@ -529,7 +591,7 @@
             </div>
 
             <!-- Status Message -->
-            <div class="status-message" id="statusMessage"></div>
+            <div class="status-message" id="statusMessage" role="status" aria-live="polite"></div>
         </div>
     </div>
 
@@ -544,12 +606,58 @@
             uiEvents: false
         };
 
+        // Focus management
+        let firstFocusableElement = null;
+        let lastFocusableElement = null;
+
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
             detectHATheme();
             loadSettings();
             updateUI();
+            setupFocusManagement();
         });
+
+        // Setup focus management for modal
+        function setupFocusManagement() {
+            // Get all focusable elements
+            const focusableElements = document.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            
+            if (focusableElements.length > 0) {
+                firstFocusableElement = focusableElements[0];
+                lastFocusableElement = focusableElements[focusableElements.length - 1];
+                
+                // Focus first element
+                firstFocusableElement.focus();
+            }
+
+            // Add keydown listener for tab trapping
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        // Handle keydown for focus trapping
+        function handleKeyDown(e) {
+            if (e.key === 'Tab') {
+                if (e.shiftKey) {
+                    // Shift + Tab
+                    if (document.activeElement === firstFocusableElement) {
+                        e.preventDefault();
+                        lastFocusableElement.focus();
+                    }
+                } else {
+                    // Tab
+                    if (document.activeElement === lastFocusableElement) {
+                        e.preventDefault();
+                        firstFocusableElement.focus();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                // Close on escape
+                closeSettings();
+            }
+        }
 
         // Auto-detect Home Assistant theme
         function detectHATheme() {
@@ -611,6 +719,7 @@
             // Main toggle
             const mainToggle = document.getElementById('mainAudioToggle');
             mainToggle.classList.toggle('active', audioSettings.enabled);
+            mainToggle.setAttribute('aria-checked', audioSettings.enabled);
             
             // Volume
             document.getElementById('volumeSlider').value = audioSettings.volume;
@@ -655,7 +764,7 @@
             // Try to communicate with parent window's audio system
             try {
                 if (window.parent && window.parent.wordplayAudio) {
-                    const audio = window.parent.wordplayAudio();
+                    const audio = window.parent.wordplayAudio;
                     if (audio) {
                         audio.setPreference('enabled', audioSettings.enabled);
                         audio.setVolume(audioSettings.volume / 100);
@@ -676,7 +785,7 @@
             
             try {
                 if (window.parent && window.parent.wordplayAudio) {
-                    const audio = window.parent.wordplayAudio();
+                    const audio = window.parent.wordplayAudio;
                     if (audio) {
                         audio.playSound(soundName);
                     }
@@ -708,14 +817,19 @@
             showStatus('Settings reset to default', 'success');
         }
 
-        // Close settings window
+        // Close settings window with proper focus management
         function closeSettings() {
             // Save before closing
             saveSettingsToStorage();
             
             // Close window or return to parent
             if (window.parent && window.parent !== window) {
-                window.parent.postMessage('closeAudioSettings', '*');
+                // Send message to parent to close modal
+                try {
+                    window.parent.postMessage({action: 'closeAudioSettings'}, '*');
+                } catch (error) {
+                    console.warn('Could not send close message to parent:', error);
+                }
             } else {
                 window.close();
             }
