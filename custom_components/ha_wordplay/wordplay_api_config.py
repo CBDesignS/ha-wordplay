@@ -1,4 +1,4 @@
-"""API Configuration for H.A WordPlay - International Support."""
+"""API Configuration for H.A WordPlay - International Support with German, French, Spanish."""
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,34 +31,70 @@ LANGUAGE_APIS = {
             7: ["KITCHEN", "FREEDOM", "JOURNEY", "MORNING", "RAINBOW", "SCIENCE", "BALANCE", "LIBRARY", "HARMONY", "MYSTERY"],
             8: ["COMPLETE", "SURPRISE", "STRENGTH", "ADVENTURE", "LAUGHTER", "DISCOVER", "PEACEFUL", "CREATIVE", "TOMORROW", "BUTTERFLY"]
         }
+    },
+    "es": {
+        "name": "Español (Spanish)",
+        "primary": {
+            "url": "https://random-word-api.herokuapp.com/word",
+            "params": {"lang": "es", "length": "{length}"},
+            "response_format": "list",
+            "word_key": 0
+        },
+        "backup1": {
+            "url": "https://random-words-api.vercel.app/word/spanish",
+            "params": {},
+            "response_format": "list",
+            "word_key": "word"
+        },
+        "fallback_words": {
+            5: ["CASA", "MESA", "AGUA", "LIBRO", "MUNDO", "TIEMPO", "AMIGO", "LUGAR", "GENTE", "TANTO"],
+            6: ["CIUDAD", "FAMILIA", "ESCUELA", "TRABAJO", "ANIMAL", "CABEZA", "DINERO", "NÚMERO", "GRANDE", "PEQUEÑO"],
+            7: ["EJEMPLO", "MOMENTO", "PROCESO", "SISTEMA", "CONTROL", "HISTORIA", "SERVICIO", "PRODUCTO", "EMPRESA", "PERSONA"],
+            8: ["PROBLEMA", "DESARROLLO", "SITUACIÓN", "INFORMACIÓN", "EDUCACIÓN", "TECNOLOGÍA", "ACTIVIDAD", "MEDICINA", "SOCIEDAD", "MEDICINA"]
+        }
+    },
+    "fr": {
+        "name": "Français (French)",
+        "primary": {
+            "url": "https://random-word-api.herokuapp.com/word",
+            "params": {"lang": "fr", "length": "{length}"},
+            "response_format": "list",
+            "word_key": 0
+        },
+        "backup1": {
+            "url": "https://random-words-api.vercel.app/word/french",
+            "params": {},
+            "response_format": "list",
+            "word_key": "word"
+        },
+        "fallback_words": {
+            5: ["MAISON", "TABLE", "LIVRE", "TEMPS", "MONDE", "HOMME", "FEMME", "ENFANT", "PLACE", "ÉCOLE"],
+            6: ["FAMILLE", "TRAVAIL", "NOMBRE", "ARGENT", "ANIMAL", "NATURE", "CENTRE", "MARCHÉ", "MUSIQUE", "VOYAGE"],
+            7: ["EXEMPLE", "SYSTÈME", "HISTOIRE", "SERVICE", "PRODUIT", "SOCIÉTÉ", "SCIENCE", "CULTURE", "JOURNAL", "MACHINE"],
+            8: ["PROBLÈME", "ÉDUCATION", "POLITIQUE", "ÉCONOMIE", "MÉDECINE", "RELATION", "ACTIVITÉ", "MATÉRIEL", "FONCTION", "CRÉATION"]
+        }
+    },
+    "de": {
+        "name": "Deutsch (German)",
+        "primary": {
+            "url": "https://random-word-api.herokuapp.com/word",
+            "params": {"lang": "de", "length": "{length}"},
+            "response_format": "list",
+            "word_key": 0
+        },
+        "backup1": {
+            "url": "https://random-words-api.vercel.app/word/german",
+            "params": {},
+            "response_format": "list",
+            "word_key": "word"
+        },
+        "fallback_words": {
+            5: ["HAUS", "TISCH", "BUCH", "ZEIT", "WELT", "MANN", "FRAU", "KIND", "PLATZ", "SCHULE"],
+            6: ["FAMILIE", "ARBEIT", "NUMMER", "GELD", "TIER", "NATUR", "ZENTRUM", "MARKT", "MUSIK", "REISE"],
+            7: ["BEISPIEL", "SYSTEM", "GESCHICHTE", "SERVICE", "PRODUKT", "GESELLSCHAFT", "WISSENSCHAFT", "KULTUR", "ZEITUNG", "MASCHINE"],
+            8: ["PROBLEM", "BILDUNG", "POLITIK", "WIRTSCHAFT", "MEDIZIN", "BEZIEHUNG", "AKTIVITÄT", "MATERIAL", "FUNKTION", "SCHÖPFUNG"]
+        }
     }
-    # Future languages can be added here:
-    # "de": {
-    #     "name": "Deutsch (German)",
-    #     "primary": {
-    #         "url": "https://german-word-api.com/word",
-    #         "params": {"length": "{length}"},
-    #         "response_format": "list",
-    #         "word_key": 0
-    #     },
-    #     "fallback_words": {
-    #         5: ["HAUS", "BUCH", "LICHT", "MUSIK", "TISCH"],
-    #         # etc...
-    #     }
-    # },
-    # "es": {
-    #     "name": "Español (Spanish)",
-    #     "primary": {
-    #         "url": "https://random-words-api.vercel.app/word/spanish",
-    #         "params": {},
-    #         "response_format": "list", 
-    #         "word_key": "word"
-    #     },
-    #     "fallback_words": {
-    #         5: ["CASA", "LIBRO", "AGUA", "MUSICA", "MESA"],
-    #         # etc...
-    #     }
-    # }
 }
 
 # Dictionary API configurations (for hints)
@@ -66,11 +102,19 @@ DICTIONARY_APIS = {
     "en": {
         "primary": "https://api.dictionaryapi.dev/api/v2/entries/en/{word}",
         "backup": None  # Could add backup dictionary API
+    },
+    "es": {
+        "primary": "https://api.dictionaryapi.dev/api/v2/entries/es/{word}",
+        "backup": None
+    },
+    "fr": {
+        "primary": "https://api.dictionaryapi.dev/api/v2/entries/fr/{word}",
+        "backup": None
+    },
+    "de": {
+        "primary": "https://api.dictionaryapi.dev/api/v2/entries/de/{word}",
+        "backup": None
     }
-    # Future dictionary APIs:
-    # "de": {
-    #     "primary": "https://german-dictionary-api.com/v1/entries/de/{word}",
-    # }
 }
 
 # Default language if not specified
