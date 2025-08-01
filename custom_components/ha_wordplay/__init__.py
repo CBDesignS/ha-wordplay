@@ -5,8 +5,8 @@ import logging
 import asyncio
 import os
 from typing import Any, Dict
-
 import voluptuous as vol
+
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
@@ -31,6 +31,8 @@ from .wordplay_game_logic import WordPlayGame
 from .wordplay_api_config import get_supported_languages
 
 _LOGGER = logging.getLogger(__name__)
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up H.A WordPlay integration from YAML (legacy support)."""
