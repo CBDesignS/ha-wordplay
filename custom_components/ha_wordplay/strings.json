@@ -33,17 +33,39 @@
   "options": {
     "step": {
       "init": {
-        "title": "WordPlay Settings",
-        "description": "Update your WordPlay configuration.\n\n**Current Difficulty:** {current_difficulty}\n\nTo change your token, generate a new one at [Profile → Security]({token_url})",
+        "title": "WordPlay Management",
+        "description": "Choose what you want to manage:\n\n**Current Users:** {current_user_count} selected\n\nSelect an option below to continue.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "manage_users": {
+        "title": "Manage Users & Settings",
+        "description": "Update your WordPlay configuration and selected users.\n\n**Current Users:** {current_user_count} selected\n\nTo change your token, generate a new one at [Profile → Security]({token_url})",
         "data": {
           "access_token": "New Access Token (leave blank to keep current)",
-          "difficulty": "Game Difficulty",
-          "audio_enabled": "Enable Audio",
-          "audio_volume": "Audio Volume (%)",
-          "audio_game_events": "Game Event Sounds (new game, win, lose)",
-          "audio_guess_events": "Letter Feedback Sounds",
-          "audio_ui_events": "UI Click Sounds",
-          "audio_error_events": "Error Notification Sounds"
+          "selected_users": "Selected Users"
+        }
+      },
+      "stats_overview": {
+        "title": "Game Statistics Overview",
+        "description": "**Users with Game Statistics:** {user_count}\n\n{stats_summary}\n\n⚠️ **Warning**: Resetting statistics will permanently delete all game data for selected users. This action cannot be undone!\n\nClick Continue to proceed with selecting users for stats reset.",
+        "data": {
+          "continue": "Continue to User Selection"
+        }
+      },
+      "stats_selection": {
+        "title": "Select Users for Stats Reset",
+        "description": "Choose which users' statistics you want to reset:\n\n⚠️ **Warning**: This will permanently delete all game data including:\n• Games played and won\n• Win streaks and records\n• Guess distribution data\n• Play time statistics\n• All difficulty-specific stats\n\nThis action cannot be undone!",
+        "data": {
+          "users_to_reset": "Users to Reset"
+        }
+      },
+      "stats_confirmation": {
+        "title": "⚠️ Final Confirmation - Reset Statistics",
+        "description": "**You are about to reset statistics for:**\n\n{users_to_reset}\n\n**{warning}**\n\nAll game data will be permanently deleted including games played, wins, streaks, and records.\n\nAre you absolutely sure you want to proceed?",
+        "data": {
+          "confirm_reset": "Yes, I want to permanently reset these statistics"
         }
       }
     },
@@ -53,7 +75,12 @@
       "api_error": "Cannot connect to Home Assistant API. Please check your configuration.",
       "network_error": "Network error occurred. Please try again.",
       "timeout": "Connection timeout. Please try again.",
-      "unknown_error": "An unknown error occurred. Please try again."
+      "unknown_error": "An unknown error occurred. Please try again.",
+      "no_users_selected": "Please select at least one user.",
+      "no_stats_found": "No users found with game statistics. Players need to play at least one game before stats can be reset.",
+      "no_users_selected_for_reset": "Please select at least one user whose statistics you want to reset.",
+      "stats_reset_failed": "Failed to reset statistics: {error_details}",
+      "stats_reset_success": "✅ **Statistics Reset Complete!**\n\nSuccessfully reset statistics for {reset_count} user(s).\n\n**Details:**\n{details}\n\nAll selected users now have fresh statistics and can start playing with a clean slate."
     }
   }
 }
