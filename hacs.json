@@ -6,5 +6,5 @@
   "iot_class": "Cloud Polling",
   "homeassistant": "2023.1.0",
   "icon": "icon.png",
-  "version": "5.0.0"
+  "version": "5.0.1"
 }
