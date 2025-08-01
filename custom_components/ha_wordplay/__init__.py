@@ -1,6 +1,7 @@
 """H.A WordPlay integration for Home Assistant - Multi-User Version with User Selection.
 Enhanced to support multiple simultaneous players with isolated game states.
 """
+import homeassistant.helpers.config_validation as cv
 import logging
 import asyncio
 import os
