@@ -42,7 +42,11 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 
 ### Fill out the setup form:
 
-- **Paste your access token**
+<img width="431" height="326" alt="config1" src="https://github.com/user-attachments/assets/f1d0eb57-8661-47a2-a9e6-7c5a3091bc32" />
+
+- **choose Manage Selected Users and press Submit**
+
+- **Paste your access token in the Access Token Box**
 
 <img width="424" height="329" alt="settings2" src="https://github.com/user-attachments/assets/b0dd3548-d5c9-490b-a0e0-6eb79e9981ac" />
 
@@ -52,6 +56,9 @@ This guide walks you through installing and configuring H.A WordPlay in Home Ass
 <img width="377" height="522" alt="settings1" src="https://github.com/user-attachments/assets/862f5896-20f7-467e-a954-ef533a04871c" />
 
 - Click **Submit** to finish  
+
+Selecting Reset Game Statisatics then lets you reset any of the game player game stats. Lots of warning etc so you do NOT reset by accident.
+ONLY users that can access the Devices & settings can peform stats reset so they should be safe from normal users etc.
 
 ## 🎮 Step 4: Access the Game
 
