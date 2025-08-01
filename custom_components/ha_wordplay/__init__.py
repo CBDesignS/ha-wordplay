@@ -6,6 +6,8 @@ import asyncio
 import os
 from typing import Any, Dict
 
+import voluptuous as vol
+
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
