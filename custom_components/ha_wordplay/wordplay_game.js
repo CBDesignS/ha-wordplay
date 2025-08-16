@@ -403,8 +403,8 @@ class WordPlayGame {
             // Initialize alphabet system
             this.alphabet.createAlphabetGrid(selectedLength);
             
-            // Create game grid
-            this.core.createGrid(selectedLength);
+            // Create game grid - FORCE RECREATION for new game
+            this.core.createGrid(selectedLength, true);
             
             // Start the actual game
             await this.ha.startNewGame(selectedLength);

@@ -47,13 +47,14 @@ class WordPlayCore {
     /**
      * Create the game grid
      * @param {number} wordLength - Size of the grid
+     * @param {boolean} forceRecreate - Force recreation even if same size
      */
-    createGrid(wordLength) {
-        if (wordLength === this.currentWordLength && this.gameGrid.length > 0) {
+    createGrid(wordLength, forceRecreate = false) {
+        if (!forceRecreate && wordLength === this.currentWordLength && this.gameGrid.length > 0) {
             return;
         }
         
-        this.debugLog(`🎯 Creating grid: ${wordLength}x${wordLength}`);
+        this.debugLog(`🎯 Creating grid: ${wordLength}x${wordLength} (forced: ${forceRecreate})`);
         
         this.currentWordLength = wordLength;
         const grid = document.getElementById('gameGrid');
