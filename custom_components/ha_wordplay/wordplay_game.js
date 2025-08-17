@@ -1,3 +1,6 @@
+// Rev 1.0 - Fixed e.target to e.currentTarget in event listeners to prevent child element clicks from breaking word length and difficulty selection
+// This fixes the grid not dynamically updating when selecting different word lengths - clicks on nested spans were returning undefined dataset values
+
 /**
  * WordPlay Game - Main Coordinator
  * Orchestrates all modules and handles game flow
@@ -238,18 +241,18 @@ class WordPlayGame {
      * Setup event listeners
      */
     setupEventListeners() {
-        // Word length selection buttons
+        // Word length selection buttons - FIXED: use currentTarget instead of target
         document.querySelectorAll('.word-length-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const length = parseInt(e.target.dataset.length);
+                const length = parseInt(e.currentTarget.dataset.length);
                 this.selectWordLength(length);
             });
         });
         
-        // Difficulty selection buttons
+        // Difficulty selection buttons - FIXED: use currentTarget instead of target
         document.querySelectorAll('.difficulty-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const difficulty = e.target.dataset.difficulty;
+                const difficulty = e.currentTarget.dataset.difficulty;
                 this.selectDifficulty(difficulty);
             });
         });
