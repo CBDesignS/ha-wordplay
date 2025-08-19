@@ -1,6 +1,5 @@
 {
   "name": "H.A WordPlay",
   "content_in_root": false,
-  "filename": "ha_wordplay",
   "homeassistant": "2023.1.0"
 }
