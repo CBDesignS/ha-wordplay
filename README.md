@@ -131,6 +131,7 @@ The game includes comprehensive statistics tracking, multi-user support, and aud
 - **Dutch (NL)** - Netherlands localization
 - **Italian (IT)** - Italian word support
 - **Portuguese (PT)** - Portuguese language addition
+- **Full UI Internationalization** - Ready for supported Languages
 
 *We welcome community contributions for additional language APIs! Character-based languages (Chinese, Japanese, etc.) are not planned due to gameplay mechanics.*
 
@@ -138,6 +139,7 @@ The game includes comprehensive statistics tracking, multi-user support, and aud
 
 ### Feature Roadmap
 - **Custom Word Lists** - User-defined word collections
+- **Word Length Game Stats** - Full word length game stats for each word length game. (currently global all word lenth games together)
 - **Multiplayer Modes** - Family tournaments and challenges
 - **Advanced Themes** - More visual customization options
 - **Sound Effects** - Optional audio feedback (respects HA quiet hours)
