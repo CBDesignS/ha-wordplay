@@ -1,3 +1,4 @@
+// Rev 1.0 - Added i18n support for dynamic status messages and game state updates
 /**
  * WordPlay UI - User Interface Management
  * Handles screen transitions, UI updates, and DOM manipulation
@@ -38,6 +39,19 @@ class WordPlayUI {
         const timestamp = new Date().toLocaleTimeString();
         const logEntry = `[${timestamp}] ${message}`;
         console.log(logEntry, data);
+    }
+    
+    /**
+     * Get translated text using i18n system
+     * @param {string} key - Translation key
+     * @param {Object} params - Optional parameters
+     * @returns {string} Translated text
+     */
+    t(key, params = {}) {
+        if (window.wordplayI18n && window.wordplayI18n().isReady()) {
+            return window.wordplayI18n().t(key, params);
+        }
+        return key; // Fallback to key if i18n not ready
     }
     
     /**
@@ -188,12 +202,21 @@ class WordPlayUI {
     /**
      * Update connection status display
      * @param {string} status - 'connected', 'disconnected', or 'connecting'
-     * @param {string} message - Status message
+     * @param {string} message - Status message (optional)
      */
     updateConnectionStatus(status, message) {
         const statusEl = this.elements.connectionStatus;
         if (statusEl) {
-            statusEl.textContent = message;
+            // Use translated message if it's a known status
+            let displayMessage = message;
+            if (status === 'connected') {
+                displayMessage = this.t('connection.connected');
+            } else if (status === 'disconnected') {
+                displayMessage = this.t('connection.disconnected');
+            } else if (status === 'connecting') {
+                displayMessage = this.t('connection.connecting');
+            }
+            statusEl.textContent = displayMessage;
             statusEl.className = `connection-status ${status}`;
         }
         this.debugLog(`Connection status: ${status} - ${message}`);
@@ -207,7 +230,16 @@ class WordPlayUI {
     updateGameStatus(message, type = 'info') {
         const statusEl = this.elements.gameStatus;
         if (statusEl) {
-            statusEl.textContent = message;
+            // Check if message contains known patterns and translate
+            let translatedMessage = message;
+            if (message.includes('Processing guess')) {
+                translatedMessage = this.t('game.processing');
+            } else if (message.includes('Getting hint')) {
+                translatedMessage = this.t('game.gettingHint');
+            } else if (message.includes('Starting game')) {
+                translatedMessage = this.t('game.starting');
+            }
+            statusEl.textContent = translatedMessage;
             statusEl.className = `game-status ${type}`;
         }
         this.debugLog(`Game status: ${type} - ${message}`);
@@ -226,16 +258,20 @@ class WordPlayUI {
         
         const gameData = this.core.getGameData();
         
-        // Update game status
+        // Update game status with translated text
         if (gameData.game_state === 'playing') {
             const remaining = this.core.getRemainingGuesses();
-            this.updateGameStatus(`Playing • ${gameData.word_length} letters • ${remaining} guesses remaining`, 'success');
+            const message = `${this.t('game.playing')} • ${gameData.word_length} ${this.t('wordLength.letters').toLowerCase()} • ${remaining} ${this.t('game.guessesRemaining')}`;
+            this.updateGameStatus(message, 'success');
         } else if (gameData.game_state === 'won') {
-            this.updateGameStatus(`🎉 You won! • ${gameData.guesses.length} guesses`, 'success');
+            const message = `${this.t('game.won')} • ${gameData.guesses.length} ${this.t('game.wonIn')}`;
+            this.updateGameStatus(message, 'success');
         } else if (gameData.game_state === 'lost') {
-            this.updateGameStatus(`😞 Game over • Better luck next time!`, 'error');
+            const message = `${this.t('game.lost')} • ${this.t('game.betterLuck')}`;
+            this.updateGameStatus(message, 'error');
         } else {
-            this.updateGameStatus(`Ready to play • ${gameData.word_length} letters`, 'info');
+            const message = `${this.t('game.ready')} • ${gameData.word_length} ${this.t('wordLength.letters').toLowerCase()}`;
+            this.updateGameStatus(message, 'info');
         }
         
         // Update grid
@@ -311,18 +347,18 @@ class WordPlayUI {
         if (!hintEl) return;
         
         if (gameData.game_state === 'lost' && gameData.revealed_word) {
-            // Show the revealed word when game is lost
-            hintEl.textContent = `💀 The word was: ${gameData.revealed_word}`;
+            // Show the revealed word when game is lost with translation
+            hintEl.textContent = this.t('game.wordRevealed', { word: gameData.revealed_word });
             hintEl.style.fontWeight = 'bold';
             hintEl.style.color = '#f44336'; // Red color for game over
         } else if (gameData.hint) {
-            // Show regular hint
+            // Show regular hint - Keep hints in original language from API
             hintEl.textContent = gameData.hint;
             hintEl.style.fontWeight = 'normal';
             hintEl.style.color = 'var(--text-secondary-color)';
         } else {
-            // Default message
-            hintEl.textContent = '💡 Click "Get Hint" for a clue!';
+            // Default message - translated
+            hintEl.textContent = this.t('game.enterGuess');
             hintEl.style.fontWeight = 'normal';
             hintEl.style.color = 'var(--text-secondary-color)';
         }
@@ -419,7 +455,12 @@ class WordPlayUI {
     setStartButtonState(disabled, text) {
         if (this.elements.startGameBtn) {
             this.elements.startGameBtn.disabled = disabled;
-            this.elements.startGameBtn.textContent = text;
+            // Use translation if it's "Start Game"
+            if (text === 'Start Game') {
+                this.elements.startGameBtn.textContent = this.t('button.startGame');
+            } else {
+                this.elements.startGameBtn.textContent = text;
+            }
         }
     }
     
@@ -444,8 +485,9 @@ class WordPlayUI {
                 mainContent.setAttribute('aria-hidden', 'true');
             }
             
-            // Load iframe and show modal
-            this.elements.audioSettingsIframe.src = 'wordplay_sound_cfg.html';
+            // Load iframe with language parameter
+            const lang = window.wordplayI18n ? window.wordplayI18n().getCurrentLanguage() : 'en';
+            this.elements.audioSettingsIframe.src = `wordplay_sound_cfg.html?lang=${lang}`;
             this.elements.audioSettingsModal.classList.add('active');
             
             // Focus first element in modal after brief delay for iframe load
@@ -496,7 +538,7 @@ class WordPlayUI {
     }
     
     /**
-     * Open stats page modal with proper focus management - NEW
+     * Open stats page modal with proper focus management
      */
     openStatsPage() {
         this.debugLog('📊 Opening stats page modal');
@@ -516,8 +558,9 @@ class WordPlayUI {
                 mainContent.setAttribute('aria-hidden', 'true');
             }
             
-            // Load iframe and show modal
-            this.elements.statsIframe.src = 'wordplay_stats.html';
+            // Load iframe with language parameter
+            const lang = window.wordplayI18n ? window.wordplayI18n().getCurrentLanguage() : 'en';
+            this.elements.statsIframe.src = `wordplay_stats.html?lang=${lang}`;
             this.elements.statsModal.classList.add('active');
             
             // Focus first element in modal after brief delay for iframe load
