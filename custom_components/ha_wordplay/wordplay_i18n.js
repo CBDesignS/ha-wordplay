@@ -67,7 +67,7 @@ class WordPlayI18n {
     
     async loadTranslations(lang) {
         try {
-            const response = await fetch(`translations/${lang}.json`);
+            const response = await fetch(`languages/${lang}.json`);
             if (response.ok) {
                 this.translations = await response.json();
                 console.log(`✅ Loaded ${lang} translations`);
@@ -87,7 +87,7 @@ class WordPlayI18n {
     
     async loadFallbackTranslations() {
         try {
-            const response = await fetch('translations/en.json');
+            const response = await fetch('languages/en.json');
             if (response.ok) {
                 this.fallbackTranslations = await response.json();
             }

@@ -1,4 +1,4 @@
-<!-- Rev 2.0 - Added complete i18n support with data-i18n attributes for German translation -->
+<!-- Rev 2.0 - Added complete i18n support with data-i18n attributes for Current languages -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -639,16 +639,16 @@
             currentLanguage = lang;
             
             try {
-                const response = await fetch(`translations/${lang}.json`);
+                const response = await fetch(`languages/${lang}.json`);
                 if (response.ok) {
                     translations = await response.json();
                     console.log(`✅ Loaded ${lang} translations for stats`);
                 } else {
                     // Fallback to English
                     console.warn(`❌ Could not load ${lang} translations, falling back to English`);
-                    const enResponse = await fetch('translations/en.json');
-                    if (enResponse.ok) {
-                        translations = await enResponse.json();
+                    const response = await fetch(`languages/${lang}.json`);
+                    if (response.ok) {
+                        translations = await response.json();
                         currentLanguage = 'en';
                     }
                 }

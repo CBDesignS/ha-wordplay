@@ -607,12 +607,12 @@
             currentLanguage = lang;
             
             try {
-                const response = await fetch(`translations/${lang}.json`);
+                const response = await fetch(`languages/${lang}.json`);
                 if (response.ok) {
                     translations = await response.json();
                 } else {
                     // Fallback to English
-                    const enResponse = await fetch('translations/en.json');
+                    const response = await fetch(`languages/${lang}.json`);
                     translations = await enResponse.json();
                 }
             } catch (error) {
