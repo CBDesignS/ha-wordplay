@@ -42,7 +42,7 @@
   "game.wrongPosition": "Falsche Position",
   "game.notInWord": "Nicht im Wort",
   "game.inputPlaceholder": "Gib deinen Versuch ein...",
-  "game.wordRevealed": "💀 Das Wort war: {word}",
+  "game.wordRevealed": "👀 Das Wort war: {word}",
   
   "connection.connecting": "🔗 Verbindung zu Home Assistant...",
   "connection.connected": "Verbunden",
