@@ -1,118 +1,182 @@
-// Rev 1.0 - Clean modular i18n system with separate JSON language files
+// Rev 1.1 - Added Home Assistant language detection for automatic language selection
 /**
- * WordPlay Internationalization Loader
- * Loads translations from separate JSON files
+ * WordPlay i18n (Internationalization) Module
+ * Handles loading and applying translations for the WordPlay game
  */
 
-class WordPlayI18n {
-    constructor() {
-        this.currentLanguage = 'en';
-        this.translations = {};
-        this.fallbackTranslations = {};
-        this.ready = false;
-    }
+(function() {
+    'use strict';
     
-    async init() {
-        // Detect language
-        this.currentLanguage = this.detectLanguage();
-        
-        // Load translations
-        await this.loadTranslations(this.currentLanguage);
-        
-        // Load English as fallback if not already loaded
-        if (this.currentLanguage !== 'en') {
-            await this.loadFallbackTranslations();
+    // Supported languages
+    const supportedLanguages = ['en', 'de', 'fr', 'es'];
+    const defaultLanguage = 'en';
+    
+    // Current language and translations
+    let currentLanguage = defaultLanguage;
+    let translations = {};
+    
+    /**
+     * Get Home Assistant language setting
+     * @returns {string|null} HA language code or null
+     */
+    function getHALanguage() {
+        try {
+            // Method 1: Check parent frame HA object
+            if (window.parent && window.parent !== window) {
+                const parentDoc = window.parent.document;
+                if (parentDoc) {
+                    const haMain = parentDoc.querySelector('home-assistant');
+                    if (haMain && haMain.hass) {
+                        // Check hass.language (system language)
+                        if (haMain.hass.language) {
+                            // HA language format is usually like 'de-DE', we need just 'de'
+                            const haLang = haMain.hass.language.split('-')[0].toLowerCase();
+                            console.log(`🌍 Detected HA system language: ${haLang}`);
+                            return haLang;
+                        }
+                        // Check user language preference
+                        if (haMain.hass.user && haMain.hass.user.language) {
+                            const userLang = haMain.hass.user.language.split('-')[0].toLowerCase();
+                            console.log(`🌍 Detected HA user language: ${userLang}`);
+                            return userLang;
+                        }
+                    }
+                }
+            }
+            
+            // Method 2: Check if we can access hass object directly
+            if (window.parent && window.parent.hass) {
+                if (window.parent.hass.language) {
+                    const lang = window.parent.hass.language.split('-')[0].toLowerCase();
+                    console.log(`🌍 Detected HA language from parent.hass: ${lang}`);
+                    return lang;
+                }
+            }
+            
+            // Method 3: Try to get from localStorage (HA stores selectedLanguage)
+            const haSelectedLang = localStorage.getItem('selectedLanguage');
+            if (haSelectedLang) {
+                try {
+                    const langData = JSON.parse(haSelectedLang);
+                    if (langData && typeof langData === 'string') {
+                        const lang = langData.split('-')[0].toLowerCase();
+                        console.log(`🌍 Detected HA language from localStorage: ${lang}`);
+                        return lang;
+                    }
+                } catch (e) {
+                    // If it's not JSON, try as string
+                    const lang = haSelectedLang.split('-')[0].toLowerCase();
+                    console.log(`🌍 Detected HA language from localStorage (string): ${lang}`);
+                    return lang;
+                }
+            }
+            
+        } catch (error) {
+            console.log('Could not detect HA language:', error.message);
         }
-        
-        // Apply translations to page
-        this.applyTranslations();
-        
-        // Mark as ready
-        this.ready = true;
-        
-        // Dispatch ready event
-        document.dispatchEvent(new CustomEvent('i18nReady', {
-            detail: { language: this.currentLanguage }
-        }));
-        
-        console.log(`🌍 I18n initialized with language: ${this.currentLanguage}`);
+        return null;
     }
     
-    detectLanguage() {
-        // Check URL parameter first
+    /**
+     * Detect the language to use
+     * Priority: URL param > HA language > localStorage > browser > default
+     */
+    function detectLanguage() {
+        // 1. Check URL parameter (highest priority for testing)
         const urlParams = new URLSearchParams(window.location.search);
         const urlLang = urlParams.get('lang');
-        if (urlLang) {
+        if (urlLang && supportedLanguages.includes(urlLang)) {
+            console.log(`🌍 Language from URL: ${urlLang}`);
             return urlLang;
         }
         
-        // Check localStorage
-        const savedLang = localStorage.getItem('wordplay_language');
-        if (savedLang) {
-            return savedLang;
+        // 2. Check Home Assistant language setting
+        const haLang = getHALanguage();
+        if (haLang && supportedLanguages.includes(haLang)) {
+            console.log(`🌍 Using Home Assistant language: ${haLang}`);
+            return haLang;
         }
         
-        // Check browser language
-        const browserLang = navigator.language.substring(0, 2).toLowerCase();
+        // 3. Check localStorage for saved preference
+        const storedLang = localStorage.getItem('wordplay_language');
+        if (storedLang && supportedLanguages.includes(storedLang)) {
+            console.log(`🌍 Language from storage: ${storedLang}`);
+            return storedLang;
+        }
         
-        // Supported languages
-        const supported = ['en', 'de', 'fr', 'es'];
-        if (supported.includes(browserLang)) {
+        // 4. Check browser language
+        const browserLang = navigator.language.substring(0, 2).toLowerCase();
+        if (supportedLanguages.includes(browserLang)) {
+            console.log(`🌍 Language from browser: ${browserLang}`);
             return browserLang;
         }
         
-        // Default to English
-        return 'en';
+        // 5. Default to English
+        console.log('🌍 No language detected, defaulting to English');
+        return defaultLanguage;
     }
     
-    async loadTranslations(lang) {
+    /**
+     * Load translations for a specific language
+     * @param {string} lang - Language code
+     * @returns {Promise<Object>} Translation object
+     */
+    async function loadTranslations(lang) {
         try {
             const response = await fetch(`languages/${lang}.json`);
-            if (response.ok) {
-                this.translations = await response.json();
-                console.log(`✅ Loaded ${lang} translations`);
-            } else {
-                console.warn(`❌ Could not load ${lang} translations, using English`);
-                if (lang !== 'en') {
-                    await this.loadTranslations('en');
-                }
+            if (!response.ok) {
+                throw new Error(`Failed to load ${lang} translations`);
             }
+            const data = await response.json();
+            console.log(`✅ Loaded ${lang} translations`);
+            return data;
         } catch (error) {
             console.error(`Error loading ${lang} translations:`, error);
+            
+            // Try to fallback to English if not already English
             if (lang !== 'en') {
-                await this.loadTranslations('en');
+                console.log('Falling back to English translations');
+                try {
+                    const response = await fetch(`languages/en.json`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('✅ Loaded English translations as fallback');
+                        return data;
+                    }
+                } catch (fallbackError) {
+                    console.error('Failed to load English fallback:', fallbackError);
+                }
             }
+            
+            // Return empty object if all fails
+            return {};
         }
     }
     
-    async loadFallbackTranslations() {
-        try {
-            const response = await fetch('languages/en.json');
-            if (response.ok) {
-                this.fallbackTranslations = await response.json();
-            }
-        } catch (error) {
-            console.error('Error loading fallback translations:', error);
-        }
-    }
-    
-    t(key, params = {}) {
-        // Get translation from current language or fallback
-        let translation = this.translations[key] || this.fallbackTranslations[key] || key;
+    /**
+     * Get a translation by key
+     * @param {string} key - Translation key
+     * @param {Object} params - Parameters to replace in translation
+     * @returns {string} Translated text
+     */
+    function t(key, params = {}) {
+        let text = translations[key] || key;
         
-        // Replace parameters {param} with values
+        // Replace parameters like {name} with actual values
         Object.keys(params).forEach(param => {
-            translation = translation.replace(`{${param}}`, params[param]);
+            text = text.replace(new RegExp(`\\{${param}\\}`, 'g'), params[param]);
         });
         
-        return translation;
+        return text;
     }
     
-    applyTranslations() {
-        // Apply to all elements with data-i18n attribute
+    /**
+     * Apply translations to DOM elements with data-i18n attribute
+     */
+    function applyTranslations() {
         document.querySelectorAll('[data-i18n]').forEach(element => {
             const key = element.getAttribute('data-i18n');
-            const translation = this.t(key);
+            const translation = t(key);
             
             // Handle different element types
             if (element.tagName === 'INPUT') {
@@ -122,62 +186,75 @@ class WordPlayI18n {
                 if (element.type === 'button' || element.type === 'submit') {
                     element.value = translation;
                 }
-            } else if (element.tagName === 'TITLE') {
-                element.textContent = translation;
             } else {
-                // For most elements, just set textContent
                 element.textContent = translation;
             }
         });
         
-        console.log(`✅ Applied ${this.currentLanguage} translations to DOM`);
+        console.log(`✅ Applied ${currentLanguage} translations to DOM`);
     }
     
-    switchLanguage(lang) {
-        this.currentLanguage = lang;
+    /**
+     * Initialize the i18n system
+     */
+    async function init() {
+        // Detect language
+        currentLanguage = detectLanguage();
+        
+        // Load translations
+        translations = await loadTranslations(currentLanguage);
+        
+        // Apply to existing DOM elements
+        applyTranslations();
+        
+        // Store the selected language
+        localStorage.setItem('wordplay_language', currentLanguage);
+        
+        console.log(`🌍 I18n initialized with language: ${currentLanguage}`);
+        
+        // Dispatch ready event
+        document.dispatchEvent(new CustomEvent('i18nReady', {
+            detail: { language: currentLanguage }
+        }));
+    }
+    
+    /**
+     * Change language dynamically
+     * @param {string} lang - New language code
+     */
+    async function changeLanguage(lang) {
+        if (!supportedLanguages.includes(lang)) {
+            console.error(`Language ${lang} not supported`);
+            return;
+        }
+        
+        currentLanguage = lang;
+        translations = await loadTranslations(lang);
+        applyTranslations();
         localStorage.setItem('wordplay_language', lang);
         
-        // Reload translations and apply
-        this.loadTranslations(lang).then(() => {
-            this.applyTranslations();
-            
-            // Dispatch event for other modules
-            document.dispatchEvent(new CustomEvent('languageChanged', {
-                detail: { language: lang }
-            }));
-        });
+        // Dispatch language change event
+        document.dispatchEvent(new CustomEvent('languageChanged', {
+            detail: { language: lang }
+        }));
     }
     
-    getCurrentLanguage() {
-        return this.currentLanguage;
-    }
+    // Public API
+    window.wordplayI18n = {
+        init,
+        t,
+        changeLanguage,
+        getCurrentLanguage: () => currentLanguage,
+        getSupportedLanguages: () => supportedLanguages,
+        applyTranslations
+    };
     
-    isReady() {
-        return this.ready;
+    // Auto-initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
     }
-    
-    // Wait for i18n to be ready
-    async waitForReady() {
-        if (this.ready) return;
-        
-        return new Promise(resolve => {
-            document.addEventListener('i18nReady', resolve, { once: true });
-        });
-    }
-}
-
-// Global i18n instance
-let wordplayI18n = null;
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    wordplayI18n = new WordPlayI18n();
-    window.wordplayI18n = () => wordplayI18n;
-    
-    // Initialize after a short delay to ensure DOM is ready
-    setTimeout(() => {
-        wordplayI18n.init();
-    }, 100);
     
     console.log('🌍 WordPlay I18n loader ready');
-});
+})();
