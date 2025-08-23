@@ -1,3 +1,4 @@
+// Rev 3.0 - add const ha = window.wordplayHA(); at line 95 & 142 to fix stats not loading from back end.
 // Rev 2.0 - Added i18n support for consistency with other modules
 /**
  * WordPlay Stats - Statistics Display and Management
