@@ -91,6 +91,7 @@ class WordPlayStats {
         
         try {
             // Get user-specific sensor
+            const ha = window.wordplayHA();
             const sensorEntityId = `sensor.ha_wordplay_stats_${ha.currentUser}`;
             
             this.debugLog(`📊 Fetching stats for sensor: ${sensorEntityId}`);
@@ -137,6 +138,7 @@ class WordPlayStats {
             
             // Try fallback to button entity
             try {
+                const ha = window.wordplayHA();
                 const buttonEntityId = `button.ha_wordplay_game_${ha.currentUser}`;
                 const response = await fetch('/api/states/' + buttonEntityId, {
                     headers: {
