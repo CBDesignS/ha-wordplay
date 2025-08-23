@@ -83,7 +83,7 @@ class WordPlayStats {
      */
     async updateStats() {
         // Wait for HA API to be ready
-        if (!window.ha || !window.ha.accessToken) {
+        if (!window.wordplayHA || !window.wordplayHA().accessToken) {
             this.debugLog('⏳ HA API not ready yet, waiting...');
             setTimeout(() => this.updateStats(), 1000);
             return;

@@ -48,8 +48,8 @@ class WordPlayUI {
      * @returns {string} Translated text
      */
     t(key, params = {}) {
-        if (window.wordplayI18n && window.wordplayI18n().isReady()) {
-            return window.wordplayI18n().t(key, params);
+        if (window.wordplayI18n && window.wordplayI18n.getCurrentLanguage) {
+            return window.wordplayI18n.t(key, params);
         }
         return key; // Fallback to key if i18n not ready
     }
@@ -486,7 +486,7 @@ class WordPlayUI {
             }
             
             // Load iframe with language parameter
-            const lang = window.wordplayI18n ? window.wordplayI18n().getCurrentLanguage() : 'en';
+            const lang = window.wordplayI18n ? window.wordplayI18n.getCurrentLanguage() : 'en';
             this.elements.audioSettingsIframe.src = `wordplay_sound_cfg.html?lang=${lang}`;
             this.elements.audioSettingsModal.classList.add('active');
             
@@ -559,7 +559,7 @@ class WordPlayUI {
             }
             
             // Load iframe with language parameter
-            const lang = window.wordplayI18n ? window.wordplayI18n().getCurrentLanguage() : 'en';
+            const lang = window.wordplayI18n ? window.wordplayI18n.getCurrentLanguage() : 'en';
             this.elements.statsIframe.src = `wordplay_stats.html?lang=${lang}`;
             this.elements.statsModal.classList.add('active');
             
