@@ -1,4 +1,3 @@
-// Rev 3.0 - add const ha = window.wordplayHA(); at line 95 & 142 to fix stats not loading from back end.
 // Rev 2.0 - Added i18n support for consistency with other modules
 /**
  * WordPlay Stats - Statistics Display and Management
@@ -139,7 +138,7 @@ class WordPlayStats {
             
             // Try fallback to button entity
             try {
-                const ha = window.wordplayHA();
+            	const ha = window.wordplayHA();
                 const buttonEntityId = `button.ha_wordplay_game_${ha.currentUser}`;
                 const response = await fetch('/api/states/' + buttonEntityId, {
                     headers: {

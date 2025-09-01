@@ -1,3 +1,4 @@
+# Rev 1.0 - Added i18n translation support ONLY - no other changes
 """Button platform for H.A WordPlay integration - Multi-User Version with User Selection."""
 import logging
 from typing import Optional, Any, Dict
@@ -15,6 +16,7 @@ from .wordplay_const import (
     STATE_LOST,
     CONF_SELECTED_USERS,
 )
+from .wordplay_i18n import get_translator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,8 +85,36 @@ class WordPlayGameButton(ButtonEntity):
         self._attr_extra_state_attributes = {}
         self._hint_requested = False  # Track if hint has been requested
         
+        # Get translator instance for i18n support
+        self.translator = get_translator()
+        
         # Set entity_id explicitly
         self.entity_id = f"button.ha_wordplay_game_{user_id}"
+
+    def _t(self, key: str, **kwargs) -> str:
+        """Helper method to get translations."""
+        # Get the game's current language if available
+        game_data = self.hass.data.get(DOMAIN, {})
+        games = game_data.get("games", {})
+        game = games.get(self.user_id)
+        
+        language = "en"  # Default
+        if game and hasattr(game, 'language'):
+            language = game.language
+        
+        if self.translator:
+            return self.translator.get(key, language, **kwargs)
+        # Fallback if translator not available - return hardcoded English
+        fallbacks = {
+            "backend.readyToPlay": "Ready to Play",
+            "backend.playingStatus": f"Playing ({kwargs.get('letters', '?')} letters, {kwargs.get('remaining', '?')} guesses left)",
+            "backend.wonStatus": f"Won in {kwargs.get('guesses', '?')} guesses! 🎉",
+            "backend.lostStatus": f"Game Over - Word was {kwargs.get('word', 'UNKNOWN')}",
+            "backend.noGuessesYet": "No guesses yet",
+            "backend.clickToStart": "Click to start a new WordPlay game!",
+            "backend.unknown": "Unknown"
+        }
+        return fallbacks.get(key, key)
 
     @property
     def name(self) -> str:
@@ -124,8 +154,8 @@ class WordPlayGameButton(ButtonEntity):
             if not game:
                 return {
                     "user_id": self.user_id,
-                    "game_status": "Ready",
-                    "instructions": "Click to start a new WordPlay game!",
+                    "game_status": self._t("backend.readyToPlay"),
+                    "instructions": self._t("backend.clickToStart"),
                     "friendly_name": self._attr_name,
                     "icon": "mdi:gamepad-variant"
                 }
@@ -159,7 +189,7 @@ class WordPlayGameButton(ButtonEntity):
                 
                 attributes.update({
                     "current_word_length": f"{game.word_length} letters",
-                    "hint": hint_to_show if hint_to_show else "Click 'Get Hint' for a clue!",
+                    "hint": hint_to_show if hint_to_show else self._t("backend.clickForHint"),
                     "hint_shown": bool(hint_to_show),  # Track if hint is displayed
                     "current_input": self._format_current_input(game),
                     "latest_guess": self._format_latest_guess(game),
@@ -182,7 +212,7 @@ class WordPlayGameButton(ButtonEntity):
             attributes.update({
                 "available_actions": [
                     "🎮 New Game - Start a new word puzzle",
-                    "📝 Submit Guess - Submit your current guess",
+                    "🔍 Submit Guess - Submit your current guess",
                     "💡 Get Hint - Get a clue about the word",
                     "⚙️ Settings - Change word length"
                 ],
@@ -209,14 +239,17 @@ class WordPlayGameButton(ButtonEntity):
     def _format_game_status(self, game) -> str:
         """Format game status for display."""
         if game.game_state == STATE_IDLE:
-            return "Ready to Play"
+            return self._t("backend.readyToPlay")
         elif game.game_state == STATE_PLAYING:
-            return f"Playing ({game.word_length} letters, {game.word_length - len(game.guesses)} guesses left)"
+            return self._t("backend.playingStatus", 
+                          letters=game.word_length, 
+                          remaining=game.word_length - len(game.guesses))
         elif game.game_state == STATE_WON:
-            return f"Won in {len(game.guesses)} guesses! 🎉"
+            return self._t("backend.wonStatus", guesses=len(game.guesses))
         elif game.game_state == STATE_LOST:
-            return f"Game Over - Word was {game.revealed_word or 'UNKNOWN'}"
-        return "Unknown"
+            word = game.revealed_word or self._t("backend.unknown")
+            return self._t("backend.lostStatus", word=word)
+        return self._t("backend.unknown")
 
     def _format_current_input(self, game) -> str:
         """Format current input for display."""
@@ -229,7 +262,7 @@ class WordPlayGameButton(ButtonEntity):
     def _format_latest_guess(self, game) -> str:
         """Format latest guess with results."""
         if not game.guesses or not game.latest_result:
-            return "No guesses yet"
+            return self._t("backend.noGuessesYet")
         
         latest_guess = game.guesses[-1]
         result_display = []
@@ -300,9 +333,21 @@ class WordPlayGameButton(ButtonEntity):
                 except (ValueError, TypeError):
                     word_length = 5
                 
-                success = await game.start_new_game(word_length)
+                # Get language from user's language select entity if available
+                language = "en"  # Default to English
+                try:
+                    # Check if there's a language select entity for this user
+                    lang_select_state = self.hass.states.get(f"select.ha_wordplay_language_{self.user_id}")
+                    if lang_select_state and lang_select_state.state:
+                        language = lang_select_state.state
+                except Exception:
+                    # If no language entity, keep default
+                    pass
+                
+                # FIXED: Now passing both word_length AND language parameters
+                success = await game.start_new_game(word_length, language)
                 if success:
-                    _LOGGER.info(f"New game started from button press for user {self.user_id}: {word_length} letters")
+                    _LOGGER.info(f"New game started from button press for user {self.user_id}: {word_length} letters, language: {language}")
                 else:
                     _LOGGER.error(f"Failed to start new game from button press for user {self.user_id}")
             

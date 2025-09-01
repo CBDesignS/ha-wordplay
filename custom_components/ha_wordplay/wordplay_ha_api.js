@@ -154,7 +154,7 @@ class WordPlayHA {
     
     /**
      * Call Home Assistant service - iPhone app compatible
-     * SIMPLE FIX: Include user_id in service data when calling WordPlay services
+     * FIXED: Only include user_id for ha_wordplay domain services
      * @param {string} domain - Service domain
      * @param {string} service - Service name
      * @param {Object} data - Service data
@@ -167,7 +167,7 @@ class WordPlayHA {
         
         const serviceData = { ...data };
         
-        // SIMPLE FIX: Include user_id for WordPlay services
+        // FIXED: Only include user_id for ha_wordplay services, NOT for select/text/etc
         if (domain === 'ha_wordplay' && this.currentUser) {
             serviceData.user_id = this.currentUser;
         }
@@ -305,55 +305,42 @@ class WordPlayHA {
                     last_message: attrs.last_message || '',
                     message_type: attrs.message_type || 'info',
                     revealed_word: attrs.revealed_word || '',
-                    user_id: attrs.user_id || this.currentUser
+                    user_id: this.currentUser
                 };
                 
                 this.debugLog('📈 Parsed game data', gameData);
                 
+                // Update last update time
                 this.lastUpdate = new Date().toLocaleTimeString();
                 
-                // Trigger update callback
+                // Call update callback
                 if (this.onStateUpdate) {
                     this.onStateUpdate(gameData);
                 }
                 
                 // Update connection status
                 if (this.onConnectionChange) {
-                    this.onConnectionChange('connected', `Connected (User: ${this.currentUser})`);
+                    this.onConnectionChange('connected', '✅ Connected');
                 }
                 
-                // Update our user ID from the backend if available
-                if (attrs.user_id && attrs.user_id !== this.currentUser) {
-                    this.currentUser = attrs.user_id;
-                    this.debugLog(`👤 User updated from backend: ${this.currentUser}`);
-                }
-                
-                // Dispatch custom event for stats update
-                document.dispatchEvent(new CustomEvent('wordplayGameStateChanged', {
-                    detail: { gameData, user: this.currentUser }
-                }));
-                
+                this.debugLog('📊 Game state updated', gameData);
                 return true;
             }
             
-            // Also get word length from user's select entity
-            const lengthEntityId = this.getUserEntityId('select.ha_wordplay_word_length');
-            const lengthEntity = await this.getEntityState(lengthEntityId);
-            if (lengthEntity && lengthEntity.state) {
-                const entityWordLength = parseInt(lengthEntity.state);
-                this.debugLog(`🔢 Word length from user's select: ${entityWordLength}`);
-                
-                // Trigger word length update if needed
-                if (this.onWordLengthUpdate) {
-                    this.onWordLengthUpdate(entityWordLength);
-                }
+            this.debugLog('⚠️ No attributes found in button entity');
+            
+            // Still mark as connected
+            if (this.onConnectionChange) {
+                this.onConnectionChange('connected', '✅ Connected - No game data');
             }
             
+            return false;
+            
         } catch (error) {
-            this.debugLog('❌ Failed to refresh game state', error);
+            this.debugLog('❌ Error refreshing game state:', error);
             
             if (this.onConnectionChange) {
-                this.onConnectionChange('disconnected', '❌ Connection failed');
+                this.onConnectionChange('error', '❌ Refresh failed');
             }
             
             return false;
@@ -407,7 +394,7 @@ class WordPlayHA {
         if (this.updateInterval) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
-            this.debugLog('⏹️ Polling stopped');
+            this.debugLog('ℹ️ Polling stopped');
         }
     }
     

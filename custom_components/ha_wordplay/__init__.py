@@ -1,4 +1,4 @@
-# HASSFEST CACHE BUST v5.0.2
+# HASSFEST CACHE BUST v5.0.3.3
 """H.A WordPlay integration for Home Assistant - Multi-User Version with User Selection.
 Enhanced to support multiple simultaneous players with isolated game states.
 """
@@ -31,6 +31,7 @@ from .wordplay_const import (
 )
 from .wordplay_game_logic import WordPlayGame
 from .wordplay_api_config import get_supported_languages
+from .wordplay_i18n import init_translator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +60,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
     
     _LOGGER.info(f"WordPlay config: selected_users_count={len(selected_users)}")
+    
+    # Initialize the i18n translator using executor to avoid blocking calls
+    integration_dir = os.path.dirname(__file__)
+    await hass.async_add_executor_job(init_translator, integration_dir)
+    _LOGGER.info("WordPlay i18n translator initialized")
     
     # Initialize TTS configuration
     tts_config = await _setup_tts_config(hass)
@@ -105,8 +111,9 @@ async def async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None
 
 async def _ensure_default_button(hass: HomeAssistant) -> None:
     """Ensure default game button exists for backward compatibility."""
-    # This maintains backward compatibility for automations that may rely on the default button
-    pass  # Placeholder - implement if needed for backward compatibility
+    # This function is now mostly redundant in multi-user version
+    # But kept for potential future use
+    pass
 
 async def _register_wordplay_html_panel(hass: HomeAssistant, access_token: str) -> None:
     """Register the WordPlay HTML panel with secure token passing."""
@@ -330,9 +337,15 @@ async def _register_services(hass: HomeAssistant) -> None:
             
             game = _get_or_create_game(hass, user_id)
             
-            hint = await game.get_hint()
-            _LOGGER.info(f"Hint requested by user {user_id}: {hint}")
+            # Get hint for current game
+            hint_text = await game.get_hint()
+            _LOGGER.info(f"Hint requested for user {user_id}")
+            
+            # Update button to reflect hint was shown
             await _update_button_attributes(hass, user_id)
+            
+            return {"hint": hint_text}
+            
         except ServiceValidationError:
             raise
         except Exception as e:
@@ -340,7 +353,7 @@ async def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(f"Error getting hint: {e}")
     
     async def handle_submit_guess(call: ServiceCall) -> None:
-        """Handle submit current guess service call."""
+        """Handle submit guess service call - simplified version."""
         try:
             # SIMPLE FIX: Check if user_id is explicitly provided
             user_id = call.data.get("user_id")
@@ -356,89 +369,111 @@ async def _register_services(hass: HomeAssistant) -> None:
             
             game = _get_or_create_game(hass, user_id)
             
-            # Get current input from user's text entity state
-            text_state = hass.states.get(f"text.ha_wordplay_guess_input_{user_id}")
-            guess = None
+            # Get the guess from the user's text input entity
+            text_entity_id = f"text.ha_wordplay_guess_input_{user_id}"
+            text_state = hass.states.get(text_entity_id)
             
             if text_state and text_state.state:
-                guess = text_state.state.upper().strip()
-            
-            if guess and guess != "HELLO":
+                guess = text_state.state.upper()
                 result = await game.make_guess(guess)
                 
                 # FIXED: Handle anti-cheat violations gracefully without raising service errors
                 if "error" in result:
                     # Log the anti-cheat violation but don't raise a service error
                     _LOGGER.info(f"Game rule violation for user {user_id}: {result['error']}")
-                    # The game logic already handles updating the UI message and button attributes
-                    # This is normal game behavior, not a service failure
                 else:
-                    _LOGGER.info(f"Guess submitted by user {user_id}: {guess}")
-                    
+                    _LOGGER.info(f"Guess submitted for user {user_id}: {guess}")
+                
+                # Clear the text input
+                await hass.services.async_call(
+                    "text",
+                    "set_value",
+                    {"entity_id": text_entity_id, "value": ""},
+                    blocking=False,
+                )
+                
                 await _update_button_attributes(hass, user_id)
             else:
-                raise ServiceValidationError("No valid guess to submit")
+                _LOGGER.warning(f"No guess found in text input for user {user_id}")
+                
         except ServiceValidationError:
             raise
         except Exception as e:
             _LOGGER.error(f"Error in submit_guess service: {e}")
             raise ServiceValidationError(f"Error submitting guess: {e}")
     
-    async def handle_identify_player(call: ServiceCall) -> Dict[str, str]:
-        """SIMPLE FIX: New service to identify the actual player from browser session."""
+    # Special service for identifying player
+    async def handle_identify_player(call: ServiceCall) -> None:
+        """Identify which player is making the call - used for multi-user support."""
         try:
-            # This service is called from the iframe
-            # It should identify the actual user viewing the panel
+            user_id = await _get_user_from_context(hass, call)
+            user = await hass.auth.async_get_user(user_id)
             
-            # Try to get user from service call context
-            if call.context.user_id:
-                user = await hass.auth.async_get_user(call.context.user_id)
-                if user:
-                    # Check if user is authorized
-                    selected_users = hass.data[DOMAIN].get("selected_users", [])
-                    if user.id in selected_users:
-                        _LOGGER.debug(f"Player identified from context: {user.name} ({user.id})")
-                        return {
-                            "user_id": user.id,
-                            "user_name": user.name or "Player",
-                            "is_authorized": True,
-                            "source": "context"
-                        }
-            
-            # If no context, we need another way to identify the user
-            # This is the tricky part - iframes don't easily pass user context
-            
-            # For now, return an error so we know this approach isn't working
             return {
-                "error": "Cannot identify player from iframe context",
-                "is_authorized": False,
-                "source": "failed"
+                "user_id": user_id,
+                "user_name": user.name if user else "Unknown",
+                "is_authorized": user_id in hass.data[DOMAIN].get("selected_users", [])
             }
-            
         except Exception as e:
-            _LOGGER.error(f"Error in identify_player service: {e}")
+            _LOGGER.error(f"Error identifying player: {e}")
             return {
-                "error": str(e),
+                "user_id": None,
+                "user_name": "Unknown",
                 "is_authorized": False,
-                "source": "error"
+                "error": str(e)
             }
     
-    # Register the services
-    try:
-        hass.services.async_register(DOMAIN, SERVICE_NEW_GAME, handle_new_game)
-        hass.services.async_register(DOMAIN, SERVICE_MAKE_GUESS, handle_make_guess)
-        hass.services.async_register(DOMAIN, SERVICE_GET_HINT, handle_get_hint)
-        hass.services.async_register(DOMAIN, SERVICE_SUBMIT_GUESS, handle_submit_guess)
-        hass.services.async_register(DOMAIN, "identify_player", handle_identify_player)
-        
-        _LOGGER.info("All H.A WordPlay multi-user services registered successfully")
-        
-    except Exception as e:
-        _LOGGER.error(f"Service registration failed: {e}")
-        raise
+    # Register services with multi-user schema
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_NEW_GAME,
+        handle_new_game,
+        schema=vol.Schema({
+            vol.Optional("word_length", default=DEFAULT_WORD_LENGTH): cv.positive_int,
+            vol.Optional("user_id"): cv.string,  # FIXED: Made optional for context-based detection
+            vol.Optional("language", default="en"): cv.string,
+        }),
+    )
+    
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_MAKE_GUESS,
+        handle_make_guess,
+        schema=vol.Schema({
+            vol.Required("guess"): cv.string,
+            vol.Optional("user_id"): cv.string,  # FIXED: Made optional for context-based detection
+        }),
+    )
+    
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_HINT,
+        handle_get_hint,
+        schema=vol.Schema({
+            vol.Optional("user_id"): cv.string,  # FIXED: Made optional for context-based detection
+        }),
+    )
+    
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SUBMIT_GUESS,
+        handle_submit_guess,
+        schema=vol.Schema({
+            vol.Optional("user_id"): cv.string,  # FIXED: Made optional for context-based detection
+        }),
+    )
+    
+    hass.services.async_register(
+        DOMAIN,
+        "identify_player",
+        handle_identify_player,
+        schema=vol.Schema({}),
+    )
+    
+    _LOGGER.info("H.A WordPlay multi-user services registered successfully")
 
 async def _setup_tts_config(hass: HomeAssistant) -> Dict[str, Any]:
-    """Set up TTS configuration with smart defaults."""
+    """Auto-configure TTS based on available services and devices."""
     try:
         # Check available TTS services
         tts_services = hass.services.async_services().get("tts", {})
