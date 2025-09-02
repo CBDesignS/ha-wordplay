@@ -313,6 +313,12 @@ class WordPlayHA {
                 // Update last update time
                 this.lastUpdate = new Date().toLocaleTimeString();
                 
+                // Stop polling if game has ended (won or lost)
+                if (gameData.game_state === 'won' || gameData.game_state === 'lost') {
+                    this.debugLog('🎮 Game ended, stopping polling');
+                    this.stopPolling();
+                }
+                
                 // Call update callback
                 if (this.onStateUpdate) {
                     this.onStateUpdate(gameData);

@@ -799,18 +799,28 @@
 
         // Apply settings to the main audio system
         function applyToAudioSystem() {
-            // Try to communicate with parent window's audio system
             try {
+                let audioSystem = null;
+                
+                // Try multiple ways to access the audio system
                 if (window.parent && window.parent.wordplayAudio) {
-                    const audio = window.parent.wordplayAudio;
-                    if (audio) {
-                        audio.setPreference('enabled', audioSettings.enabled);
-                        audio.setVolume(audioSettings.volume / 100);
-                        audio.setPreference('gameEvents', audioSettings.gameEvents);
-                        audio.setPreference('guessEvents', audioSettings.guessEvents);
-                        audio.setPreference('uiEvents', audioSettings.uiEvents);
-                        audio.setPreference('errorEvents', audioSettings.errorEvents);
-                    }
+                    audioSystem = window.parent.wordplayAudio();
+                } else if (window.parent && window.parent.window && window.parent.window.wordplayAudio) {
+                    audioSystem = window.parent.window.wordplayAudio();
+                } else if (window.top && window.top.wordplayAudio) {
+                    audioSystem = window.top.wordplayAudio();
+                }
+                
+                if (audioSystem) {
+                    audioSystem.setPreference('enabled', audioSettings.enabled);
+                    audioSystem.setVolume(audioSettings.volume / 100);
+                    audioSystem.setPreference('gameEvents', audioSettings.gameEvents);
+                    audioSystem.setPreference('guessEvents', audioSettings.guessEvents);
+                    audioSystem.setPreference('uiEvents', audioSettings.uiEvents);
+                    audioSystem.setPreference('errorEvents', audioSettings.errorEvents);
+                    console.log('Audio settings applied successfully');
+                } else {
+                    console.warn('Audio system not found');
                 }
             } catch (error) {
                 console.warn('Could not apply settings to audio system:', error);
@@ -822,11 +832,27 @@
             if (!audioSettings.enabled) return;
             
             try {
+                // Try multiple ways to access the audio system
+                let audioSystem = null;
+                
+                // Method 1: Direct parent access
                 if (window.parent && window.parent.wordplayAudio) {
-                    const audio = window.parent.wordplayAudio;
-                    if (audio) {
-                        audio.playSound(soundName);
-                    }
+                    audioSystem = window.parent.wordplayAudio();
+                }
+                // Method 2: Through parent's window object
+                else if (window.parent && window.parent.window && window.parent.window.wordplayAudio) {
+                    audioSystem = window.parent.window.wordplayAudio();
+                }
+                // Method 3: Through top window
+                else if (window.top && window.top.wordplayAudio) {
+                    audioSystem = window.top.wordplayAudio();
+                }
+                
+                if (audioSystem && typeof audioSystem.playSound === 'function') {
+                    console.log(`Testing sound: ${soundName}`);
+                    audioSystem.playSound(soundName);
+                } else {
+                    console.warn('Audio system not found or playSound not available');
                 }
             } catch (error) {
                 console.warn('Could not test sound:', error);

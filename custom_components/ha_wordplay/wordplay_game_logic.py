@@ -118,14 +118,20 @@ class WordPlayGame:
                 if 'fastest_win' in stored_stats:
                     stored_stats['fastest_win'] = int(stored_stats['fastest_win']) if stored_stats['fastest_win'] else None
                 
-                # Ensure all guess distribution keys exist
-                if 'guess_distribution' not in stored_stats:
-                    stored_stats['guess_distribution'] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+                # Fix guess_distribution keys to be integers
+                if 'guess_distribution' in stored_stats:
+                    # Convert string keys to integers
+                    fixed_distribution = {}
+                    for key, value in stored_stats['guess_distribution'].items():
+                        fixed_distribution[int(key)] = int(value)
+                    stored_stats['guess_distribution'] = fixed_distribution
                 else:
-                    # Ensure all keys from 1-8 exist
-                    for i in range(1, 9):
-                        if i not in stored_stats['guess_distribution']:
-                            stored_stats['guess_distribution'][i] = 0
+                    stored_stats['guess_distribution'] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+                
+                # Ensure all keys from 1-8 exist
+                for i in range(1, 9):
+                    if i not in stored_stats['guess_distribution']:
+                        stored_stats['guess_distribution'][i] = 0
                 
                 # Ensure difficulty_stats structure exists
                 if 'difficulty_stats' not in stored_stats:
