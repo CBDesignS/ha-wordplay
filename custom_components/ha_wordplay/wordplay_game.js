@@ -219,7 +219,7 @@ class WordPlayGame {
     applyAudioConfig() {
         // Fixed: Check for global wordplayAudio instance directly
         if (window.wordplayAudio) {
-            const audio = window.wordplayAudio;
+            const audio = window.wordplayAudio();
             if (audio) {
                 audio.setPreference('enabled', this.audioConfig.enabled);
                 audio.setVolume(this.audioConfig.volume / 100);
@@ -377,8 +377,9 @@ class WordPlayGame {
      */
     async startNewGameFlow() {
         try {
-            const selectedLength = this.ui.getSelectedWordLength();
-            const selectedDifficulty = this.ui.getSelectedDifficulty();
+        	  console.log('DEBUG: what is this.ui?', this.ui);
+            const selectedLength = this.ui.getSelectedWordLength;
+            const selectedDifficulty = this.ui.getSelectedDifficulty;
             
             this.debugLog(`🎮 Starting new game flow with ${selectedLength} letters, ${selectedDifficulty} difficulty`);
             
