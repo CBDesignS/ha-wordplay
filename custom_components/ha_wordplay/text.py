@@ -81,7 +81,7 @@ class WordPlayGuessInput(TextEntity):
         self._attr_native_value = "HELLO"  # Start with valid value to avoid validation errors
         self._attr_native_max = MAX_WORD_LENGTH
         self._attr_native_min = 0  # Allow empty values
-        self._attr_pattern = r"^[A-Za-z]*$"
+        self._attr_pattern = r"^[A-Za-zÀ-ÿÑñ]*$"
         self._attr_mode = "text"
         
         # Set entity_id explicitly
