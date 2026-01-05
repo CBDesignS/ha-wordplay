@@ -1,3 +1,4 @@
+<!-- Rev 2.0 - Added complete i18n support with data-i18n attributes for Current languages -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -170,65 +171,92 @@
             font-weight: bold;
             width: 20px;
             text-align: center;
+            color: var(--text-primary-color);
         }
 
         .chart-bar {
-            height: 24px;
             background: var(--primary-color);
+            color: white;
+            padding: 4px 8px;
             border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 20px;
             display: flex;
             align-items: center;
-            padding: 0 8px;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            min-width: 30px;
-            transition: all 0.3s ease;
+            justify-content: center;
         }
 
-        .chart-bar:hover {
-            transform: scale(1.02);
-            box-shadow: 0 2px 8px rgba(3, 169, 244, 0.3);
+        .chart-count {
+            margin-left: auto;
+            color: var(--text-secondary-color);
+            font-weight: bold;
+            min-width: 20px;
         }
 
         /* Difficulty Stats */
         .difficulty-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
+            margin-bottom: 20px;
         }
 
         .difficulty-card {
             background: var(--tile-empty);
             padding: 16px;
             border-radius: 8px;
-            border: 1px solid var(--divider-color);
+            border: 2px solid var(--divider-color);
             text-align: center;
         }
 
         .difficulty-icon {
-            font-size: 24px;
+            font-size: 32px;
             margin-bottom: 8px;
         }
 
         .difficulty-name {
+            font-size: 16px;
             font-weight: bold;
+            color: var(--text-primary-color);
             margin-bottom: 8px;
         }
 
-        .difficulty-record {
-            font-size: 14px;
+        .difficulty-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .difficulty-stat {
+            background: var(--primary-background-color);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--divider-color);
+        }
+
+        .difficulty-stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .difficulty-stat-label {
+            font-size: 10px;
             color: var(--text-secondary-color);
+            text-transform: uppercase;
         }
 
         /* Time Stats */
         .time-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 16px;
         }
 
-        /* Achievement Badges */
+        /* Achievements */
         .achievements {
             display: flex;
             flex-wrap: wrap;
@@ -242,7 +270,8 @@
             border-radius: 8px;
             padding: 12px;
             text-align: center;
-            min-width: 120px;
+            min-width: 140px;
+            max-width: 180px;
             transition: all 0.3s ease;
         }
 
@@ -252,7 +281,7 @@
         }
 
         .achievement.locked {
-            opacity: 0.5;
+            opacity: 0.6;
             border-color: var(--tile-absent);
         }
 
@@ -264,20 +293,23 @@
         .achievement-name {
             font-size: 12px;
             font-weight: bold;
-            margin-bottom: 2px;
+            color: var(--text-primary-color);
+            margin-bottom: 4px;
         }
 
         .achievement-desc {
             font-size: 10px;
             color: var(--text-secondary-color);
+            line-height: 1.2;
         }
 
-        /* Action Buttons */
+        /* Action buttons */
         .action-buttons {
             display: flex;
             gap: 12px;
             justify-content: center;
             margin-top: 24px;
+            flex-wrap: wrap;
         }
 
         .action-btn {
@@ -295,55 +327,28 @@
             outline-offset: 2px;
         }
 
-        .action-btn.export {
-            background-color: var(--accent-color);
+        .action-btn.primary {
+            background: var(--primary-color);
             color: white;
         }
 
-        .action-btn.export:hover,
-        .action-btn.export:focus {
-            background-color: #f57c00;
+        .action-btn.primary:hover,
+        .action-btn.primary:focus {
+            background: #0288d1;
             transform: scale(1.05);
         }
 
-        .action-btn.close {
-            background-color: #4caf50;
+        .action-btn.secondary {
+            background: var(--tile-absent);
             color: white;
         }
 
-        .action-btn.close:hover,
-        .action-btn.close:focus {
-            background-color: #45a049;
+        .action-btn.secondary:hover,
+        .action-btn.secondary:focus {
             transform: scale(1.05);
         }
 
-        .status-message {
-            text-align: center;
-            padding: 8px;
-            border-radius: 4px;
-            margin-top: 16px;
-            font-weight: 500;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .status-message.show {
-            opacity: 1;
-        }
-
-        .status-message.success {
-            background: rgba(76, 175, 80, 0.1);
-            color: #4caf50;
-            border: 1px solid rgba(76, 175, 80, 0.3);
-        }
-
-        .status-message.error {
-            background: rgba(244, 67, 54, 0.1);
-            color: #f44336;
-            border: 1px solid rgba(244, 67, 54, 0.3);
-        }
-
-        /* Loading State */
+        /* Loading animation */
         .loading {
             text-align: center;
             padding: 40px;
@@ -351,13 +356,78 @@
         }
 
         .loading-spinner {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid var(--divider-color);
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--divider-color);
+            border-top: 4px solid var(--primary-color);
             border-radius: 50%;
-            border-top-color: var(--primary-color);
             animation: spin 1s linear infinite;
+            margin: 0 auto 16px auto;
+        }
+
+        /* Status message */
+        .status-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-message.success {
+            background: var(--tile-correct);
+        }
+
+        .status-message.error {
+            background: #f44336;
+        }
+
+        /* Close button */
+        .close-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            background: rgba(255,255,255,0.3);
+            outline: none;
+        }
+
+        /* Accessibility helper descriptions */
+        .helper-descriptions {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+        }
+
+        .helper-descriptions span {
             margin-right: 8px;
         }
 
@@ -399,61 +469,62 @@
 <body>
     <div class="stats-container" role="main">
         <div class="stats-header">
-            <h1 class="stats-title">📊 Detailed Statistics</h1>
-            <p class="stats-subtitle" id="userNameDisplay">Loading player stats...</p>
+            <button class="close-btn" onclick="closeStats()" aria-label="Close statistics window" title="Close">×</button>
+            <h1 class="stats-title" data-i18n="stats.title">📊 Detailed Statistics</h1>
+            <p class="stats-subtitle" id="userNameDisplay" data-i18n="stats.loading">Loading your game statistics...</p>
         </div>
 
         <div class="stats-content" id="statsContent">
             <div class="loading" id="loadingIndicator" role="status" aria-live="polite">
                 <div class="loading-spinner" aria-hidden="true"></div>
-                Loading your game statistics...
+                <span data-i18n="stats.loading">Loading your game statistics...</span>
             </div>
 
             <!-- Overview Section -->
             <div class="stats-section" id="overviewSection" style="display: none;">
-                <h2 class="section-title">🏆 Game Overview</h2>
+                <h2 class="section-title" data-i18n="stats.overview">🏆 Game Overview</h2>
                 <div class="overview-grid" role="region" aria-labelledby="overview-title">
-                    <h3 id="overview-title" class="sr-only">Game Statistics Overview</h3>
+                    <h3 id="overview-title" class="sr-only" data-i18n="stats.overview">Game Statistics Overview</h3>
                     <div class="stat-card">
                         <span class="stat-value" id="totalGames" aria-label="Total games played">0</span>
-                        <span class="stat-label">Total Games</span>
+                        <span class="stat-label" data-i18n="stats.totalGames">Total Games</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="totalWins" aria-label="Total games won">0</span>
-                        <span class="stat-label">Games Won</span>
+                        <span class="stat-label" data-i18n="stats.gamesWon">Games Won</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="winPercentage" aria-label="Win percentage">0%</span>
-                        <span class="stat-label">Win Rate</span>
+                        <span class="stat-label" data-i18n="stats.winRate">Win Rate</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="currentStreak" aria-label="Current winning streak">0</span>
-                        <span class="stat-label">Current Streak</span>
+                        <span class="stat-label" data-i18n="stats.currentStreak">Current Streak</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="maxStreak" aria-label="Best winning streak">0</span>
-                        <span class="stat-label">Best Streak</span>
+                        <span class="stat-label" data-i18n="stats.bestStreak">Best Streak</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="averageGuesses" aria-label="Average guesses per win">0.0</span>
-                        <span class="stat-label">Avg Guesses</span>
+                        <span class="stat-label" data-i18n="stats.avgGuesses">Avg Guesses</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="totalPlayTime" aria-label="Total time played">0s</span>
-                        <span class="stat-label">Total Play Time</span>
+                        <span class="stat-label" data-i18n="stats.totalPlayTime">Total Play Time</span>
                     </div>
                     <div class="stat-card">
                         <span class="stat-value" id="fastestWin" aria-label="Fastest win time">N/A</span>
-                        <span class="stat-label">Fastest Win</span>
+                        <span class="stat-label" data-i18n="stats.fastestWin">Fastest Win</span>
                     </div>
                 </div>
             </div>
 
             <!-- Guess Distribution Section -->
             <div class="stats-section" id="distributionSection" style="display: none;">
-                <h2 class="section-title">📈 Guess Distribution</h2>
+                <h2 class="section-title" data-i18n="stats.distribution">📈 Guess Distribution</h2>
                 <div class="distribution-chart" id="guessChart" role="img" aria-labelledby="chart-title" aria-describedby="chart-desc">
-                    <h3 id="chart-title" class="sr-only">Guess Distribution Chart</h3>
+                    <h3 id="chart-title" class="sr-only" data-i18n="stats.distribution">Guess Distribution Chart</h3>
                     <p id="chart-desc" class="sr-only">Bar chart showing how many games were won in each number of guesses</p>
                     <!-- Chart will be populated by JavaScript -->
                 </div>
@@ -461,41 +532,75 @@
 
             <!-- Difficulty Stats Section -->
             <div class="stats-section" id="difficultySection" style="display: none;">
-                <h2 class="section-title">🎯 Performance by Difficulty</h2>
+                <h2 class="section-title" data-i18n="stats.difficulty">🎯 Performance by Difficulty</h2>
                 <div class="difficulty-stats" role="region" aria-labelledby="difficulty-title">
-                    <h3 id="difficulty-title" class="sr-only">Difficulty Performance Statistics</h3>
-                    <div class="difficulty-card">
-                        <div class="difficulty-icon" aria-hidden="true">🟢</div>
-                        <div class="difficulty-name">Easy Mode</div>
-                        <div class="difficulty-record" id="easyRecord" aria-label="Easy mode win record">0/0 (0%)</div>
+                    <h3 id="difficulty-title" class="sr-only" data-i18n="stats.difficulty">Performance by Difficulty</h3>
+                    
+                    <div class="difficulty-card" id="easyCard">
+                        <div class="difficulty-icon">🟢</div>
+                        <div class="difficulty-name" data-i18n="stats.easyMode">Easy Mode</div>
+                        <div class="difficulty-stats-grid">
+                            <div class="difficulty-stat">
+                                <span class="difficulty-stat-value" id="easyWins">0</span>
+                                <span class="difficulty-stat-label" data-i18n="stats.gamesWon">Won</span>
+                            </div>
+                            <div class="difficulty-stat">
+                                <span class="difficulty-stat-value" id="easyRate">0%</span>
+                                <span class="difficulty-stat-label" data-i18n="stats.winRate">Rate</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="difficulty-card">
-                        <div class="difficulty-icon" aria-hidden="true">🟡</div>
-                        <div class="difficulty-name">Normal Mode</div>
-                        <div class="difficulty-record" id="normalRecord" aria-label="Normal mode win record">0/0 (0%)</div>
+                    
+                    <div class="difficulty-card" id="normalCard">
+                        <div class="difficulty-icon">🟡</div>
+                        <div class="difficulty-name" data-i18n="stats.normalMode">Normal Mode</div>
+                        <div class="difficulty-stats-grid">
+                            <div class="difficulty-stat">
+                                <span class="difficulty-stat-value" id="normalWins">0</span>
+                                <span class="difficulty-stat-label" data-i18n="stats.gamesWon">Won</span>
+                            </div>
+                            <div class="difficulty-stat">
+                                <span class="difficulty-stat-value" id="normalRate">0%</span>
+                                <span class="difficulty-stat-label" data-i18n="stats.winRate">Rate</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="difficulty-card">
-                        <div class="difficulty-icon" aria-hidden="true">🔴</div>
-                        <div class="difficulty-name">Hard Mode</div>
-                        <div class="difficulty-record" id="hardRecord" aria-label="Hard mode win record">0/0 (0%)</div>
+                    
+                    <div class="difficulty-card" id="hardCard">
+                        <div class="difficulty-icon">🔴</div>
+                        <div class="difficulty-name" data-i18n="stats.hardMode">Hard Mode</div>
+                        <div class="difficulty-stats-grid">
+                            <div class="difficulty-stat">
+                                <span class="difficulty-stat-value" id="hardWins">0</span>
+                                <span class="difficulty-stat-label" data-i18n="stats.gamesWon">Won</span>
+                            </div>
+                            <div class="difficulty-stat">
+                                <span class="difficulty-stat-value" id="hardRate">0%</span>
+                                <span class="difficulty-stat-label" data-i18n="stats.winRate">Rate</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Achievements Section -->
             <div class="stats-section" id="achievementsSection" style="display: none;">
-                <h2 class="section-title">🏅 Achievements</h2>
+                <h2 class="section-title" data-i18n="stats.achievements">🏅 Achievements</h2>
                 <div class="achievements" id="achievementsList" role="region" aria-labelledby="achievements-title">
-                    <h3 id="achievements-title" class="sr-only">Game Achievements</h3>
+                    <h3 id="achievements-title" class="sr-only" data-i18n="stats.achievements">Achievements</h3>
                     <!-- Achievements will be populated by JavaScript -->
                 </div>
             </div>
 
             <!-- Action Buttons -->
             <div class="action-buttons">
-                <button class="action-btn export" onclick="exportStats()" aria-describedby="export-desc">📤 Export Data</button>
-                <button class="action-btn close" onclick="closeStats()" aria-describedby="close-desc">← Back to Game</button>
-                <span id="export-desc" class="sr-only">Download your statistics as a JSON file</span>
+                <button class="action-btn primary" onclick="exportStats()" data-i18n="stats.exportData">📤 Export Data</button>
+                <button class="action-btn secondary" onclick="closeStats()" data-i18n="stats.backToGame">← Back to Game</button>
+            </div>
+
+            <!-- Helper descriptions for accessibility -->
+            <div class="helper-descriptions" aria-hidden="true">
+                <span id="export-desc" class="sr-only">Export your game statistics as a JSON file</span>
                 <span id="close-desc" class="sr-only">Return to the main game interface</span>
             </div>
 
@@ -510,15 +615,90 @@
         let currentUserName = null;
         let statsData = null;
 
+        // i18n support
+        let currentLanguage = 'en';
+        let translations = {};
+
         // Focus management
         let firstFocusableElement = null;
 
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            detectHATheme();
-            setupFocusManagement();
-            identifyUser();
+            loadTranslations().then(() => {
+                applyTranslations();
+                detectHATheme();
+                setupFocusManagement();
+                identifyUser();
+            });
         });
+
+        // Load translations based on URL parameter or browser language
+        async function loadTranslations() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const lang = urlParams.get('lang') || detectBrowserLanguage();
+            currentLanguage = lang;
+            
+            try {
+                const response = await fetch(`languages/${lang}.json`);
+                if (response.ok) {
+                    translations = await response.json();
+                    console.log(`✅ Loaded ${lang} translations for stats`);
+                } else {
+                    // Fallback to English
+                    console.warn(`❌ Could not load ${lang} translations, falling back to English`);
+                    const response = await fetch(`languages/${lang}.json`);
+                    if (response.ok) {
+                        translations = await response.json();
+                        currentLanguage = 'en';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading translations:', error);
+                // Use empty object as fallback
+                translations = {};
+            }
+        }
+
+        // Detect browser language
+        function detectBrowserLanguage() {
+            const browserLang = navigator.language.substring(0, 2).toLowerCase();
+            const supported = ['en', 'de', 'fr', 'es'];
+            return supported.includes(browserLang) ? browserLang : 'en';
+        }
+
+        // Translation function
+        function t(key, params = {}) {
+            let translation = translations[key] || key;
+            
+            // Replace parameters {param} with values
+            Object.keys(params).forEach(param => {
+                translation = translation.replace(`{${param}}`, params[param]);
+            });
+            
+            return translation;
+        }
+
+        // Apply translations to DOM elements
+        function applyTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                const translation = t(key);
+                
+                // Handle different element types
+                if (element.tagName === 'INPUT') {
+                    if (element.hasAttribute('placeholder')) {
+                        element.placeholder = translation;
+                    }
+                    if (element.type === 'button' || element.type === 'submit') {
+                        element.value = translation;
+                    }
+                } else {
+                    element.textContent = translation;
+                }
+            });
+            
+            console.log(`✅ Applied ${currentLanguage} translations to stats DOM`);
+        }
 
         // Setup focus management
         function setupFocusManagement() {
@@ -560,101 +740,87 @@
                         if (haMain && haMain.hass && haMain.hass.themes) {
                             const currentTheme = haMain.hass.themes.darkMode ? 'dark' : 'light';
                             document.body.setAttribute('data-theme', currentTheme);
+                            console.log(`🎨 Applied HA theme: ${currentTheme}`);
                             return;
                         }
                     }
                 }
                 
-                // Method 2: Check URL parameters
+                // Method 2: Check URL parameters for theme
                 const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.has('theme')) {
-                    const theme = urlParams.get('theme');
-                    document.body.setAttribute('data-theme', theme);
+                const themeParam = urlParams.get('theme');
+                if (themeParam) {
+                    document.body.setAttribute('data-theme', themeParam);
+                    console.log(`🎨 Applied URL theme: ${themeParam}`);
                     return;
                 }
                 
                 // Method 3: Use browser preference
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                const theme = prefersDark ? 'dark' : 'light';
-                document.body.setAttribute('data-theme', theme);
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.body.setAttribute('data-theme', 'dark');
+                    console.log('🎨 Applied dark theme from browser preference');
+                } else {
+                    document.body.setAttribute('data-theme', 'light');
+                    console.log('🎨 Applied light theme from browser preference');
+                }
                 
             } catch (error) {
-                console.warn('Theme detection failed, using browser default', error);
+                console.warn('Theme detection failed, using default:', error);
+                document.body.setAttribute('data-theme', 'light');
             }
         }
 
-        // Identify current user (same pattern as audio config)
+        // Identify user from URL parameters
         function identifyUser() {
             try {
-                // Check if parent window has user info
-                if (window.parent && window.parent.WORDPLAY_USER_ID) {
-                    currentUserId = window.parent.WORDPLAY_USER_ID;
-                    currentUserName = window.parent.WORDPLAY_USER_NAME || 'Player';
-                    console.log('[Stats] User identified:', currentUserName, currentUserId);
-                    loadUserStats();
-                    return;
-                }
-
-                // Check URL parameters
                 const urlParams = new URLSearchParams(window.location.search);
-                const urlUserId = urlParams.get('user_id');
-                const urlUserName = urlParams.get('user_name');
+                currentUserId = urlParams.get('user_id');
+                currentUserName = urlParams.get('user_name') || 'Unknown User';
                 
-                if (urlUserId) {
-                    currentUserId = urlUserId;
-                    currentUserName = urlUserName || 'Player';
-                    console.log('[Stats] User from URL:', currentUserName, currentUserId);
-                    loadUserStats();
-                    return;
+                if (!currentUserId) {
+                    throw new Error('No user ID provided');
                 }
-
-                // Wait and try again
-                setTimeout(identifyUser, 500);
+                
+                console.log(`[Stats] User identified: ${currentUserName} (${currentUserId})`);
+                
+                // Update display with user name
+                const userNameDisplay = document.getElementById('userNameDisplay');
+                if (userNameDisplay) {
+                    userNameDisplay.textContent = t('stats.playerStats', { name: currentUserName });
+                }
+                
+                // Load stats for this user
+                loadUserStats();
                 
             } catch (error) {
                 console.error('[Stats] Error identifying user:', error);
-                showError('Could not identify user');
+                showError(t('stats.loadError') || 'Failed to load statistics');
             }
         }
 
-        // Load user statistics from sensor
+        // Load user statistics from Home Assistant
         async function loadUserStats() {
             try {
-                showStatus('Loading statistics...', 'info');
+                const urlParams = new URLSearchParams(window.location.search);
+                const accessToken = urlParams.get('access_token');
                 
-                // Update header with user name
-                document.getElementById('userNameDisplay').textContent = `${currentUserName}'s Game Statistics`;
-
-                // Get access token from parent
-                let accessToken = null;
-                if (window.parent && window.parent.wordplayHA) {
-                    const ha = window.parent.wordplayHA();
-                    accessToken = ha.accessToken;
-                }
-
                 if (!accessToken) {
-                    // Try URL params
-                    const urlParams = new URLSearchParams(window.location.search);
-                    accessToken = urlParams.get('access_token');
+                    throw new Error('No access token provided');
                 }
-
-                if (!accessToken) {
-                    throw new Error('No access token available');
-                }
-
-                // Fetch stats from sensor entity
-                const sensorId = `sensor.ha_wordplay_stats_${currentUserId}`;
-                const response = await fetch(`/api/states/${sensorId}`, {
+                
+                // Fetch stats sensor
+                const sensorEntityId = `sensor.ha_wordplay_stats_${currentUserId}`;
+                const response = await fetch(`/api/states/${sensorEntityId}`, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json'
                     }
                 });
-
+                
                 if (!response.ok) {
-                    throw new Error(`Failed to fetch stats: ${response.status}`);
+                    throw new Error(`Failed to fetch stats sensor: ${response.status}`);
                 }
-
+                
                 const sensorData = await response.json();
                 console.log('[Stats] Sensor data:', sensorData);
 
@@ -667,7 +833,7 @@
 
             } catch (error) {
                 console.error('[Stats] Error loading stats:', error);
-                showError('Failed to load statistics');
+                showError(t('stats.loadError') || 'Failed to load statistics');
             }
         }
 
@@ -696,7 +862,7 @@
             document.getElementById('difficultySection').style.display = 'block';
             document.getElementById('achievementsSection').style.display = 'block';
             
-            showStatus('Statistics loaded successfully!', 'success');
+            showStatus(t('stats.loadSuccess') || 'Statistics loaded successfully!', 'success');
         }
 
         // Display overview statistics
@@ -720,7 +886,11 @@
             chartContainer.innerHTML = '';
             
             if (totalWins === 0) {
-                chartContainer.innerHTML = '<p style="text-align: center; color: var(--text-secondary-color);">No wins yet - play some games to see your guess distribution!</p>';
+                const noWinsMsg = document.createElement('p');
+                noWinsMsg.style.textAlign = 'center';
+                noWinsMsg.style.color = 'var(--text-secondary-color)';
+                noWinsMsg.textContent = t('stats.noWinsYet') || 'No wins yet - play some games to see your guess distribution!';
+                chartContainer.appendChild(noWinsMsg);
                 return;
             }
 
@@ -742,93 +912,45 @@
                 bar.className = 'chart-bar';
                 bar.style.width = `${Math.max(percentage, 5)}%`; // Minimum 5% width for visibility
                 bar.textContent = count > 0 ? count : '';
-                bar.setAttribute('aria-label', `${count} games won in ${guess} guesses`);
-                bar.setAttribute('title', `${count} games won in ${guess} guesses (${percentage.toFixed(1)}%)`);
+                bar.setAttribute('aria-label', t('stats.guessCount', { count: count, guess: guess }) || `${count} games won in ${guess} guesses`);
                 
-                // Color coding
-                if (guess === 1) bar.style.background = '#4caf50'; // Green for hole-in-one
-                else if (guess <= 3) bar.style.background = '#03a9f4'; // Blue for good
-                else if (guess <= 5) bar.style.background = '#ff9800'; // Orange for average
-                else bar.style.background = '#f44336'; // Red for tough wins
+                const countDisplay = document.createElement('div');
+                countDisplay.className = 'chart-count';
+                countDisplay.textContent = count;
+                countDisplay.setAttribute('aria-hidden', 'true');
                 
                 row.appendChild(guessNum);
                 row.appendChild(bar);
+                row.appendChild(countDisplay);
+                
                 chartContainer.appendChild(row);
             }
         }
 
         // Display difficulty statistics
         function displayDifficultyStats() {
-            const diffStats = statsData.difficulty_stats || {};
+            const difficultyData = statsData.difficulty_stats || {};
             
-            ['easy', 'normal', 'hard'].forEach(difficulty => {
-                const stats = diffStats[difficulty] || { played: 0, won: 0 };
-                const winRate = stats.played > 0 ? (stats.won / stats.played * 100).toFixed(1) : '0.0';
-                const record = `${stats.won}/${stats.played} (${winRate}%)`;
-                
-                document.getElementById(`${difficulty}Record`).textContent = record;
-            });
+            // Easy mode stats
+            const easyStats = difficultyData.easy || {};
+            document.getElementById('easyWins').textContent = easyStats.games_won || 0;
+            document.getElementById('easyRate').textContent = easyStats.win_rate_display || '0%';
+            
+            // Normal mode stats
+            const normalStats = difficultyData.normal || {};
+            document.getElementById('normalWins').textContent = normalStats.games_won || 0;
+            document.getElementById('normalRate').textContent = normalStats.win_rate_display || '0%';
+            
+            // Hard mode stats
+            const hardStats = difficultyData.hard || {};
+            document.getElementById('hardWins').textContent = hardStats.games_won || 0;
+            document.getElementById('hardRate').textContent = hardStats.win_rate_display || '0%';
         }
 
         // Display achievements
         function displayAchievements() {
             const achievementsList = document.getElementById('achievementsList');
-            const gamesPlayed = statsData.games_played || 0;
-            const gamesWon = statsData.games_won || 0;
-            const maxStreak = statsData.max_streak || 0;
-            const distribution = statsData.guess_distribution || {};
-            const firstGuessWins = distribution[1] || 0;
-            
-            const achievements = [
-                {
-                    icon: '🎯',
-                    name: 'First Blood',
-                    desc: 'Win your first game',
-                    earned: gamesWon > 0
-                },
-                {
-                    icon: '🏆',
-                    name: 'Hat Trick',
-                    desc: 'Win 3 games in a row',
-                    earned: maxStreak >= 3
-                },
-                {
-                    icon: '🔥',
-                    name: 'On Fire',
-                    desc: 'Win 5 games in a row',
-                    earned: maxStreak >= 5
-                },
-                {
-                    icon: '⚡',
-                    name: 'Lightning Round',
-                    desc: 'Win on first guess',
-                    earned: firstGuessWins > 0
-                },
-                {
-                    icon: '💎',
-                    name: 'Perfect 10',
-                    desc: 'Win 10 games total',
-                    earned: gamesWon >= 10
-                },
-                {
-                    icon: '🌟',
-                    name: 'Century Club',
-                    desc: 'Play 100 games',
-                    earned: gamesPlayed >= 100
-                },
-                {
-                    icon: '🎖️',
-                    name: 'Perfectionist',
-                    desc: '90% win rate (min 10 games)',
-                    earned: gamesPlayed >= 10 && (gamesWon / gamesPlayed) >= 0.9
-                },
-                {
-                    icon: '🚀',
-                    name: 'Unstoppable',
-                    desc: 'Win 10 games in a row',
-                    earned: maxStreak >= 10
-                }
-            ];
+            const achievements = getAchievements();
             
             achievementsList.innerHTML = '';
             
@@ -836,7 +958,7 @@
                 const achievementEl = document.createElement('div');
                 achievementEl.className = `achievement ${achievement.earned ? 'earned' : 'locked'}`;
                 achievementEl.setAttribute('role', 'img');
-                achievementEl.setAttribute('aria-label', `${achievement.name}: ${achievement.desc} - ${achievement.earned ? 'Earned' : 'Not earned yet'}`);
+                achievementEl.setAttribute('aria-label', `${achievement.name}: ${achievement.desc} - ${achievement.earned ? t('achievement.earned') || 'Earned' : t('achievement.locked') || 'Not earned yet'}`);
                 
                 achievementEl.innerHTML = `
                     <div class="achievement-icon" aria-hidden="true">${achievement.icon}</div>
@@ -846,6 +968,61 @@
                 
                 achievementsList.appendChild(achievementEl);
             });
+        }
+
+        // Get achievements with localized names and descriptions
+        function getAchievements() {
+            const stats = statsData || {};
+            return [
+                {
+                    icon: '🩸',
+                    name: t('achievement.firstBlood') || 'First Blood',
+                    desc: t('achievement.firstBloodDesc') || 'Win your first game',
+                    earned: (stats.games_won || 0) >= 1
+                },
+                {
+                    icon: '🎩',
+                    name: t('achievement.hatTrick') || 'Hat Trick',
+                    desc: t('achievement.hatTrickDesc') || 'Win 3 games in a row',
+                    earned: (stats.max_streak || 0) >= 3
+                },
+                {
+                    icon: '🔥',
+                    name: t('achievement.onFire') || 'On Fire',
+                    desc: t('achievement.onFireDesc') || 'Win 5 games in a row',
+                    earned: (stats.max_streak || 0) >= 5
+                },
+                {
+                    icon: '⚡',
+                    name: t('achievement.lightning') || 'Lightning Round',
+                    desc: t('achievement.lightningDesc') || 'Win on first guess',
+                    earned: (stats.guess_distribution && stats.guess_distribution[1] || 0) >= 1
+                },
+                {
+                    icon: '🔟',
+                    name: t('achievement.perfect10') || 'Perfect 10',
+                    desc: t('achievement.perfect10Desc') || 'Win 10 total games',
+                    earned: (stats.games_won || 0) >= 10
+                },
+                {
+                    icon: '💯',
+                    name: t('achievement.centuryClub') || 'Century Club',
+                    desc: t('achievement.centuryClubDesc') || 'Play 100 games',
+                    earned: (stats.games_played || 0) >= 100
+                },
+                {
+                    icon: '🎯',
+                    name: t('achievement.perfectionist') || 'Perfectionist',
+                    desc: t('achievement.perfectionistDesc') || '90% win rate (min 10 games)',
+                    earned: (stats.games_played || 0) >= 10 && (stats.win_rate || 0) >= 90
+                },
+                {
+                    icon: '🚀',
+                    name: t('achievement.unstoppable') || 'Unstoppable',
+                    desc: t('achievement.unstoppableDesc') || 'Win 10 games in a row',
+                    earned: (stats.max_streak || 0) >= 10
+                }
+            ];
         }
 
         // Export statistics data
@@ -868,11 +1045,11 @@
                 link.click();
                 document.body.removeChild(link);
                 
-                showStatus('Statistics exported successfully!', 'success');
+                showStatus(t('stats.exportSuccess') || 'Statistics exported successfully!', 'success');
                 
             } catch (error) {
                 console.error('[Stats] Export error:', error);
-                showStatus('Failed to export statistics', 'error');
+                showStatus(t('stats.exportError') || 'Failed to export statistics', 'error');
             }
         }
 

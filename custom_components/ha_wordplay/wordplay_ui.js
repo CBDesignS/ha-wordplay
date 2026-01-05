@@ -1,3 +1,6 @@
+// Rev 2.0 - Fixed hint display to properly show hints when received from backend
+// Ensures hint text updates immediately when hint button is clicked
+
 /**
  * WordPlay UI - User Interface Management
  * Handles screen transitions, UI updates, and DOM manipulation
@@ -41,6 +44,19 @@ class WordPlayUI {
     }
     
     /**
+     * Get translated text using i18n system
+     * @param {string} key - Translation key
+     * @param {Object} params - Optional parameters
+     * @returns {string} Translated text
+     */
+    t(key, params = {}) {
+        if (window.wordplayI18n && window.wordplayI18n.getCurrentLanguage) {
+            return window.wordplayI18n.t(key, params);
+        }
+        return key; // Fallback to key if i18n not ready
+    }
+    
+    /**
      * Cache commonly used DOM elements
      */
     cacheElements() {
@@ -69,7 +85,7 @@ class WordPlayUI {
             audioSettingsModal: document.getElementById('audioSettingsModal'),
             audioSettingsIframe: document.getElementById('audioSettingsIframe'),
             
-            // Stats Modal - NEW
+            // Stats Modal
             statsModal: document.getElementById('statsModal'),
             statsIframe: document.getElementById('statsIframe')
         };
@@ -96,7 +112,7 @@ class WordPlayUI {
             this.elements.audioSettingsModal.addEventListener('keydown', this.handleModalKeydown.bind(this));
         }
         
-        // Set up focus trapping for stats modal - NEW
+        // Set up focus trapping for stats modal
         if (this.elements.statsModal) {
             this.elements.statsModal.addEventListener('keydown', this.handleModalKeydown.bind(this));
         }
@@ -120,13 +136,11 @@ class WordPlayUI {
         const lastFocusable = focusableElements[focusableElements.length - 1];
         
         if (e.shiftKey) {
-            // Shift + Tab
             if (document.activeElement === firstFocusable) {
                 e.preventDefault();
                 lastFocusable.focus();
             }
         } else {
-            // Tab
             if (document.activeElement === lastFocusable) {
                 e.preventDefault();
                 firstFocusable.focus();
@@ -135,51 +149,52 @@ class WordPlayUI {
     }
     
     /**
-     * Switch between screens with smooth transition
-     * @param {string} screenName - 'landing' or 'game'
+     * Switch between screens
+     * @param {string} screen - 'landing' or 'game'
      */
-    switchScreen(screenName) {
-        const currentScreenEl = document.querySelector('.screen.active');
-        const newScreenEl = this.elements[screenName + 'Screen'];
-        
-        if (currentScreenEl && newScreenEl && currentScreenEl !== newScreenEl) {
-            // Hide current screen from screen readers
-            currentScreenEl.setAttribute('aria-hidden', 'true');
-            
-            // Fade out current screen
-            currentScreenEl.style.opacity = '0';
-            
-            setTimeout(() => {
-                // Hide current and show new
-                currentScreenEl.classList.remove('active');
-                newScreenEl.classList.add('active');
-                
-                // Show new screen to screen readers
-                newScreenEl.setAttribute('aria-hidden', 'false');
-                
-                // Focus first interactive element in new screen
-                this.focusFirstElement(newScreenEl);
-                
-                // Fade in new screen
-                setTimeout(() => {
-                    newScreenEl.style.opacity = '1';
-                }, 50);
-            }, 200);
-            
-            this.currentScreen = screenName;
-            this.debugLog(`📱 Switched to ${screenName} screen`);
+    switchScreen(screen) {
+        // Hide all screens
+        if (this.elements.landingScreen) {
+            this.elements.landingScreen.classList.remove('active');
+            this.elements.landingScreen.setAttribute('aria-hidden', 'true');
         }
+        if (this.elements.gameScreen) {
+            this.elements.gameScreen.classList.remove('active');
+            this.elements.gameScreen.setAttribute('aria-hidden', 'true');
+        }
+        
+        // Show requested screen
+        if (screen === 'landing') {
+            if (this.elements.landingScreen) {
+                this.elements.landingScreen.classList.add('active');
+                this.elements.landingScreen.setAttribute('aria-hidden', 'false');
+                this.focusFirstElement(this.elements.landingScreen);
+            }
+        } else if (screen === 'game') {
+            if (this.elements.gameScreen) {
+                this.elements.gameScreen.classList.add('active');
+                this.elements.gameScreen.setAttribute('aria-hidden', 'false');
+                // Focus on guess input
+                if (this.elements.guessInput) {
+                    setTimeout(() => {
+                        this.elements.guessInput.focus();
+                    }, 100);
+                }
+            }
+        }
+        
+        this.currentScreen = screen;
+        this.debugLog(`📱 Switched to ${screen} screen`);
     }
     
     /**
-     * Focus first interactive element in container
+     * Focus first focusable element in container
      * @param {HTMLElement} container - Container element
      */
     focusFirstElement(container) {
         const focusableElements = container.querySelectorAll(
-            'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         );
-        
         if (focusableElements.length > 0) {
             focusableElements[0].focus();
         }
@@ -188,12 +203,21 @@ class WordPlayUI {
     /**
      * Update connection status display
      * @param {string} status - 'connected', 'disconnected', or 'connecting'
-     * @param {string} message - Status message
+     * @param {string} message - Status message (optional)
      */
     updateConnectionStatus(status, message) {
         const statusEl = this.elements.connectionStatus;
         if (statusEl) {
-            statusEl.textContent = message;
+            // Use translated message if it's a known status
+            let displayMessage = message;
+            if (status === 'connected') {
+                displayMessage = this.t('connection.connected');
+            } else if (status === 'disconnected') {
+                displayMessage = this.t('connection.disconnected');
+            } else if (status === 'connecting') {
+                displayMessage = this.t('connection.connecting');
+            }
+            statusEl.textContent = displayMessage;
             statusEl.className = `connection-status ${status}`;
         }
         this.debugLog(`Connection status: ${status} - ${message}`);
@@ -207,7 +231,16 @@ class WordPlayUI {
     updateGameStatus(message, type = 'info') {
         const statusEl = this.elements.gameStatus;
         if (statusEl) {
-            statusEl.textContent = message;
+            // Check if message contains known patterns and translate
+            let translatedMessage = message;
+            if (message.includes('Processing guess')) {
+                translatedMessage = this.t('game.processing');
+            } else if (message.includes('Getting hint')) {
+                translatedMessage = this.t('game.gettingHint');
+            } else if (message.includes('Starting game')) {
+                translatedMessage = this.t('game.starting');
+            }
+            statusEl.textContent = translatedMessage;
             statusEl.className = `game-status ${type}`;
         }
         this.debugLog(`Game status: ${type} - ${message}`);
@@ -226,23 +259,27 @@ class WordPlayUI {
         
         const gameData = this.core.getGameData();
         
-        // Update game status
+        // Update game status with translated text
         if (gameData.game_state === 'playing') {
             const remaining = this.core.getRemainingGuesses();
-            this.updateGameStatus(`Playing • ${gameData.word_length} letters • ${remaining} guesses remaining`, 'success');
+            const message = `${this.t('game.playing')} • ${gameData.word_length} ${this.t('wordLength.letters').toLowerCase()} • ${remaining} ${this.t('game.guessesRemaining')}`;
+            this.updateGameStatus(message, 'success');
         } else if (gameData.game_state === 'won') {
-            this.updateGameStatus(`🎉 You won! • ${gameData.guesses.length} guesses`, 'success');
+            const message = `${this.t('game.won')} • ${gameData.guesses.length} ${this.t('game.wonIn')}`;
+            this.updateGameStatus(message, 'success');
         } else if (gameData.game_state === 'lost') {
-            this.updateGameStatus(`😞 Game over • Better luck next time!`, 'error');
+            const message = `${this.t('game.lost')} • ${this.t('game.betterLuck')}`;
+            this.updateGameStatus(message, 'error');
         } else {
-            this.updateGameStatus(`Ready to play • ${gameData.word_length} letters`, 'info');
+            const message = `${this.t('game.ready')} • ${gameData.word_length} ${this.t('wordLength.letters').toLowerCase()}`;
+            this.updateGameStatus(message, 'info');
         }
         
         // Update grid
         this.populateGrid();
         
-        // Update hint
-        this.updateHint(gameData);
+        // Update hint - FIX: Force update even if hint hasn't changed
+        this.updateHint(gameData, true);
         
         // Update input
         if (this.elements.guessInput) {
@@ -267,7 +304,7 @@ class WordPlayUI {
         this.core.clearGrid();
         
         // Show completed guesses
-        this.debugLog(`📝 Processing ${gameData.guesses.length} guesses`, {
+        this.debugLog(`🔍 Processing ${gameData.guesses.length} guesses`, {
             guesses: gameData.guesses,
             results: gameData.guess_results
         });
@@ -277,8 +314,8 @@ class WordPlayUI {
             const actualWord = this.core.extractWordFromGuess(guessString);
             const resultString = gameData.guess_results[guessIndex] || '';
             
-            this.debugLog(`📍 Processing guess ${guessIndex}: "${guessString}" -> extracted: "${actualWord}"`);
-            this.debugLog(`📍 Result string: "${resultString}"`);
+            this.debugLog(`🔍 Processing guess ${guessIndex}: "${guessString}" -> extracted: "${actualWord}"`);
+            this.debugLog(`🔍 Result string: "${resultString}"`);
             
             for (let i = 0; i < actualWord.length && i < this.core.getWordLength(); i++) {
                 const tile = this.core.getTile(guessIndex, i);
@@ -305,24 +342,43 @@ class WordPlayUI {
     /**
      * Update hint display
      * @param {Object} gameData - Current game data
+     * @param {boolean} forceUpdate - Force update even if unchanged
      */
-    updateHint(gameData) {
+    updateHint(gameData, forceUpdate = false) {
         const hintEl = this.elements.hintText;
         if (!hintEl) return;
         
+        // FIX: Always update hint when called to ensure it displays
+        this.debugLog('💡 Updating hint display', { 
+            hint: gameData.hint, 
+            state: gameData.game_state,
+            revealed: gameData.revealed_word 
+        });
+        
         if (gameData.game_state === 'lost' && gameData.revealed_word) {
-            // Show the revealed word when game is lost
-            hintEl.textContent = `💀 The word was: ${gameData.revealed_word}`;
+            // Show the revealed word when game is lost with translation
+            const revealText = `${this.t('game.lost')} - ${this.t('game.wordWas')}: ${gameData.revealed_word}`;
+            hintEl.textContent = revealText;
             hintEl.style.fontWeight = 'bold';
             hintEl.style.color = '#f44336'; // Red color for game over
-        } else if (gameData.hint) {
-            // Show regular hint
+        } else if (gameData.hint && gameData.hint.trim() !== '') {
+            // Show regular hint - Keep hints in original language from API
             hintEl.textContent = gameData.hint;
             hintEl.style.fontWeight = 'normal';
             hintEl.style.color = 'var(--text-secondary-color)';
+            this.debugLog('💡 Hint displayed: ' + gameData.hint);
+        } else if (gameData.last_message && gameData.last_message.includes('Hint:')) {
+            // FIX: Extract hint from last_message if it contains hint
+            const hintMatch = gameData.last_message.match(/Hint:\s*(.+)/);
+            if (hintMatch) {
+                hintEl.textContent = `💡 ${hintMatch[1]}`;
+                hintEl.style.fontWeight = 'normal';
+                hintEl.style.color = 'var(--text-secondary-color)';
+                this.debugLog('💡 Hint extracted from message: ' + hintMatch[1]);
+            }
         } else {
-            // Default message
-            hintEl.textContent = '💡 Click "Get Hint" for a clue!';
+            // Default message - translated
+            hintEl.textContent = this.t('game.enterGuess');
             hintEl.style.fontWeight = 'normal';
             hintEl.style.color = 'var(--text-secondary-color)';
         }
@@ -369,11 +425,11 @@ class WordPlayUI {
             activeBtn.classList.add('active');
         }
         
-        this.debugLog(`🔢 Word length selected: ${length}`);
+        this.debugLog(`📢 Word length selected: ${length}`);
     }
     
     /**
-     * Handle difficulty selection - FIXED: Just update UI, no backend call
+     * Handle difficulty selection
      * @param {string} difficulty - Selected difficulty
      */
     selectDifficulty(difficulty) {
@@ -399,7 +455,7 @@ class WordPlayUI {
      * @returns {string} Current guess input
      */
     getInputValue() {
-        return this.elements.guessInput ? this.elements.guessInput.value.trim().toUpperCase() : '';
+        return this.elements.guessInput ? this.elements.guessInput.value.toUpperCase() : '';
     }
     
     /**
@@ -412,176 +468,20 @@ class WordPlayUI {
     }
     
     /**
-     * Disable/enable start button
-     * @param {boolean} disabled - Disabled state
+     * Set start button state
+     * @param {boolean} loading - Is loading
      * @param {string} text - Button text
      */
-    setStartButtonState(disabled, text) {
+    setStartButtonState(loading, text) {
         if (this.elements.startGameBtn) {
-            this.elements.startGameBtn.disabled = disabled;
-            this.elements.startGameBtn.textContent = text;
-        }
-    }
-    
-    /**
-     * Open audio settings modal with proper focus management
-     */
-    openAudioSettings() {
-        this.debugLog('🔊 Opening audio settings modal');
-        
-        if (this.elements.audioSettingsModal && this.elements.audioSettingsIframe) {
-            // Store current focus
-            this.lastFocusedElement = document.activeElement;
-            
-            // Set modal attributes for accessibility
-            this.elements.audioSettingsModal.setAttribute('aria-modal', 'true');
-            this.elements.audioSettingsModal.setAttribute('role', 'dialog');
-            this.elements.audioSettingsModal.setAttribute('aria-labelledby', 'audio-settings-title');
-            
-            // Hide background content from screen readers
-            const mainContent = document.querySelector('.wordplay-container');
-            if (mainContent) {
-                mainContent.setAttribute('aria-hidden', 'true');
-            }
-            
-            // Load iframe and show modal
-            this.elements.audioSettingsIframe.src = 'wordplay_sound_cfg.html';
-            this.elements.audioSettingsModal.classList.add('active');
-            
-            // Focus first element in modal after brief delay for iframe load
-            setTimeout(() => {
-                const focusableElements = this.elements.audioSettingsModal.querySelectorAll(
-                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), iframe'
-                );
-                if (focusableElements.length > 0) {
-                    focusableElements[0].focus();
-                }
-            }, 100);
-        }
-    }
-    
-    /**
-     * Close audio settings modal with proper focus restoration
-     */
-    closeAudioSettings() {
-        this.debugLog('🔊 Closing audio settings modal');
-        
-        if (this.elements.audioSettingsModal && this.elements.audioSettingsIframe) {
-            // Hide modal
-            this.elements.audioSettingsModal.classList.remove('active');
-            this.elements.audioSettingsIframe.src = '';
-            
-            // Remove modal attributes
-            this.elements.audioSettingsModal.removeAttribute('aria-modal');
-            this.elements.audioSettingsModal.removeAttribute('role');
-            this.elements.audioSettingsModal.removeAttribute('aria-labelledby');
-            
-            // Restore background content for screen readers
-            const mainContent = document.querySelector('.wordplay-container');
-            if (mainContent) {
-                mainContent.removeAttribute('aria-hidden');
-            }
-            
-            // Restore focus to last focused element
-            if (this.lastFocusedElement) {
-                this.lastFocusedElement.focus();
-                this.lastFocusedElement = null;
+            this.elements.startGameBtn.disabled = loading;
+            this.elements.startGameBtn.textContent = text || this.t('button.startGame');
+            if (loading) {
+                this.elements.startGameBtn.classList.add('loading');
             } else {
-                // Fallback: focus audio settings button
-                if (this.elements.audioSettingsBtn) {
-                    this.elements.audioSettingsBtn.focus();
-                }
+                this.elements.startGameBtn.classList.remove('loading');
             }
         }
-    }
-    
-    /**
-     * Open stats page modal with proper focus management - NEW
-     */
-    openStatsPage() {
-        this.debugLog('📊 Opening stats page modal');
-        
-        if (this.elements.statsModal && this.elements.statsIframe) {
-            // Store current focus
-            this.lastFocusedElement = document.activeElement;
-            
-            // Set modal attributes for accessibility
-            this.elements.statsModal.setAttribute('aria-modal', 'true');
-            this.elements.statsModal.setAttribute('role', 'dialog');
-            this.elements.statsModal.setAttribute('aria-labelledby', 'stats-modal-title');
-            
-            // Hide background content from screen readers
-            const mainContent = document.querySelector('.wordplay-container');
-            if (mainContent) {
-                mainContent.setAttribute('aria-hidden', 'true');
-            }
-            
-            // Load iframe and show modal
-            this.elements.statsIframe.src = 'wordplay_stats.html';
-            this.elements.statsModal.classList.add('active');
-            
-            // Focus first element in modal after brief delay for iframe load
-            setTimeout(() => {
-                const focusableElements = this.elements.statsModal.querySelectorAll(
-                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), iframe'
-                );
-                if (focusableElements.length > 0) {
-                    focusableElements[0].focus();
-                }
-            }, 100);
-        }
-    }
-    
-    /**
-     * Close stats page modal with proper focus restoration - NEW
-     */
-    closeStatsPage() {
-        this.debugLog('📊 Closing stats page modal');
-        
-        if (this.elements.statsModal && this.elements.statsIframe) {
-            // Hide modal
-            this.elements.statsModal.classList.remove('active');
-            this.elements.statsIframe.src = '';
-            
-            // Remove modal attributes
-            this.elements.statsModal.removeAttribute('aria-modal');
-            this.elements.statsModal.removeAttribute('role');
-            this.elements.statsModal.removeAttribute('aria-labelledby');
-            
-            // Restore background content for screen readers
-            const mainContent = document.querySelector('.wordplay-container');
-            if (mainContent) {
-                mainContent.removeAttribute('aria-hidden');
-            }
-            
-            // Restore focus to last focused element (stats container or fallback)
-            if (this.lastFocusedElement) {
-                this.lastFocusedElement.focus();
-                this.lastFocusedElement = null;
-            } else {
-                // Fallback: focus stats container
-                const statsContainer = document.getElementById('userStatsSimple');
-                if (statsContainer) {
-                    statsContainer.focus();
-                }
-            }
-        }
-    }
-    
-    /**
-     * Get selected word length
-     * @returns {number} Selected word length
-     */
-    getSelectedWordLength() {
-        return this.selectedWordLength;
-    }
-    
-    /**
-     * Get selected difficulty
-     * @returns {string} Selected difficulty
-     */
-    getSelectedDifficulty() {
-        return this.selectedDifficulty;
     }
 }
 
@@ -599,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.wordplayUI = () => wordplayUI;
             console.log('🎨 WordPlay UI ready');
         } else {
-            console.error('❌ WordPlay Core or HA not ready for UI initialization');
+            console.error('⚠ WordPlay Core or HA not ready for UI initialization');
         }
-    }, 100);
+    }, 50);
 });

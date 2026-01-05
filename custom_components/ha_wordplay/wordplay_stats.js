@@ -1,3 +1,4 @@
+// Rev 2.0 - Added i18n support for consistency with other modules
 /**
  * WordPlay Stats - Statistics Display and Management
  * Handles fetching and displaying user game statistics
@@ -38,6 +39,19 @@ class WordPlayStats {
     }
     
     /**
+     * Get translated text using i18n system
+     * @param {string} key - Translation key
+     * @param {Object} params - Optional parameters
+     * @returns {string} Translated text
+     */
+    t(key, params = {}) {
+        if (window.wordplayI18n && window.wordplayI18n().isReady()) {
+            return window.wordplayI18n().t(key, params);
+        }
+        return key; // Fallback to key if i18n not ready
+    }
+    
+    /**
      * Wait for user identification then load stats
      */
     async waitForUserAndLoadStats() {
@@ -69,31 +83,20 @@ class WordPlayStats {
      */
     async updateStats() {
         // Wait for HA API to be ready
-        if (!window.wordplayHA) {
-            this.debugLog('⏳ Waiting for HA API...');
-            setTimeout(() => this.updateStats(), 500);
-            return;
-        }
-        
-        const ha = window.wordplayHA();
-        if (!ha || !ha.currentUser) {
-            this.debugLog('⏳ Waiting for user identification...');
-            // Don't retry forever - just show default stats
-            this.displayDefaultStats();
-            return;
-        }
-        
-        if (ha.currentUser === 'default') {
-            // Hide stats for default/guest users
-            this.hideStats();
+        if (!window.wordplayHA || !window.wordplayHA().accessToken) {
+            this.debugLog('⏳ HA API not ready yet, waiting...');
+            setTimeout(() => this.updateStats(), 1000);
             return;
         }
         
         try {
-            // Get the stats sensor entity directly (more reliable than button attributes)
-            const statsSensorId = `sensor.ha_wordplay_stats_${ha.currentUser}`;
+            // Get user-specific sensor
+            const ha = window.wordplayHA();
+            const sensorEntityId = `sensor.ha_wordplay_stats_${ha.currentUser}`;
             
-            const response = await fetch('/api/states/' + statsSensorId, {
+            this.debugLog(`📊 Fetching stats for sensor: ${sensorEntityId}`);
+            
+            const response = await fetch('/api/states/' + sensorEntityId, {
                 headers: {
                     'Authorization': `Bearer ${ha.accessToken}`,
                     'Content-Type': 'application/json'
@@ -135,6 +138,7 @@ class WordPlayStats {
             
             // Try fallback to button entity
             try {
+            	const ha = window.wordplayHA();
                 const buttonEntityId = `button.ha_wordplay_game_${ha.currentUser}`;
                 const response = await fetch('/api/states/' + buttonEntityId, {
                     headers: {

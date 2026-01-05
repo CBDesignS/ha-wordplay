@@ -1,3 +1,6 @@
+// Rev 2.0 - Fixed grid refresh bug where switching word lengths would not update the grid
+// The issue was setWordLength() updating currentWordLength before createGrid() checked if recreation was needed
+
 /**
  * WordPlay Core - Game Logic and State Management
  * Handles core game mechanics, grid management, and game state
@@ -50,17 +53,20 @@ class WordPlayCore {
      * @param {boolean} forceRecreate - Force recreation even if same size
      */
     createGrid(wordLength, forceRecreate = false) {
+        // FIX: Check against current word length BEFORE updating it
         if (!forceRecreate && wordLength === this.currentWordLength && this.gameGrid.length > 0) {
+            this.debugLog(`🎯 Grid already correct size: ${wordLength}x${wordLength}`);
             return;
         }
         
         this.debugLog(`🎯 Creating grid: ${wordLength}x${wordLength} (forced: ${forceRecreate})`);
         
+        // Update word length AFTER the check
         this.currentWordLength = wordLength;
         const grid = document.getElementById('gameGrid');
         
         if (!grid) {
-            this.debugLog('❌ Game grid element not found');
+            this.debugLog('⚠ Game grid element not found');
             return;
         }
         
@@ -105,43 +111,28 @@ class WordPlayCore {
     
     /**
      * Update game data from backend
-     * @param {Object} data - New game data
+     * @param {Object} gameData - New game data from backend
      */
-    updateGameData(data) {
-        this.currentGameData = {
-            word_length: data.word_length || this.currentGameData.word_length,
-            game_state: data.game_state || this.currentGameData.game_state,
-            guesses: data.guesses || this.currentGameData.guesses,
-            guess_results: data.guess_results || this.currentGameData.guess_results,
-            hint: data.hint || this.currentGameData.hint,
-            last_message: data.last_message || this.currentGameData.last_message,
-            message_type: data.message_type || this.currentGameData.message_type,
-            revealed_word: data.revealed_word || this.currentGameData.revealed_word
-        };
+    updateGameData(gameData) {
+        // FIX: If word length changed, force grid recreation
+        const wordLengthChanged = gameData.word_length !== this.currentWordLength;
+        
+        this.currentGameData = { ...gameData };
+        
+        // Handle grid recreation if word length changed
+        if (wordLengthChanged) {
+            this.debugLog(`📏 Word length changed from ${this.currentWordLength} to ${gameData.word_length}`);
+            // Force recreation since word length is different
+            this.createGrid(gameData.word_length, true);
+        }
         
         this.debugLog('📊 Game data updated', this.currentGameData);
     }
     
     /**
-     * Parse game state from backend status
-     * @param {string} gameStatus - Status string from backend
-     * @returns {string} Normalized game state
-     */
-    parseGameState(gameStatus) {
-        if (!gameStatus) return 'idle';
-        
-        const status = gameStatus.toLowerCase();
-        if (status.includes('playing')) return 'playing';
-        if (status.includes('won')) return 'won';
-        if (status.includes('game over') || status.includes('lost')) return 'lost';
-        if (status.includes('ready')) return 'idle';
-        
-        return 'idle';
-    }
-    
-    /**
-     * Extract word from guess string format
-     * @param {string} guessString - Format like "1. WORD"
+     * Extract word from guess string
+     * Handles format like "1. WORD"
+     * @param {string} guessString - Raw guess string
      * @returns {string} The extracted word
      */
     extractWordFromGuess(guessString) {
@@ -194,8 +185,11 @@ class WordPlayCore {
      * @param {number} length - New word length
      */
     setWordLength(length) {
-        this.currentWordLength = length;
-        this.debugLog(`🔢 Word length set to: ${length}`);
+        // FIX: Don't update currentWordLength here anymore
+        // Let createGrid handle it after checking if recreation is needed
+        this.debugLog(`📢 Word length will be set to: ${length}`);
+        // Just trigger grid creation with the new length
+        this.createGrid(length, false);
     }
     
     /**

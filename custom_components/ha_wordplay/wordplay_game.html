@@ -1,3 +1,4 @@
+<!-- Rev 1.0 - Added i18n support with data-i18n attributes for translation system -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +10,7 @@
     <link rel="stylesheet" href="wordplay_styles.css">
     
     <!-- Scripts (load order matters) -->
+    <script src="wordplay_i18n.js"></script>
     <script src="wordplay_user_detect.js"></script>
     <script src="wordplay_audio.js"></script>
     <script src="wordplay_core.js"></script>
@@ -187,17 +189,17 @@
 </head>
 <body>
     <div class="wordplay-container" role="main">
-        <div class="connection-status" id="connectionStatus" role="status" aria-live="polite">
+        <div class="connection-status" id="connectionStatus" role="status" aria-live="polite" data-i18n="connection.connecting">
             🔗 Connecting to Home Assistant...
         </div>
 
         <!-- Landing Screen -->
         <div class="screen landing-screen active" id="landingScreen" aria-hidden="false">
             <div class="landing-header">
-                <p class="welcome-message">Welcome to</p>
-                <h1 class="landing-title">🎮 H.A WordPlay</h1>
+                <p class="welcome-message" data-i18n="landing.welcome">Welcome to</p>
+                <h1 class="landing-title" data-i18n="landing.title">🎮 H.A WordPlay</h1>
                 <p class="user-name" id="userNameDisplay">Loading...</p>
-                <p class="landing-subtitle">Guess the word in as few tries as possible!</p>
+                <p class="landing-subtitle" data-i18n="landing.subtitle">Guess the word in as few tries as possible!</p>
             </div>
 
             <!-- Stats Container - Made Clickable -->
@@ -206,62 +208,62 @@
                 <div class="stats-grid-simple">
                     <div class="stat-box">
                         <span class="stat-number" id="statGamesPlayed" aria-label="Games played">0</span>
-                        <span class="stat-label">Games</span>
+                        <span class="stat-label" data-i18n="landing.stats.games">Games</span>
                     </div>
                     <div class="stat-box">
                         <span class="stat-number" id="statGamesWon" aria-label="Games won">0</span>
-                        <span class="stat-label">Wins</span>
+                        <span class="stat-label" data-i18n="landing.stats.wins">Wins</span>
                     </div>
                     <div class="stat-box">
                         <span class="stat-number" id="statWinRate" aria-label="Win rate percentage">0%</span>
-                        <span class="stat-label">Win Rate</span>
+                        <span class="stat-label" data-i18n="landing.stats.winRate">Win Rate</span>
                     </div>
                     <div class="stat-box">
                         <span class="stat-number" id="statStreak" aria-label="Current win streak">0</span>
-                        <span class="stat-label">Streak</span>
+                        <span class="stat-label" data-i18n="landing.stats.streak">Streak</span>
                     </div>
                 </div>
-                <div class="stats-click-hint">📊 Click for detailed statistics</div>
+                <div class="stats-click-hint" data-i18n="landing.stats.clickDetails">📊 Click for detailed statistics</div>
             </div>
 
             <div class="word-length-section">
                 <div class="difficulty-selector">
-                    <h3 class="section-title">Choose Difficulty</h3>
+                    <h3 class="section-title" data-i18n="difficulty.title">Choose Difficulty</h3>
                     <div class="difficulty-buttons" role="group" aria-labelledby="difficulty-title">
                         <button class="difficulty-btn" data-difficulty="easy" aria-describedby="easy-desc">
                             <span class="difficulty-icon">🟢</span>
-                            <span class="difficulty-name">Easy</span>
-                            <span class="difficulty-desc" id="easy-desc">Hints shown before guessing</span>
+                            <span class="difficulty-name" data-i18n="difficulty.easy">Easy</span>
+                            <span class="difficulty-desc" id="easy-desc" data-i18n="difficulty.easy.desc">Hints shown before guessing</span>
                         </button>
                         <button class="difficulty-btn active" data-difficulty="normal" aria-describedby="normal-desc">
                             <span class="difficulty-icon">🟡</span>
-                            <span class="difficulty-name">Normal</span>
-                            <span class="difficulty-desc" id="normal-desc">Hints available on request</span>
+                            <span class="difficulty-name" data-i18n="difficulty.normal">Normal</span>
+                            <span class="difficulty-desc" id="normal-desc" data-i18n="difficulty.normal.desc">Hints available on request</span>
                         </button>
                         <button class="difficulty-btn" data-difficulty="hard" aria-describedby="hard-desc">
                             <span class="difficulty-icon">🔴</span>
-                            <span class="difficulty-name">Hard</span>
-                            <span class="difficulty-desc" id="hard-desc">No hints available</span>
+                            <span class="difficulty-name" data-i18n="difficulty.hard">Hard</span>
+                            <span class="difficulty-desc" id="hard-desc" data-i18n="difficulty.hard.desc">No hints available</span>
                         </button>
                     </div>
                 </div>
                 
                 <div class="word-length-selector">
-                    <h3 class="section-title">Choose Word Length</h3>
+                    <h3 class="section-title" data-i18n="wordLength.title">Choose Word Length</h3>
                     <div class="word-length-buttons" role="group" aria-labelledby="length-title">
-                        <button class="word-length-btn active" data-length="5">5 Letters</button>
-                        <button class="word-length-btn" data-length="6">6 Letters</button>
-                        <button class="word-length-btn" data-length="7">7 Letters</button>
-                        <button class="word-length-btn" data-length="8">8 Letters</button>
+                        <button class="word-length-btn active" data-length="5">5 <span data-i18n="wordLength.letters">Letters</span></button>
+                        <button class="word-length-btn" data-length="6">6 <span data-i18n="wordLength.letters">Letters</span></button>
+                        <button class="word-length-btn" data-length="7">7 <span data-i18n="wordLength.letters">Letters</span></button>
+                        <button class="word-length-btn" data-length="8">8 <span data-i18n="wordLength.letters">Letters</span></button>
                     </div>
                 </div>
             </div>
 
             <div class="start-game-section">
-                <button class="start-game-btn" id="startGameBtn">
+                <button class="start-game-btn" id="startGameBtn" data-i18n="button.startGame">
                     Start Game
                 </button>
-                <button class="audio-settings-btn" id="audioSettingsBtn" aria-describedby="audio-desc">
+                <button class="audio-settings-btn" id="audioSettingsBtn" aria-describedby="audio-desc" data-i18n="button.audioSettings">
                     🔊 Audio Settings
                 </button>
                 <span id="audio-desc" class="sr-only">Configure game sound effects and volume</span>
@@ -271,8 +273,8 @@
         <!-- Game Screen -->
         <div class="screen game-screen" id="gameScreen" aria-hidden="true">
             <div class="game-header">
-                <h2 class="game-title">🎮 Playing WordPlay</h2>
-                <p class="game-status" id="gameStatus" role="status" aria-live="polite">Starting game...</p>
+                <h2 class="game-title" data-i18n="game.title">🎮 Playing WordPlay</h2>
+                <p class="game-status" id="gameStatus" role="status" aria-live="polite" data-i18n="game.starting">Starting game...</p>
             </div>
 
             <div class="game-grid" id="gameGrid" role="grid" aria-label="Word puzzle grid">
@@ -281,20 +283,25 @@
 
             <div class="game-info" id="gameInfo" role="region" aria-labelledby="hint-title">
                 <h3 id="hint-title" class="sr-only">Game Hint</h3>
-                <div class="hint-text" id="hintText" role="status" aria-live="polite">💡 Enter your guess below!</div>
-                <p style="font-size: 12px; margin: 4px 0;"><strong>How to play:</strong> 🔵 Correct • 🔴 Wrong position • ⚪ Not in word</p>
+                <div class="hint-text" id="hintText" role="status" aria-live="polite" data-i18n="game.enterGuess">💡 Enter your guess below!</div>
+                <p style="font-size: 12px; margin: 4px 0;">
+                    <strong data-i18n="game.howToPlay">How to play:</strong> 
+                    🔵 <span data-i18n="game.correct">Correct</span> • 
+                    🔴 <span data-i18n="game.wrongPosition">Wrong position</span> • 
+                    ⚪ <span data-i18n="game.notInWord">Not in word</span>
+                </p>
             </div>
 
             <div class="game-input">
                 <label for="guessInput" class="sr-only">Enter your word guess</label>
                 <input type="text" class="input-field" placeholder="Enter your guess..." 
-                       maxlength="5" id="guessInput" aria-describedby="input-help">
+                       maxlength="5" id="guessInput" aria-describedby="input-help" data-i18n="game.inputPlaceholder">
                 <span id="input-help" class="sr-only">Type your guess and press Enter or click Submit</span>
                 
                 <div class="game-actions">
-                    <button class="game-action-btn primary" id="submitBtn">Submit Guess</button>
-                    <button class="game-action-btn hint" id="hintBtn">Get Hint</button>
-                    <button class="game-action-btn back" id="backBtn">New Game</button>
+                    <button class="game-action-btn primary" id="submitBtn" data-i18n="button.submitGuess">Submit Guess</button>
+                    <button class="game-action-btn hint" id="hintBtn" data-i18n="button.getHint">Get Hint</button>
+                    <button class="game-action-btn back" id="backBtn" data-i18n="button.newGame">New Game</button>
                 </div>
             </div>
         </div>
