@@ -2,11 +2,11 @@
 import logging
 from typing import Optional, Any, Dict
 
-from homeassistant.components.sensor import SensorEntity, RestoreEntity
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-from homeassistant.helpers.restore_state import RestoreStateData
+from homeassistant.helpers.restore_state import RestoreEntity, RestoreStateData
 
 from .wordplay_const import (
     DOMAIN,
